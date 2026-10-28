@@ -10,6 +10,6 @@ Pixel Yılan Arcade: Klasik, Kampanya (30 bölüm) ve Mermi modları.
 `npm install` sonra `npm start`
 
 ## Windows kurulum dosyası
-`npm run dist` ya da GitHub Actions "Windows kurulum dosyası" iş akışı. Çıktı: `dist/Yilan-Arcade-Kurulum-<sürüm>.exe` (kurulum ve kaldırma programı içerir).
+`npm run dist` Çıktı: `dist/Yilan-Arcade-Kurulum-<sürüm>.exe` (kurulum ve kaldırma programı içerir).
 
-Not: oyun yazı tipini Google Fonts'tan alır; internet yoksa sistem ttek aralıklı yazı tipine döner.
+Not: oyun yazı tipini Google Fonts'tan alır; internet yoksa sistem tek aralıklı yazı tipine döner.
