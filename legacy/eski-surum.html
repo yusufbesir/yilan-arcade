@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐍 Pixel Yılan Oyunu</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Press Start 2P', monospace;
+            overflow: hidden;
+        }
+
+        @font-face {
+            font-family: 'Press Start 2P';
+            src: local('Press Start 2P');
+        }
+
+        .game-container {
+            text-align: center;
+            position: relative;
+        }
+
+        .title {
+            color: #00ff00;
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+            animation: glow 1.5s ease-in-out infinite alternate;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            letter-spacing: 3px;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00; }
+            to { text-shadow: 0 0 20px #00ff00, 0 0 40px #00ff00, 0 0 60px #00ff00; }
+        }
+
+        .menu {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 4px solid #00ff00;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.3), inset 0 0 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .menu-btn {
+            display: block;
+            width: 300px;
+            padding: 15px 20px;
+            margin: 10px auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            border: 3px solid;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .menu-btn.classic {
+            background: linear-gradient(180deg, #2d5a2d 0%, #1a3d1a 100%);
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        .menu-btn.classic:hover {
+            background: #00ff00;
+            color: #000;
+            box-shadow: 0 0 20px #00ff00;
+        }
+
+        .menu-btn.bullet {
+            background: linear-gradient(180deg, #5a2d2d 0%, #3d1a1a 100%);
+            border-color: #ff0066;
+            color: #ff0066;
+        }
+
+        .menu-btn.bullet:hover {
+            background: #ff0066;
+            color: #000;
+            box-shadow: 0 0 20px #ff0066;
+        }
+
+        .menu-btn.campaign {
+            background: linear-gradient(180deg, #2d2d5a 0%, #1a1a3d 100%);
+            border-color: #00ccff;
+            color: #00ccff;
+        }
+
+        .menu-btn.campaign:hover {
+            background: #00ccff;
+            color: #000;
+            box-shadow: 0 0 20px #00ccff;
+        }
+
+        .mode-desc {
+            color: #888;
+            font-size: 10px;
+            margin-top: 5px;
+            font-family: 'Courier New', monospace;
+        }
+
+        canvas {
+            border: 4px solid #00ff00;
+            border-radius: 5px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+            image-rendering: pixelated;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0a0a15 100%);
+            border: 3px solid #00ff00;
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .hud-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud-label {
+            color: #888;
+            font-size: 10px;
+        }
+
+        .hud-value {
+            color: #00ff00;
+            font-size: 18px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .hud-value.lives {
+            color: #ff0066;
+            text-shadow: 0 0 10px #ff0066;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 4px solid #ff0000;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.5);
+            z-index: 100;
+        }
+
+        .game-over h2 {
+            color: #ff0000;
+            font-size: 32px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 20px #ff0000;
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0.7; }
+        }
+
+        .game-over p {
+            color: #fff;
+            font-size: 16px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .game-over .score-display {
+            color: #ffff00;
+            font-size: 24px;
+            text-shadow: 0 0 15px #ffff00;
+        }
+
+        .restart-btn {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 14px;
+            background: linear-gradient(180deg, #2d5a2d 0%, #1a3d1a 100%);
+            border: 3px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .restart-btn:hover {
+            background: #00ff00;
+            color: #000;
+            box-shadow: 0 0 20px #00ff00;
+        }
+
+        .level-select {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .level-btn {
+            width: 45px;
+            height: 45px;
+            border: 2px solid #00ccff;
+            background: linear-gradient(180deg, #1a1a3d 0%, #0a0a1a 100%);
+            color: #00ccff;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .level-btn:hover {
+            background: #00ccff;
+            color: #000;
+            box-shadow: 0 0 15px #00ccff;
+        }
+
+        .level-btn.locked {
+            border-color: #444;
+            color: #444;
+            cursor: not-allowed;
+        }
+
+        .level-btn.completed {
+            background: linear-gradient(180deg, #2d5a2d 0%, #1a3d1a 100%);
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        .back-btn {
+            margin-top: 15px;
+            padding: 10px 25px;
+            background: transparent;
+            border: 2px solid #888;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            border-color: #fff;
+            color: #fff;
+        }
+
+        .power-ups {
+            position: absolute;
+            top: 70px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .power-up-indicator {
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .controls-info {
+            color: #666;
+            font-size: 10px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .level-complete {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 4px solid #00ff00;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 255, 0, 0.5);
+            z-index: 100;
+        }
+
+        .level-complete h2 {
+            color: #00ff00;
+            font-size: 28px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 20px #00ff00;
+        }
+
+        .stars {
+            font-size: 30px;
+            margin: 15px 0;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .pause-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+
+        .pause-text {
+            color: #ffff00;
+            font-size: 36px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            text-shadow: 0 0 20px #ffff00;
+            animation: blink 1s infinite;
+        }
+
+        .bullet-warning {
+            position: absolute;
+            padding: 5px 15px;
+            background: rgba(255, 0, 0, 0.8);
+            border: 2px solid #ff0000;
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            font-weight: bold;
+            animation: pulse 0.3s infinite;
+        }
+
+        @keyframes pulse {
+            50% { transform: scale(1.1); }
+        }
+
+        .difficulty-indicator {
+            display: flex;
+            gap: 3px;
+            margin-top: 5px;
+        }
+
+        .diff-bar {
+            width: 8px;
+            height: 15px;
+            background: #333;
+            border-radius: 2px;
+        }
+
+        .diff-bar.active {
+            background: linear-gradient(180deg, #00ff00, #ffff00, #ff0000);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container" id="gameContainer">
+        <!-- Main Menu -->
+        <div class="menu" id="mainMenu">
+            <h1 class="title">🐍 PİXEL YILAN</h1>
+            <p style="color: #888; font-size: 10px; margin-bottom: 20px; font-family: 'Courier New', monospace;">ARCADE OYUNU</p>
+            
+            <button class="menu-btn classic" onclick="startGame('classic')">
+                🎮 KLASİK MOD
+            </button>
+            <p class="mode-desc">Sonsuz mod - Game Over'a kadar oyna!</p>
+            
+            <button class="menu-btn bullet" onclick="startGame('bullet')">
+                💥 MERMİ ÇILGINLIĞI
+            </button>
+            <p class="mode-desc">Mermilerden kaç, güçlen, hayatta kal!</p>
+            
+            <button class="menu-btn campaign" onclick="showLevelSelect()">
+                🏆 BÖLÜM MODU
+            </button>
+            <p class="mode-desc">30 bölüm - Artan zorluk!</p>
+            
+            <p class="controls-info">⬆️⬇️⬅️➡️ veya WASD ile kontrol et | P = Duraklat</p>
+        </div>
+
+        <!-- Level Select -->
+        <div class="menu hidden" id="levelSelect">
+            <h2 style="color: #00ccff; font-family: 'Courier New', monospace; margin-bottom: 10px;">BÖLÜM SEÇ</h2>
+            <p style="color: #888; font-size: 10px; font-family: 'Courier New', monospace;">30 Bölüm - Artan Zorluk</p>
+            <div class="level-select" id="levelGrid"></div>
+            <button class="back-btn" onclick="showMainMenu()">← GERİ</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="hidden">
+            <div class="hud" id="hud">
+                <div class="hud-item">
+                    <span class="hud-label">SKOR</span>
+                    <span class="hud-value" id="scoreDisplay">0</span>
+                </div>
+                <div class="hud-item" id="modeDisplay">
+                    <span class="hud-label">MOD</span>
+                    <span class="hud-value" id="modeText">KLASİK</span>
+                </div>
+                <div class="hud-item" id="levelDisplay">
+                    <span class="hud-label">BÖLÜM</span>
+                    <span class="hud-value" id="levelText">1</span>
+                </div>
+                <div class="hud-item" id="livesDisplay">
+                    <span class="hud-label">CAN</span>
+                    <span class="hud-value lives" id="livesText">❤️❤️❤️</span>
+                </div>
+                <div class="hud-item" id="targetDisplay">
+                    <span class="hud-label">HEDEF</span>
+                    <span class="hud-value" id="targetText">10</span>
+                </div>
+            </div>
+            <canvas id="gameCanvas"></canvas>
+            <div class="power-ups" id="powerUps"></div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div class="game-over hidden" id="gameOver">
+            <h2>💀 GAME OVER 💀</h2>
+            <p>Final Skor:</p>
+            <p class="score-display" id="finalScore">0</p>
+            <p id="highScoreText"></p>
+            <button class="restart-btn" onclick="restartGame()">🔄 TEKRAR OYNA</button>
+            <button class="back-btn" onclick="showMainMenu()">🏠 ANA MENÜ</button>
+        </div>
+
+        <!-- Level Complete Screen -->
+        <div class="level-complete hidden" id="levelComplete">
+            <h2>✨ BÖLÜM TAMAMLANDI! ✨</h2>
+            <div class="stars" id="starsDisplay">⭐⭐⭐</div>
+            <p>Skor: <span id="levelScore">0</span></p>
+            <button class="restart-btn" onclick="nextLevel()">➡️ SONRAKİ BÖLÜM</button>
+            <button class="back-btn" onclick="showLevelSelect()">📋 BÖLÜM SEÇİMİ</button>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div class="pause-overlay hidden" id="pauseOverlay">
+            <span class="pause-text">⏸️ DURAKLATILDI</span>
+        </div>
+    </div>
+
+    <script>
+        // Game Constants
+        const GRID_SIZE = 20;
+        const CANVAS_WIDTH = 600;
+        const CANVAS_HEIGHT = 500;
+        const COLS = CANVAS_WIDTH / GRID_SIZE;
+        const ROWS = CANVAS_HEIGHT / GRID_SIZE;
+
+        // Game State
+        let canvas, ctx;
+        let snake = [];
+        let direction = { x: 1, y: 0 };
+        let nextDirection = { x: 1, y: 0 };
+        let food = { x: 0, y: 0, type: 'normal' };
+        let score = 0;
+        let highScores = { classic: 0, bullet: 0, campaign: 0 };
+        let gameLoop;
+        let gameSpeed = 150;
+        let currentMode = 'classic';
+        let currentLevel = 1;
+        let lives = 3;
+        let isPaused = false;
+        let isGameOver = false;
+        let targetScore = 10;
+        let unlockedLevels = 1;
+
+        // Bullet Hell Mode Variables
+        let bullets = [];
+        let bulletSpawnTimer = 0;
+        let powerUps = [];
+        let activePowerUps = [];
+        let isInvincible = false;
+        let hasShield = false;
+        let speedBoost = false;
+
+        // Campaign Mode Variables
+        let obstacles = [];
+        let movingObstacles = [];
+
+        // Colors
+        const COLORS = {
+            snakeHead: '#00ff00',
+            snakeBody: '#00cc00',
+            snakeOutline: '#008800',
+            food: '#ff0000',
+            superFood: '#ffff00',
+            poisonFood: '#ff00ff',
+            background: '#0a0a15',
+            grid: '#1a1a2e',
+            bullet: '#ff0066',
+            bulletGlow: '#ff0066',
+            obstacle: '#444444',
+            powerUp: '#00ffff',
+            shield: '#00ccff'
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = CANVAS_WIDTH;
+            canvas.height = CANVAS_HEIGHT;
+            
+            loadHighScores();
+            loadProgress();
+            generateLevelGrid();
+            
+            document.addEventListener('keydown', handleKeyPress);
+        });
+
+        // Menu Functions
+        function showMainMenu() {
+            document.getElementById('mainMenu').classList.remove('hidden');
+            document.getElementById('levelSelect').classList.add('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('gameOver').classList.add('hidden');
+            document.getElementById('levelComplete').classList.add('hidden');
+            stopGame();
+        }
+
+        function showLevelSelect() {
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('levelSelect').classList.remove('hidden');
+            generateLevelGrid();
+        }
+
+        function generateLevelGrid() {
+            const grid = document.getElementById('levelGrid');
+            grid.innerHTML = '';
+            
+            for (let i = 1; i <= 30; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'level-btn';
+                btn.textContent = i;
+                
+                if (i <= unlockedLevels) {
+                    if (i < unlockedLevels) {
+                        btn.classList.add('completed');
+                    }
+                    btn.onclick = () => startCampaignLevel(i);
+                } else {
+                    btn.classList.add('locked');
+                    btn.textContent = '🔒';
+                }
+                
+                grid.appendChild(btn);
+            }
+        }
+
+        // Game Start Functions
+        function startGame(mode) {
+            currentMode = mode;
+            resetGame();
+            
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('levelSelect').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            document.getElementById('gameOver').classList.add('hidden');
+            
+            updateHUD();
+            startGameLoop();
+        }
+
+        function startCampaignLevel(level) {
+            currentMode = 'campaign';
+            currentLevel = level;
+            resetGame();
+            setupCampaignLevel(level);
+            
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('levelSelect').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            document.getElementById('gameOver').classList.add('hidden');
+            document.getElementById('levelComplete').classList.add('hidden');
+            
+            updateHUD();
+            startGameLoop();
+        }
+
+        function resetGame() {
+            snake = [
+                { x: 5, y: Math.floor(ROWS / 2) },
+                { x: 4, y: Math.floor(ROWS / 2) },
+                { x: 3, y: Math.floor(ROWS / 2) }
+            ];
+            direction = { x: 1, y: 0 };
+            nextDirection = { x: 1, y: 0 };
+            score = 0;
+            isGameOver = false;
+            isPaused = false;
+            bullets = [];
+            powerUps = [];
+            activePowerUps = [];
+            obstacles = [];
+            movingObstacles = [];
+            isInvincible = false;
+            hasShield = false;
+            speedBoost = false;
+            bulletSpawnTimer = 0;
+            
+            if (currentMode === 'classic') {
+                gameSpeed = 150;
+                lives = 1;
+            } else if (currentMode === 'bullet') {
+                gameSpeed = 120;
+                lives = 3;
+            } else if (currentMode === 'campaign') {
+                lives = 3;
+            }
+            
+            spawnFood();
+            document.getElementById('pauseOverlay').classList.add('hidden');
+        }
+
+        function setupCampaignLevel(level) {
+            // Difficulty scaling
+            const difficulty = level / 30;
+            
+            // Speed increases with level
+            gameSpeed = Math.max(60, 180 - (level * 4));
+            
+            // Target score increases
+            targetScore = 5 + Math.floor(level * 1.5);
+            
+            // Add obstacles based on level
+            obstacles = [];
+            const obstacleCount = Math.floor(level / 3);
+            
+            for (let i = 0; i < obstacleCount; i++) {
+                let pos;
+                do {
+                    pos = {
+                        x: Math.floor(Math.random() * (COLS - 4)) + 2,
+                        y: Math.floor(Math.random() * (ROWS - 4)) + 2
+                    };
+                } while (isPositionOccupied(pos.x, pos.y));
+                
+                obstacles.push(pos);
+            }
+            
+            // Add moving obstacles in higher levels
+            movingObstacles = [];
+            if (level >= 10) {
+                const movingCount = Math.floor((level - 10) / 5) + 1;
+                for (let i = 0; i < movingCount; i++) {
+                    movingObstacles.push({
+                        x: Math.floor(Math.random() * COLS),
+                        y: Math.floor(Math.random() * ROWS),
+                        dx: Math.random() > 0.5 ? 1 : -1,
+                        dy: Math.random() > 0.5 ? 1 : -1
+                    });
+                }
+            }
+            
+            // Add bullets in very high levels
+            if (level >= 20) {
+                bulletSpawnTimer = Math.max(30, 100 - level * 2);
+            }
+        }
+
+        // Game Loop
+        function startGameLoop() {
+            stopGame();
+            gameLoop = setInterval(update, gameSpeed);
+        }
+
+        function stopGame() {
+            if (gameLoop) {
+                clearInterval(gameLoop);
+                gameLoop = null;
+            }
+        }
+
+        function update() {
+            if (isPaused || isGameOver) return;
+            
+            direction = { ...nextDirection };
+            
+            // Move snake
+            const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+            
+            // Wall collision
+            if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+                handleCollision();
+                return;
+            }
+            
+            // Self collision
+            if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                handleCollision();
+                return;
+            }
+            
+            // Obstacle collision
+            if (obstacles.some(obs => obs.x === head.x && obs.y === head.y)) {
+                handleCollision();
+                return;
+            }
+            
+            // Moving obstacle collision
+            if (movingObstacles.some(obs => obs.x === head.x && obs.y === head.y)) {
+                if (!isInvincible && !hasShield) {
+                    handleCollision();
+                    return;
+                }
+            }
+            
+            snake.unshift(head);
+            
+            // Food collision
+            if (head.x === food.x && head.y === food.y) {
+                handleFoodCollision();
+            } else {
+                snake.pop();
+            }
+            
+            // Bullet mode updates
+            if (currentMode === 'bullet' || (currentMode === 'campaign' && currentLevel >= 20)) {
+                updateBullets();
+                updatePowerUps();
+                checkBulletCollision();
+            }
+            
+            // Move moving obstacles
+            if (currentMode === 'campaign') {
+                updateMovingObstacles();
+                
+                // Check level complete
+                if (score >= targetScore) {
+                    levelComplete();
+                    return;
+                }
+            }
+            
+            draw();
+        }
+
+        function handleCollision() {
+            if (isInvincible) return;
+            
+            if (hasShield) {
+                hasShield = false;
+                updatePowerUpDisplay();
+                return;
+            }
+            
+            lives--;
+            
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                // Reset snake position but keep score
+                snake = [
+                    { x: 5, y: Math.floor(ROWS / 2) },
+                    { x: 4, y: Math.floor(ROWS / 2) },
+                    { x: 3, y: Math.floor(ROWS / 2) }
+                ];
+                direction = { x: 1, y: 0 };
+                nextDirection = { x: 1, y: 0 };
+                
+                // Brief invincibility
+                isInvincible = true;
+                setTimeout(() => { isInvincible = false; }, 2000);
+                
+                updateHUD();
+            }
+        }
+
+        function handleFoodCollision() {
+            if (food.type === 'super') {
+                score += 5;
+            } else if (food.type === 'poison') {
+                score = Math.max(0, score - 2);
+                if (snake.length > 3) {
+                    snake.pop();
+                    snake.pop();
+                }
+            } else {
+                score += 1;
+            }
+            
+            updateHUD();
+            spawnFood();
+            
+            // Increase speed in classic mode
+            if (currentMode === 'classic' && score % 5 === 0 && gameSpeed > 60) {
+                gameSpeed -= 5;
+                startGameLoop();
+            }
+        }
+
+        // Bullet Hell Functions
+        function updateBullets() {
+            bulletSpawnTimer++;
+            
+            // Spawn new bullets
+            const spawnRate = currentMode === 'bullet' ? 60 - Math.min(score, 50) : 100 - currentLevel;
+            if (bulletSpawnTimer >= Math.max(20, spawnRate)) {
+                bulletSpawnTimer = 0;
+                spawnBullet();
+            }
+            
+            // Move bullets
+            bullets = bullets.filter(bullet => {
+                bullet.x += bullet.dx * 0.5;
+                bullet.y += bullet.dy * 0.5;
+                
+                return bullet.x >= 0 && bullet.x < COLS && bullet.y >= 0 && bullet.y < ROWS;
+            });
+            
+            // Spawn power-ups occasionally
+            if (Math.random() < 0.005) {
+                spawnPowerUp();
+            }
+        }
+
+        function spawnBullet() {
+            const side = Math.floor(Math.random() * 4);
+            let bullet = { x: 0, y: 0, dx: 0, dy: 0, type: 'normal' };
+            
+            switch (side) {
+                case 0: // Top
+                    bullet.x = Math.random() * COLS;
+                    bullet.y = 0;
+                    bullet.dy = 1;
+                    bullet.dx = (Math.random() - 0.5) * 0.5;
+                    break;
+                case 1: // Bottom
+                    bullet.x = Math.random() * COLS;
+                    bullet.y = ROWS;
+                    bullet.dy = -1;
+                    bullet.dx = (Math.random() - 0.5) * 0.5;
+                    break;
+                case 2: // Left
+                    bullet.x = 0;
+                    bullet.y = Math.random() * ROWS;
+                    bullet.dx = 1;
+                    bullet.dy = (Math.random() - 0.5) * 0.5;
+                    break;
+                case 3: // Right
+                    bullet.x = COLS;
+                    bullet.y = Math.random() * ROWS;
+                    bullet.dx = -1;
+                    bullet.dy = (Math.random() - 0.5) * 0.5;
+                    break;
+            }
+            
+            // Homing bullets at higher scores
+            if (score > 30 && Math.random() < 0.3) {
+                bullet.type = 'homing';
+                const head = snake[0];
+                const angle = Math.atan2(head.y - bullet.y, head.x - bullet.x);
+                bullet.dx = Math.cos(angle) * 0.8;
+                bullet.dy = Math.sin(angle) * 0.8;
+            }
+            
+            bullets.push(bullet);
+        }
+
+        function checkBulletCollision() {
+            if (isInvincible || hasShield) return;
+            
+            const head = snake[0];
+            
+            for (let bullet of bullets) {
+                const dist = Math.sqrt(
+                    Math.pow(head.x - bullet.x, 2) + 
+                    Math.pow(head.y - bullet.y, 2)
+                );
+                
+                if (dist < 1) {
+                    handleCollision();
+                    return;
+                }
+            }
+        }
+
+        function spawnPowerUp() {
+            const types = ['shield', 'speed', 'invincible', 'clear'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            let pos;
+            do {
+                pos = {
+                    x: Math.floor(Math.random() * COLS),
+                    y: Math.floor(Math.random() * ROWS)
+                };
+            } while (isPositionOccupied(pos.x, pos.y));
+            
+            powerUps.push({ ...pos, type, timer: 300 });
+        }
+
+        function updatePowerUps() {
+            // Check collision with power-ups
+            const head = snake[0];
+            powerUps = powerUps.filter(pu => {
+                pu.timer--;
+                
+                if (head.x === Math.floor(pu.x) && head.y === Math.floor(pu.y)) {
+                    activatePowerUp(pu.type);
+                    return false;
+                }
+                
+                return pu.timer > 0;
+            });
+        }
+
+        function activatePowerUp(type) {
+            switch (type) {
+                case 'shield':
+                    hasShield = true;
+                    setTimeout(() => { hasShield = false; updatePowerUpDisplay(); }, 10000);
+                    break;
+                case 'speed':
+                    speedBoost = true;
+                    gameSpeed = Math.max(40, gameSpeed - 30);
+                    startGameLoop();
+                    setTimeout(() => { 
+                        speedBoost = false; 
+                        gameSpeed += 30;
+                        startGameLoop();
+                        updatePowerUpDisplay();
+                    }, 5000);
+                    break;
+                case 'invincible':
+                    isInvincible = true;
+                    setTimeout(() => { isInvincible = false; updatePowerUpDisplay(); }, 5000);
+                    break;
+                case 'clear':
+                    bullets = [];
+                    break;
+            }
+            
+            updatePowerUpDisplay();
+        }
+
+        function updatePowerUpDisplay() {
+            const container = document.getElementById('powerUps');
+            container.innerHTML = '';
+            
+            if (hasShield) {
+                const el = document.createElement('div');
+                el.className = 'power-up-indicator';
+                el.style.borderColor = '#00ccff';
+                el.style.color = '#00ccff';
+                el.textContent = '🛡️ KALKAN';
+                container.appendChild(el);
+            }
+            
+            if (isInvincible) {
+                const el = document.createElement('div');
+                el.className = 'power-up-indicator';
+                el.style.borderColor = '#ffff00';
+                el.style.color = '#ffff00';
+                el.textContent = '⭐ ÖLÜMSÜZ';
+                container.appendChild(el);
+            }
+            
+            if (speedBoost) {
+                const el = document.createElement('div');
+                el.className = 'power-up-indicator';
+                el.style.borderColor = '#00ff00';
+                el.style.color = '#00ff00';
+                el.textContent = '⚡ HIZ';
+                container.appendChild(el);
+            }
+        }
+
+        function updateMovingObstacles() {
+            movingObstacles.forEach(obs => {
+                if (Math.random() < 0.1) {
+                    obs.x += obs.dx;
+                    obs.y += obs.dy;
+                    
+                    if (obs.x <= 0 || obs.x >= COLS - 1) obs.dx *= -1;
+                    if (obs.y <= 0 || obs.y >= ROWS - 1) obs.dy *= -1;
+                    
+                    obs.x = Math.max(0, Math.min(COLS - 1, obs.x));
+                    obs.y = Math.max(0, Math.min(ROWS - 1, obs.y));
+                }
+            });
+        }
+
+        // Drawing Functions
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = COLORS.background;
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            // Draw grid
+            ctx.strokeStyle = COLORS.grid;
+            ctx.lineWidth = 0.5;
+            for (let x = 0; x <= CANVAS_WIDTH; x += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CANVAS_HEIGHT);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= CANVAS_HEIGHT; y += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CANVAS_WIDTH, y);
+                ctx.stroke();
+            }
+            
+            // Draw obstacles
+            obstacles.forEach(obs => {
+                drawPixelBlock(obs.x, obs.y, COLORS.obstacle, '#666666');
+            });
+            
+            // Draw moving obstacles
+            movingObstacles.forEach(obs => {
+                drawPixelBlock(Math.floor(obs.x), Math.floor(obs.y), '#ff6600', '#ff9933');
+            });
+            
+            // Draw power-ups
+            powerUps.forEach(pu => {
+                const colors = {
+                    shield: '#00ccff',
+                    speed: '#00ff00',
+                    invincible: '#ffff00',
+                    clear: '#ff00ff'
+                };
+                drawPowerUp(pu.x, pu.y, colors[pu.type], pu.type);
+            });
+            
+            // Draw food
+            drawFood();
+            
+            // Draw bullets
+            bullets.forEach(bullet => {
+                drawBullet(bullet);
+            });
+            
+            // Draw snake
+            snake.forEach((segment, index) => {
+                if (index === 0) {
+                    drawSnakeHead(segment);
+                } else {
+                    drawSnakeBody(segment, index);
+                }
+            });
+            
+            // Draw invincibility effect
+            if (isInvincible) {
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(
+                    snake[0].x * GRID_SIZE - 2,
+                    snake[0].y * GRID_SIZE - 2,
+                    GRID_SIZE + 4,
+                    GRID_SIZE + 4
+                );
+                ctx.setLineDash([]);
+            }
+            
+            // Draw shield effect
+            if (hasShield) {
+                ctx.strokeStyle = '#00ccff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(
+                    snake[0].x * GRID_SIZE + GRID_SIZE / 2,
+                    snake[0].y * GRID_SIZE + GRID_SIZE / 2,
+                    GRID_SIZE,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.stroke();
+            }
+        }
+
+        function drawPixelBlock(x, y, color, highlight) {
+            const px = x * GRID_SIZE;
+            const py = y * GRID_SIZE;
+            
+            // Main block
+            ctx.fillStyle = color;
+            ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+            
+            // Highlight
+            ctx.fillStyle = highlight;
+            ctx.fillRect(px + 2, py + 2, GRID_SIZE - 6, 2);
+            ctx.fillRect(px + 2, py + 2, 2, GRID_SIZE - 6);
+            
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(px + GRID_SIZE - 4, py + 4, 2, GRID_SIZE - 6);
+            ctx.fillRect(px + 4, py + GRID_SIZE - 4, GRID_SIZE - 6, 2);
+        }
+
+        function drawSnakeHead(pos) {
+            const px = pos.x * GRID_SIZE;
+            const py = pos.y * GRID_SIZE;
+            
+            // Glow effect
+            ctx.shadowColor = COLORS.snakeHead;
+            ctx.shadowBlur = 10;
+            
+            // Main head
+            ctx.fillStyle = COLORS.snakeHead;
+            ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+            
+            ctx.shadowBlur = 0;
+            
+            // Eyes
+            ctx.fillStyle = '#000';
+            let eyeX1, eyeY1, eyeX2, eyeY2;
+            
+            if (direction.x === 1) {
+                eyeX1 = px + 12; eyeY1 = py + 5;
+                eyeX2 = px + 12; eyeY2 = py + 11;
+            } else if (direction.x === -1) {
+                eyeX1 = px + 5; eyeY1 = py + 5;
+                eyeX2 = px + 5; eyeY2 = py + 11;
+            } else if (direction.y === 1) {
+                eyeX1 = px + 5; eyeY1 = py + 12;
+                eyeX2 = px + 11; eyeY2 = py + 12;
+            } else {
+                eyeX1 = px + 5; eyeY1 = py + 5;
+                eyeX2 = px + 11; eyeY2 = py + 5;
+            }
+            
+            ctx.fillRect(eyeX1, eyeY1, 4, 4);
+            ctx.fillRect(eyeX2, eyeY2, 4, 4);
+            
+            // Eye shine
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(eyeX1 + 1, eyeY1 + 1, 2, 2);
+            ctx.fillRect(eyeX2 + 1, eyeY2 + 1, 2, 2);
+        }
+
+        function drawSnakeBody(pos, index) {
+            const px = pos.x * GRID_SIZE;
+            const py = pos.y * GRID_SIZE;
+            
+            // Gradient color based on position
+            const intensity = Math.max(100, 200 - index * 5);
+            ctx.fillStyle = `rgb(0, ${intensity}, 0)`;
+            ctx.fillRect(px + 2, py + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+            
+            // Pixel pattern
+            ctx.fillStyle = `rgb(0, ${Math.min(255, intensity + 30)}, 0)`;
+            ctx.fillRect(px + 4, py + 4, 4, 4);
+            ctx.fillRect(px + 10, py + 10, 4, 4);
+        }
+
+        function drawFood() {
+            const px = food.x * GRID_SIZE;
+            const py = food.y * GRID_SIZE;
+            
+            // Glow effect
+            ctx.shadowColor = food.type === 'super' ? '#ffff00' : 
+                             food.type === 'poison' ? '#ff00ff' : '#ff0000';
+            ctx.shadowBlur = 15;
+            
+            // Apple shape
+            if (food.type === 'normal') {
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(px + 4, py + 6, 12, 10);
+                ctx.fillRect(px + 6, py + 4, 8, 2);
+                ctx.fillStyle = '#00aa00';
+                ctx.fillRect(px + 9, py + 2, 3, 4);
+            } else if (food.type === 'super') {
+                ctx.fillStyle = '#ffff00';
+                ctx.fillRect(px + 4, py + 4, 12, 12);
+                ctx.fillStyle = '#ffcc00';
+                ctx.fillRect(px + 6, py + 6, 8, 8);
+                // Star shape
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(px + 8, py + 8, 4, 4);
+            } else if (food.type === 'poison') {
+                ctx.fillStyle = '#ff00ff';
+                ctx.fillRect(px + 4, py + 4, 12, 12);
+                ctx.fillStyle = '#aa00aa';
+                ctx.fillRect(px + 6, py + 6, 8, 8);
+                // Skull pattern
+                ctx.fillStyle = '#000';
+                ctx.fillRect(px + 7, py + 8, 2, 2);
+                ctx.fillRect(px + 11, py + 8, 2, 2);
+            }
+            
+            ctx.shadowBlur = 0;
+        }
+
+        function drawBullet(bullet) {
+            const px = bullet.x * GRID_SIZE;
+            const py = bullet.y * GRID_SIZE;
+            
+            ctx.shadowColor = bullet.type === 'homing' ? '#ff9900' : COLORS.bulletGlow;
+            ctx.shadowBlur = 10;
+            
+            ctx.fillStyle = bullet.type === 'homing' ? '#ff9900' : COLORS.bullet;
+            ctx.beginPath();
+            ctx.arc(px + GRID_SIZE / 2, py + GRID_SIZE / 2, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Inner glow
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(px + GRID_SIZE / 2 - 2, py + GRID_SIZE / 2 - 2, 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+        }
+
+        function drawPowerUp(x, y, color, type) {
+            const px = x * GRID_SIZE;
+            const py = y * GRID_SIZE;
+            
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 15;
+            
+            ctx.fillStyle = color;
+            ctx.fillRect(px + 2, py + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+            
+            // Icon
+            ctx.fillStyle = '#000';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const icons = { shield: '🛡️', speed: '⚡', invincible: '⭐', clear: '💥' };
+            ctx.fillText(icons[type], px + GRID_SIZE / 2, py + GRID_SIZE / 2);
+            
+            ctx.shadowBlur = 0;
+        }
+
+        // Spawn Functions
+        function spawnFood() {
+            let pos;
+            do {
+                pos = {
+                    x: Math.floor(Math.random() * COLS),
+                    y: Math.floor(Math.random() * ROWS)
+                };
+            } while (isPositionOccupied(pos.x, pos.y));
+            
+            // Determine food type
+            const rand = Math.random();
+            if (rand < 0.1) {
+                food = { ...pos, type: 'super' };
+            } else if (rand < 0.15 && score > 10) {
+                food = { ...pos, type: 'poison' };
+            } else {
+                food = { ...pos, type: 'normal' };
+            }
+        }
+
+        function isPositionOccupied(x, y) {
+            if (snake.some(s => s.x === x && s.y === y)) return true;
+            if (obstacles.some(o => o.x === x && o.y === y)) return true;
+            if (food.x === x && food.y === y) return true;
+            return false;
+        }
+
+        // Input Handling
+        function handleKeyPress(e) {
+            if (e.key === 'p' || e.key === 'P') {
+                togglePause();
+                return;
+            }
+            
+            if (isPaused || isGameOver) return;
+            
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    if (direction.y !== 1) nextDirection = { x: 0, y: -1 };
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    if (direction.y !== -1) nextDirection = { x: 0, y: 1 };
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    if (direction.x !== 1) nextDirection = { x: -1, y: 0 };
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    if (direction.x !== -1) nextDirection = { x: 1, y: 0 };
+                    break;
+            }
+        }
+
+        function togglePause() {
+            if (isGameOver) return;
+            
+            isPaused = !isPaused;
+            document.getElementById('pauseOverlay').classList.toggle('hidden', !isPaused);
+        }
+
+        // Game Over & Level Complete
+        function gameOver() {
+            isGameOver = true;
+            stopGame();
+            
+            // Update high score
+            if (score > highScores[currentMode]) {
+                highScores[currentMode] = score;
+                saveHighScores();
+            }
+            
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('highScoreText').textContent = 
+                `En Yüksek Skor: ${highScores[currentMode]}`;
+            document.getElementById('gameOver').classList.remove('hidden');
+        }
+
+        function levelComplete() {
+            stopGame();
+            
+            // Calculate stars
+            const percentage = snake.length / (targetScore + 3);
+            let stars = '⭐';
+            if (percentage >= 1.5) stars = '⭐⭐⭐';
+            else if (percentage >= 1.2) stars = '⭐⭐';
+            
+            // Unlock next level
+            if (currentLevel >= unlockedLevels && currentLevel < 30) {
+                unlockedLevels = currentLevel + 1;
+                saveProgress();
+            }
+            
+            document.getElementById('starsDisplay').textContent = stars;
+            document.getElementById('levelScore').textContent = score;
+            document.getElementById('levelComplete').classList.remove('hidden');
+        }
+
+        function nextLevel() {
+            if (currentLevel < 30) {
+                startCampaignLevel(currentLevel + 1);
+            } else {
+                showLevelSelect();
+            }
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').classList.add('hidden');
+            
+            if (currentMode === 'campaign') {
+                startCampaignLevel(currentLevel);
+            } else {
+                startGame(currentMode);
+            }
+        }
+
+        // HUD Update
+        function updateHUD() {
+            document.getElementById('scoreDisplay').textContent = score;
+            
+            // Mode text
+            const modeTexts = {
+                classic: 'KLASİK',
+                bullet: 'MERMİ',
+                campaign: 'BÖLÜM'
+            };
+            document.getElementById('modeText').textContent = modeTexts[currentMode];
+            
+            // Show/hide elements based on mode
+            document.getElementById('levelDisplay').classList.toggle('hidden', currentMode !== 'campaign');
+            document.getElementById('targetDisplay').classList.toggle('hidden', currentMode !== 'campaign');
+            document.getElementById('livesDisplay').classList.toggle('hidden', currentMode === 'classic');
+            
+            if (currentMode === 'campaign') {
+                document.getElementById('levelText').textContent = currentLevel;
+                document.getElementById('targetText').textContent = targetScore;
+            }
+            
+            // Lives display
+            let heartsHTML = '';
+            for (let i = 0; i < lives; i++) {
+                heartsHTML += '❤️';
+            }
+            document.getElementById('livesText').textContent = heartsHTML || '💔';
+        }
+
+        // Save/Load Functions
+        function saveHighScores() {
+            localStorage.setItem('pixelSnakeHighScores', JSON.stringify(highScores));
+        }
+
+        function loadHighScores() {
+            const saved = localStorage.getItem('pixelSnakeHighScores');
+            if (saved) {
+                highScores = JSON.parse(saved);
+            }
+        }
+
+        function saveProgress() {
+            localStorage.setItem('pixelSnakeProgress', unlockedLevels);
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem('pixelSnakeProgress');
+            if (saved) {
+                unlockedLevels = parseInt(saved);
+            }
+        }
+    </script>
+</body>
+</html>
