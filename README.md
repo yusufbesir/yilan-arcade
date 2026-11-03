@@ -1,6 +1,6 @@
-# Sampo
+# Ragnarök
 
-Sampo (eski adı Yılan Arcade): Klasik, Mermi Manyağı, Kuyruk Silahı, Survivor, Zamana Karşı, Portal ve Bulmaca, Tron Düellosu, Kaos, Günlük Meydan Okuma ve Bölüm (30 bölüm) modları.
+Ragnarök (eski adı Yılan Arcade): Klasik, Mermi Manyağı, Kuyruk Silahı, Survivor, Zamana Karşı, Portal ve Bulmaca, Tron Düellosu, Kaos, Günlük Meydan Okuma ve Bölüm (30 bölüm) modları.
 
 - `src/index.html`: güncel oyun (tek dosya)
 - `legacy/eski-surum.html`: eski sürüm, saklanır
@@ -10,7 +10,7 @@ Sampo (eski adı Yılan Arcade): Klasik, Mermi Manyağı, Kuyruk Silahı, Surviv
 `npm install` sonra `npm start`
 
 ## Windows kurulum dosyası
-`npm run dist` Çıktı: `dist/Sampo-Kurulum-<sürüm>.exe` (kurulum ve kaldırma programı içerir).
+`npm run dist` Çıktı: `dist/Ragnarok-Kurulum-<sürüm>.exe` (kurulum ve kaldırma programı içerir).
 
 Not: oyun yazı tipini Google Fonts'tan alır; internet yoksa sistem tek aralıklı yazı tipine döner.
 
