@@ -1,7 +1,7 @@
 {
   "name": "yilan-arcade",
   "version": "0.2.0",
-  "description": "Ragnarök - Yılan Arcade",
+  "description": "Twilight of the Serpents",
   "main": "main.js",
   "author": "Yusuf",
   "license": "UNLICENSED",
@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "com.yusuf.yilanarcade",
-    "productName": "Ragnarök",
+    "productName": "Twilight of the Serpents",
     "files": [
       "main.js",
       "src/**/*",
@@ -35,8 +35,8 @@
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "deleteAppDataOnUninstall": false,
-      "shortcutName": "Ragnarök",
-      "artifactName": "Ragnarok-Kurulum-${version}.exe"
+      "shortcutName": "Twilight of the Serpents",
+      "artifactName": "Twilight-of-the-Serpents-Setup-${version}.exe"
     }
   }
 }
