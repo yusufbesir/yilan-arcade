@@ -848,6 +848,40 @@
         .mode-icon { font-size: 30px; filter: none; }
         .mode-text h3 { font-size: 11px; letter-spacing: 1px; margin-bottom: 6px; }
         .mode-text p { font-size: 7px; line-height: 1.7; color: #9fb4c7; }
+
+        /* ===== Logo ===== */
+        .logo { display: flex; align-items: center; justify-content: center; gap: 14px; }
+        .logo svg { width: clamp(44px, 7vw, 64px); height: auto; filter: drop-shadow(0 0 10px rgba(232,196,106,0.45)); }
+        /* ===== Menü düğmeleri ===== */
+        .menu-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px; }
+        .menu-btn { font-family: inherit; font-size: 8px; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--nors-cizgi); background: rgba(255,255,255,0.06); color: var(--nors-buz); cursor: pointer; letter-spacing: 1px; transition: background var(--nors-sure), transform var(--nors-sure) var(--nors-yay); }
+        .menu-btn:hover { background: rgba(232,196,106,0.16); color: var(--nors-altin); transform: translateY(-2px); }
+        /* ===== Panel (ayarlar / başarımlar) ===== */
+        .panel-overlay { position: fixed; inset: 0; background: rgba(5, 10, 20, 0.78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 20000; padding: 16px; }
+        .panel-overlay.active { display: flex; }
+        .panel { width: min(560px, 94vw); max-height: 88vh; overflow-y: auto; background: var(--nors-kart); border: 1px solid var(--nors-cizgi); border-radius: 18px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); animation: norsGir var(--nors-sure) var(--nors-yay); }
+        .panel h2 { font-family: Georgia, serif; font-style: italic; font-weight: 400; font-size: 24px; color: var(--nors-altin); margin-bottom: 16px; }
+        .panel .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .panel label { font-size: 8px; color: #cfe0ec; letter-spacing: 1px; line-height: 1.8; }
+        .panel label small { display: block; font-size: 6px; color: #7f93a6; }
+        .panel .val { font-size: 9px; color: var(--nors-altin); min-width: 42px; text-align: right; }
+        .panel input[type=range] { width: 100%; accent-color: var(--nors-altin); grid-column: 1 / -1; }
+        .panel .toggle { font-family: inherit; font-size: 8px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--nors-cizgi); background: rgba(255,255,255,0.06); color: #cfe0ec; cursor: pointer; }
+        .panel .toggle.on { background: rgba(232,196,106,0.2); color: var(--nors-altin); border-color: var(--nors-altin); }
+        .panel .close { margin-top: 16px; width: 100%; }
+        .ach-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+        .ach { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); opacity: 0.45; }
+        .ach.on { opacity: 1; border-color: rgba(232,196,106,0.45); background: rgba(232,196,106,0.08); }
+        .ach .ic { font-size: 22px; }
+        .ach b { display: block; font-size: 8px; color: var(--nors-altin); margin-bottom: 4px; }
+        .ach span { font-size: 6px; color: #9fb4c7; line-height: 1.6; }
+        /* ===== Başarım bildirimi ===== */
+        .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 30px); opacity: 0; background: rgba(18,28,44,0.95); border: 1px solid var(--nors-altin); border-radius: 999px; padding: 12px 20px; font-size: 8px; color: var(--nors-altin); z-index: 30000; transition: transform var(--nors-sure) var(--nors-yay), opacity var(--nors-sure); pointer-events: none; white-space: nowrap; }
+        .toast.show { transform: translate(-50%, 0); opacity: 1; }
+        /* ===== İlk 5 listesi ===== */
+        .top-list { list-style: none; margin: 10px auto 14px; font-size: 8px; color: #cfe0ec; line-height: 2; text-align: left; display: inline-block; }
+        .top-list li.me { color: var(--nors-altin); }
+        @media (prefers-reduced-motion: reduce) { .panel { animation: none; } .toast { transition: none; } }
         @keyframes norsGir { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         @media (prefers-reduced-motion: reduce) {
             .mode-card { animation: none; opacity: 1; transition: none; }
@@ -862,7 +896,7 @@
     <div class="container">
         <div class="arcade-cabinet">
             <div class="title-area">
-                <h1 class="main-title">🐍 TWILIGHT OF<br>THE SERPENTS</h1>
+                <h1 class="main-title"><span class="logo"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7CFF6B"/><stop offset="1" stop-color="#1f8a5a"/></linearGradient></defs><path d="M14 46c-8-6-6-18 4-20 10-2 16 6 22 6 6 0 10-5 6-10-3-4-10-3-10 1" fill="none" stroke="url(#lg)" stroke-width="7" stroke-linecap="round"/><path d="M14 46c-8-6-6-18 4-20 10-2 16 6 22 6 6 0 10-5 6-10-3-4-10-3-10 1" fill="none" stroke="#e8c46a" stroke-width="1.2" stroke-dasharray="2 5" stroke-linecap="round" opacity="0.8"/><ellipse cx="18" cy="48" rx="9" ry="6" fill="#2fbf71"/><circle cx="14" cy="47" r="1.7" fill="#e8c46a"/><path d="M9 49l-5 1 4 2" stroke="#ff5e5e" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="52" cy="14" r="4" fill="#e8c46a" opacity="0.9"/></svg><span>TWILIGHT OF<br>THE SERPENTS</span></span></h1>
                 <p class="subtitle">A R C A D E &nbsp; E D I T I O N</p>
             </div>
             
@@ -1009,10 +1043,15 @@
                         </div>
                     </div>
                     
+                    <div class="menu-actions">
+                        <button class="menu-btn" onclick="SnakeGame.openSettings()">⚙ AYARLAR</button>
+                        <button class="menu-btn" onclick="SnakeGame.openAchievements()">🏅 BAŞARIMLAR <span id="achCount">0/0</span></button>
+                        <button id="soundBtn" class="menu-btn" onclick="SnakeGame.toggleSound()">🔊 SES: AÇIK</button>
+                        <button id="musicBtn" class="menu-btn" onclick="SnakeGame.toggleMusic()">🎵 MÜZİK: AÇIK</button>
+                    </div>
                     <div class="controls-help">
-                        <button id="soundBtn" class="key-hint" style="cursor:pointer;background:none;font-family:inherit" onclick="SnakeGame.toggleSound()">🔊 SES: AÇIK</button><br>
                         <span class="key-hint">← → ↑ ↓</span> veya <span class="key-hint">W A S D</span> Hareket<br>
-                        <span class="key-hint">P</span> Duraklat &nbsp; <span class="key-hint">R</span> Yeniden Başlat &nbsp; <span class="key-hint">M</span> Menü &nbsp; <span class="key-hint">N</span> Ses
+                        <span class="key-hint">P</span> Duraklat &nbsp; <span class="key-hint">R</span> Yeniden Başlat &nbsp; <span class="key-hint">M</span> Menü &nbsp; <span class="key-hint">N</span> Ses &nbsp; <span class="key-hint">B</span> Müzik
                     </div>
                 </div>
             </div>
@@ -1076,6 +1115,7 @@
                                 <h2 class="overlay-title gameover">💀 GAME OVER</h2>
                                 <div class="overlay-score">SKOR: <span id="finalScore">0</span></div>
                                 <p class="overlay-message" id="newRecordMsg" style="display:none;">🎉 YENİ REKOR! 🎉</p>
+                                <ol class="top-list" id="topList"></ol>
                                 <div class="overlay-buttons">
                                     <button class="overlay-btn primary" onclick="SnakeGame.restart()">🔄 TEKRAR</button>
                                     <button class="overlay-btn secondary" onclick="SnakeGame.showMenu()">🏠 MENÜ</button>
@@ -1119,6 +1159,27 @@
         </div>
     </div>
 
+    <div class="panel-overlay" id="settingsPanel">
+        <div class="panel">
+            <h2>Ayarlar</h2>
+            <div class="row"><label>OYUN HIZI<small>Tüm modlarda hız çarpanı</small></label><span class="val" id="valSpeed">1.0x</span><input type="range" id="setSpeed" min="0.7" max="1.5" step="0.05" value="1"></div>
+            <div class="row"><label>EFEKT YOĞUNLUĞU<small>Parçacık ve kıvılcım miktarı</small></label><span class="val" id="valFx">100%</span><input type="range" id="setFx" min="0" max="1.5" step="0.1" value="1"></div>
+            <div class="row"><label>SES SEVİYESİ<small>Efektler ve müzik</small></label><span class="val" id="valVol">60%</span><input type="range" id="setVol" min="0" max="1" step="0.05" value="0.6"></div>
+            <div class="row"><label>HAREKET AZALTMA<small>Sarsıntı, kuzey ışıkları ve giriş animasyonları kapanır</small></label><button class="toggle" id="setReduced" onclick="SnakeGame.setSetting('reduced', !SnakeGame.getSettings().reduced)">KAPALI</button></div>
+            <div class="row"><label>EKRAN SARSINTISI<small>Vuruş ve yem patlamalarında</small></label><button class="toggle on" id="setShake" onclick="SnakeGame.setSetting('shake', !SnakeGame.getSettings().shake)">AÇIK</button></div>
+            <div class="row"><label>MÜZİK<small>Prosedürel Nors ezgisi</small></label><button class="toggle on" id="setMusic" onclick="SnakeGame.toggleMusic()">AÇIK</button></div>
+            <button class="menu-btn close" onclick="SnakeGame.closeSettings()">KAPAT</button>
+        </div>
+    </div>
+    <div class="panel-overlay" id="achPanel">
+        <div class="panel">
+            <h2>Başarımlar</h2>
+            <div class="ach-list" id="achList"></div>
+            <button class="menu-btn close" onclick="SnakeGame.closeAchievements()">KAPAT</button>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+    
     <script>
     // ========================================================================
     // TWILIGHT OF THE SERPENTS - GAME ENGINE
@@ -1196,7 +1257,10 @@
         let lastTickAt = 0;
         let lastFrameAt = 0;
         let dpr = 1;
-        const REDUCED = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+        const SYS_REDUCED = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+        let REDUCED = SYS_REDUCED;
+        let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true };
+        const effSpeed = () => Math.max(30, Math.round(state.speed / settings.speed));
         const STARS = Array.from({ length: 46 }, (_, i) => ({ x: (i * 97.13) % 660, y: (i * 53.71) % 480, r: 0.6 + (i % 3) * 0.5, s: 0.4 + (i % 5) * 0.25, p: i }));
         const CLASSIC_LIKE = ['classic', 'portal', 'daily'];
         
@@ -1207,11 +1271,12 @@
         let frameRequest = null;
         
         // Saved Data
-        let records = { classic: 0, bullet: 0, tailgun: 0, survivor: 0, timeattack: 0, portal: 0, tron: 0, chaos: 0, daily: 0, dailyDate: '' };
+        let records = { classic: 0, bullet: 0, tailgun: 0, survivor: 0, timeattack: 0, portal: 0, tron: 0, chaos: 0, daily: 0, dailyDate: '', top: {} };
+        let unlocked = {};
         let progress = { unlocked: 1, stars: {} };
         
         // Audio
-        let audio = null;
+        let audio = null, masterGain = null;
         let soundOn = true;
         
         // ======================== INIT ========================
@@ -1224,7 +1289,9 @@
             
             loadSavedData();
             try { soundOn = localStorage.getItem('twilightSound') !== '0'; } catch (e) {}
+            loadSettings();
             refreshSoundBtn();
+            refreshAchCount();
             refreshMenuStats();
             
             document.addEventListener('keydown', onKey);
@@ -1240,6 +1307,7 @@
         
         function showMenu() {
             stopGame();
+            stopMusic();
             closeOverlays();
             refreshMenuStats();
             showScreen('menuScreen');
@@ -1437,7 +1505,7 @@
             state.speed = ms;
             if (loopInterval) {
                 clearInterval(loopInterval);
-                loopInterval = setInterval(tick, state.speed);
+                loopInterval = setInterval(tick, effSpeed());
             }
         }
         
@@ -1458,6 +1526,7 @@
         }
         
         function startDaily() {
+            setTimeout(() => unlockAch('gunluk'), 0);
             if (records.dailyDate !== todayKey()) { records.dailyDate = todayKey(); records.daily = 0; }
             startSimple('daily', CONFIG.BASE_SPEED, { high: records.daily, levelLabel: todayKey().slice(5) });
             document.getElementById('hudLevel').textContent = 'GÜNLÜK';
@@ -1620,8 +1689,9 @@
         // ======================== GAME LOOP ========================
         function beginLoop() {
             stopGame();
-            loopInterval = setInterval(tick, state.speed);
+            loopInterval = setInterval(tick, effSpeed());
             renderFrame();
+            startMusic();
         }
         
         function stopGame() {
@@ -1734,7 +1804,7 @@
                 if (state.speed > 50) {
                     state.speed -= 3;
                     clearInterval(loopInterval);
-                    loopInterval = setInterval(tick, state.speed);
+                    loopInterval = setInterval(tick, effSpeed());
                 }
             }
         }
@@ -1805,7 +1875,8 @@
             if (state.mode === 'timeattack') state.timeLeft += food.type === 'super' ? 5 : 2;
             if (state.mode === 'portal' && state.score % 5 === 0) placePortals();
             updateHUD();
-            playSound('eat');
+            playSound(food.type === 'super' ? 'supereat' : 'eat');
+            checkAch('eat');
             if (state.mode === 'bullet' && boss) hurtBoss(food.type === 'super' ? 3 : 1);
             spawnFood();
         }
@@ -2055,6 +2126,7 @@
                 activatePower('shield');
                 flashCanvas('#ffd400');
                 showBanner('PATRON YENİLDİ +25');
+                unlockAch('boss');
                 playSound('complete');
             }
         }
@@ -2404,6 +2476,8 @@
             const pool = UPGRADES.slice().sort(() => Math.random() - 0.5);
             sv.choices = pool.slice(0, 3);
             sv.choosing = true;
+            if (sv.level >= 5) unlockAch('sv5');
+            if (sv.level >= 10) unlockAch('sv10');
             pausePowerTimers();
             playSound('powerup');
         }
@@ -2531,13 +2605,13 @@
                         powers.speed = true;
                         state.speed = Math.max(30, state.speed - 35);
                         clearInterval(loopInterval);
-                        loopInterval = setInterval(tick, state.speed);
+                        loopInterval = setInterval(tick, effSpeed());
                     }
                     armTimer('speed', 6500, () => {
                         powers.speed = false;
                         state.speed += 35;
                         clearInterval(loopInterval);
-                        loopInterval = setInterval(tick, state.speed);
+                        loopInterval = setInterval(tick, effSpeed());
                         refreshPowerDisplay();
                     });
                     break;
@@ -2599,7 +2673,14 @@
                 isRecord = true;
             }
             
-            if (isRecord) saveData();
+            if (!records.top) records.top = {};
+            const entry = { s: state.score, d: Date.now() };
+            const top = (records.top[state.mode] || []).concat([entry]).sort((a, b) => b.s - a.s).slice(0, 5);
+            records.top[state.mode] = top;
+            saveData();
+            stopMusic();
+            checkAch('end');
+            document.getElementById('topList').innerHTML = top.map((t, i) => `<li class="${t === entry ? 'me' : ''}">${i + 1}. ${t.s}</li>`).join('');
             
             document.getElementById('finalScore').textContent = state.score;
             document.getElementById('newRecordMsg').style.display = isRecord ? 'block' : 'none';
@@ -2624,7 +2705,11 @@
             if (state.level >= progress.unlocked && state.level < 30) {
                 progress.unlocked = state.level + 1;
             }
+            if (stars === 3) unlockAch('star3');
+            if (state.level >= 10) unlockAch('bolum10');
+            if (state.level >= 30) unlockAch('bolum30');
             saveData();
+            stopMusic();
             
             document.getElementById('starsDisplay').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
             document.getElementById('levelEndScore').textContent = state.score;
@@ -2665,6 +2750,10 @@
             
             if (key === 'n') {
                 toggleSound();
+                return;
+            }
+            if (key === 'b') {
+                toggleMusic();
                 return;
             }
             
@@ -3091,6 +3180,7 @@
         
         // ---- efektler ----
         function burst(x, y, color, n, speed) {
+            n = Math.round(n * settings.fx);
             if (REDUCED) n = Math.ceil(n / 3);
             for (let i = 0; i < n && particles.length < 400; i++) {
                 const a = Math.random() * Math.PI * 2;
@@ -3100,11 +3190,11 @@
         }
         
         function spark(x, y) {
-            if (particles.length > 380) return;
+            if (particles.length > 380 || Math.random() > settings.fx) return;
             particles.push({ x, y, vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.8, life: 0.45, max: 0.45, color: '#00ffaa', r: 1.2 });
         }
         
-        function addShake(m) { if (!REDUCED) shake.mag = Math.max(shake.mag, m); }
+        function addShake(m) { if (!REDUCED && settings.shake) shake.mag = Math.max(shake.mag, m); }
         
         function updateFx(dt) {
             shake.mag *= Math.pow(0.002, dt);
@@ -3364,6 +3454,7 @@
             document.getElementById('hudLevel').textContent = tron.round;
             playSound('complete');
             setSpeed(Math.max(60, 105 - state.score * 3));
+            if (state.score >= 3) unlockAch('tron3');
             tronReset();
             showBanner('TUR KAZANDIN! SIRADAKİ TUR');
         }
@@ -3429,43 +3520,191 @@
         function refreshSoundBtn() {
             const b = document.getElementById('soundBtn');
             if (b) b.textContent = soundOn ? '🔊 SES: AÇIK' : '🔇 SES: KAPALI';
+            if (!soundOn) stopMusic(); else if (state.running) startMusic();
+        }
+        
+        function ensureAudio() {
+            if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+            if (audio.state === 'suspended') audio.resume().catch(() => {});
+            if (!masterGain) { masterGain = audio.createGain(); masterGain.gain.value = settings.vol; masterGain.connect(audio.destination); }
+            return audio;
+        }
+        
+        function tone(freq, wave, dur, vol, when, slideTo) {
+            const a = ensureAudio();
+            const t = when || a.currentTime;
+            const osc = a.createOscillator();
+            const g = a.createGain();
+            osc.type = wave;
+            osc.frequency.setValueAtTime(freq, t);
+            if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+            osc.connect(g); g.connect(masterGain);
+            osc.start(t); osc.stop(t + dur + 0.02);
         }
         
         function playSound(type) {
             if (!soundOn) return;
             try {
-                if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
-                
-                const osc = audio.createOscillator();
-                const gain = audio.createGain();
-                osc.connect(gain);
-                gain.connect(audio.destination);
-                
-                const sounds = {
-                    eat: { freq: 440, wave: 'square', dur: 0.08 },
-                    hit: { freq: 140, wave: 'sawtooth', dur: 0.18 },
-                    powerup: { freq: 660, wave: 'sine', dur: 0.12 },
-                    shield: { freq: 320, wave: 'triangle', dur: 0.12 },
-                    start: { freq: 520, wave: 'square', dur: 0.08 },
-                    gameover: { freq: 100, wave: 'sawtooth', dur: 0.35 },
-                    complete: { freq: 880, wave: 'sine', dur: 0.18 }
-                };
-                
-                const s = sounds[type] || sounds.eat;
-                osc.type = s.wave;
-                osc.frequency.setValueAtTime(s.freq, audio.currentTime);
-                gain.gain.setValueAtTime(0.08, audio.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audio.currentTime + s.dur);
-                
-                osc.start();
-                osc.stop(audio.currentTime + s.dur);
+                const a = ensureAudio();
+                const t = a.currentTime;
+                switch (type) {
+                    case 'eat': tone(520, 'square', 0.07, 0.12, t); tone(780, 'square', 0.08, 0.08, t + 0.06); break;
+                    case 'supereat': [660, 880, 1100, 1320].forEach((f, i) => tone(f, 'triangle', 0.1, 0.12, t + i * 0.05)); break;
+                    case 'hit': tone(160, 'sawtooth', 0.2, 0.16, t, 60); tone(90, 'square', 0.25, 0.1, t); break;
+                    case 'powerup': [440, 554, 659, 880].forEach((f, i) => tone(f, 'sine', 0.12, 0.12, t + i * 0.06)); break;
+                    case 'shield': tone(320, 'triangle', 0.15, 0.12, t, 480); break;
+                    case 'start': tone(440, 'square', 0.08, 0.1, t); tone(660, 'square', 0.1, 0.1, t + 0.1); break;
+                    case 'gameover': tone(220, 'sawtooth', 0.5, 0.16, t, 55); tone(110, 'triangle', 0.7, 0.12, t + 0.1, 40); break;
+                    case 'complete': [523, 659, 784, 1047].forEach((f, i) => tone(f, 'triangle', 0.18, 0.14, t + i * 0.09)); break;
+                    case 'ach': [784, 988, 1175, 1568].forEach((f, i) => tone(f, 'sine', 0.2, 0.12, t + i * 0.07)); break;
+                    default: tone(440, 'square', 0.08, 0.1, t);
+                }
             } catch (e) {}
         }
+        
+        // ======================== MÜZİK (prosedürel) ========================
+        let musicTimer = null, musicNext = 0, musicStep = 0, musicDrone = null;
+        const SCALE = [110, 130.81, 146.83, 164.81, 196, 220, 261.63, 293.66, 329.63];
+        function startMusic() {
+            if (!soundOn || !settings.music || musicTimer) return;
+            try {
+                const a = ensureAudio();
+                musicNext = a.currentTime + 0.1;
+                musicStep = 0;
+                const d = a.createOscillator(), dg = a.createGain(), lp = a.createBiquadFilter();
+                d.type = 'sawtooth'; d.frequency.value = 55; lp.type = 'lowpass'; lp.frequency.value = 220;
+                dg.gain.value = 0.035; d.connect(lp); lp.connect(dg); dg.connect(masterGain); d.start();
+                musicDrone = { osc: d, gain: dg };
+                musicTimer = setInterval(scheduleMusic, 200);
+            } catch (e) {}
+        }
+        function scheduleMusic() {
+            if (!audio) return;
+            const beat = 60 / 96;
+            while (musicNext < audio.currentTime + 0.5) {
+                const bar = Math.floor(musicStep / 8) % 4;
+                const inBar = musicStep % 8;
+                let idx = [0, 2, 4, 5][bar] + [0, 2, 4, 2, 5, 4, 2, 0][inBar];
+                if (Math.random() < 0.25) idx += Math.random() < 0.5 ? 1 : -1;
+                idx = Math.max(0, Math.min(SCALE.length - 1, idx));
+                const vol = inBar === 0 ? 0.07 : 0.045;
+                tone(SCALE[idx], 'triangle', beat * 0.9, vol, musicNext);
+                if (inBar === 0 || inBar === 4) tone(SCALE[idx] / 2, 'sine', beat * 1.8, 0.05, musicNext);
+                musicNext += beat * (inBar % 2 === 0 ? 1 : 0.5);
+                musicStep++;
+            }
+        }
+        function stopMusic() {
+            if (musicTimer) clearInterval(musicTimer);
+            musicTimer = null;
+            if (musicDrone) { try { musicDrone.gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.4); musicDrone.osc.stop(audio.currentTime + 0.5); } catch (e) {} musicDrone = null; }
+        }
+        function toggleMusic() {
+            setSetting('music', !settings.music);
+            if (!settings.music) stopMusic(); else if (state.running) startMusic();
+        }
+        
+        // ======================== AYARLAR ========================
+        function loadSettings() {
+            try { Object.assign(settings, JSON.parse(localStorage.getItem('twilightSettings')) || {}); } catch (e) {}
+            applySettings();
+        }
+        function applySettings() {
+            REDUCED = SYS_REDUCED || !!settings.reduced;
+            document.documentElement.classList.toggle('reduced', REDUCED);
+            if (masterGain) masterGain.gain.value = settings.vol;
+            if (state.running && !state.paused && loopInterval) { clearInterval(loopInterval); loopInterval = setInterval(tick, effSpeed()); }
+            const $ = id => document.getElementById(id);
+            if ($('setSpeed')) {
+                $('setSpeed').value = settings.speed; $('valSpeed').textContent = settings.speed.toFixed(2).replace(/0$/, '') + 'x';
+                $('setFx').value = settings.fx; $('valFx').textContent = Math.round(settings.fx * 100) + '%';
+                $('setVol').value = settings.vol; $('valVol').textContent = Math.round(settings.vol * 100) + '%';
+                const tg = (id, on) => { $(id).textContent = on ? 'AÇIK' : 'KAPALI'; $(id).classList.toggle('on', on); };
+                tg('setReduced', !!settings.reduced); tg('setShake', !!settings.shake); tg('setMusic', !!settings.music);
+                const mb = $('musicBtn'); if (mb) mb.textContent = settings.music ? '🎵 MÜZİK: AÇIK' : '🎵 MÜZİK: KAPALI';
+            }
+        }
+        function setSetting(k, v) {
+            settings[k] = v;
+            try { localStorage.setItem('twilightSettings', JSON.stringify(settings)); } catch (e) {}
+            applySettings();
+        }
+        function getSettings() { return { ...settings }; }
+        function openSettings() {
+            applySettings();
+            const $ = id => document.getElementById(id);
+            if (!$('setSpeed').dataset.bound) {
+                $('setSpeed').oninput = e => setSetting('speed', Number(e.target.value));
+                $('setFx').oninput = e => setSetting('fx', Number(e.target.value));
+                $('setVol').oninput = e => setSetting('vol', Number(e.target.value));
+                $('setSpeed').dataset.bound = '1';
+            }
+            $('settingsPanel').classList.add('active');
+        }
+        function closeSettings() { document.getElementById('settingsPanel').classList.remove('active'); }
+        
+        // ======================== BAŞARIMLAR ========================
+        const ACH = [
+            { id: 'ilkyem', ic: '🍎', t: 'İlk Lokma', d: 'İlk yemi ye.' },
+            { id: 'klasik50', ic: '🐍', t: 'Uzun Yılan', d: 'Klasik modda 50 puan.' },
+            { id: 'klasik100', ic: '👑', t: 'Jörmungandr', d: 'Klasik modda 100 puan.' },
+            { id: 'boss', ic: '💀', t: 'Patron Avcısı', d: "Mermi Manyağı'nda bir patronu yen." },
+            { id: 'sv5', ic: '🧟', t: 'Hayatta Kalan', d: "Survivor'da 5. seviyeye ulaş." },
+            { id: 'sv10', ic: '⚔️', t: 'Einherjar', d: "Survivor'da 10. seviyeye ulaş." },
+            { id: 'tron3', ic: '🏍️', t: 'Düellocu', d: "Tron Düellosu'nda 3 tur kazan." },
+            { id: 'zaman30', ic: '⏱️', t: 'Zamanı Bük', d: "Zamana Karşı'da 30 puan." },
+            { id: 'portal20', ic: '🌀', t: 'Bifröst', d: 'Portal modunda 20 puan.' },
+            { id: 'kaos15', ic: '🌪️', t: "Loki'nin Oyunu", d: 'Kaos modunda 15 puan.' },
+            { id: 'gunluk', ic: '📅', t: 'Günün Yılanı', d: "Günlük Meydan Okuma'yı oyna." },
+            { id: 'star3', ic: '⭐', t: 'Üç Yıldız', d: 'Bir bölümü 3 yıldızla bitir.' },
+            { id: 'bolum10', ic: '🏔️', t: 'Midgard', d: '10. bölümü bitir.' },
+            { id: 'bolum30', ic: '🌅', t: 'Alacakaranlık', d: '30. bölümü bitir.' }
+        ];
+        function unlockAch(id) {
+            if (unlocked[id]) return false;
+            unlocked[id] = Date.now();
+            saveData();
+            refreshAchCount();
+            const a = ACH.find(x => x.id === id);
+            if (a) showToast(a.ic + ' BAŞARIM: ' + a.t.toUpperCase());
+            playSound('ach');
+            return true;
+        }
+        function checkAch(ev) {
+            if (state.score >= 1) unlockAch('ilkyem');
+            const m = state.mode, sc = state.score;
+            if (m === 'classic' && sc >= 50) unlockAch('klasik50');
+            if (m === 'classic' && sc >= 100) unlockAch('klasik100');
+            if (m === 'timeattack' && sc >= 30) unlockAch('zaman30');
+            if (m === 'portal' && sc >= 20) unlockAch('portal20');
+            if (m === 'chaos' && sc >= 15) unlockAch('kaos15');
+        }
+        function refreshAchCount() {
+            const el = document.getElementById('achCount');
+            if (el) el.textContent = Object.keys(unlocked).length + '/' + ACH.length;
+        }
+        let toastTimer = null;
+        function showToast(text) {
+            const t = document.getElementById('toast');
+            if (!t) return;
+            t.textContent = text;
+            t.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+        }
+        function openAchievements() {
+            document.getElementById('achList').innerHTML = ACH.map(a => `<div class="ach ${unlocked[a.id] ? 'on' : ''}"><span class="ic">${unlocked[a.id] ? a.ic : '🔒'}</span><div><b>${a.t}</b><span>${a.d}</span></div></div>`).join('');
+            document.getElementById('achPanel').classList.add('active');
+        }
+        function closeAchievements() { document.getElementById('achPanel').classList.remove('active'); }
         
         // ======================== PERSISTENCE ========================
         function saveData() {
             try {
-                localStorage.setItem('pixelSnakeArcade', JSON.stringify({ records, progress }));
+                localStorage.setItem('pixelSnakeArcade', JSON.stringify({ records, progress, unlocked }));
             } catch (e) {}
         }
         
@@ -3474,7 +3713,9 @@
                 const data = JSON.parse(localStorage.getItem('pixelSnakeArcade'));
                 if (data) {
                     records = Object.assign(records, data.records || {});
+                    if (!records.top) records.top = {};
                     progress = data.progress || progress;
+                    unlocked = data.unlocked || {};
                 }
             } catch (e) {}
         }
@@ -3501,6 +3742,8 @@
             nextLevel,
             input,
             togglePause,
+            openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic,
+            _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
             _debug: { tick, get: () => ({ sv, gems, state, snake, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records }) }
         };
     })();
