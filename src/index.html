@@ -834,6 +834,20 @@
             border: 1px solid var(--nors-cizgi);
             border-radius: 12px;
         }
+
+        /* ===== Dinamik ölçek: tuval pencereye göre büyür/küçülür ===== */
+        .screen { width: min(96vw, calc((100vh - 250px) * 1.375), 1100px); max-width: none; min-width: 300px; }
+        #menuScreen { width: min(96vw, 1000px); }
+        .arcade-cabinet { max-width: 98vw; padding: clamp(10px, 2vw, 25px); }
+        @media (max-height: 640px) { .title-area { margin-bottom: 6px; } .subtitle { display: none; } }
+        /* ===== Menü: iki sütunlu rün kartları ===== */
+        .menu-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; padding: 6px; }
+        .menu-container .controls-help { grid-column: 1 / -1; }
+        .mode-card { margin: 0; padding: 16px 18px; border: 1px solid var(--nors-cizgi); border-left: 4px solid; border-radius: 14px; background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)); }
+        .mode-card:hover { box-shadow: 0 14px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(232,196,106,0.35); }
+        .mode-icon { font-size: 30px; filter: none; }
+        .mode-text h3 { font-size: 11px; letter-spacing: 1px; margin-bottom: 6px; }
+        .mode-text p { font-size: 7px; line-height: 1.7; color: #9fb4c7; }
         @keyframes norsGir { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         @media (prefers-reduced-motion: reduce) {
             .mode-card { animation: none; opacity: 1; transition: none; }
@@ -2425,6 +2439,9 @@
             });
             drawTailgunLayer();
             
+        }
+        
+        function drawLevelUp() {
             if (sv.choosing) {
                 ctx.fillStyle = 'rgba(0,0,0,0.75)';
                 ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
@@ -2434,8 +2451,10 @@
                 ctx.fillText('SEVİYE ATLADIN! 1-2-3 YA DA DOKUN', CONFIG.WIDTH / 2, 70);
                 const w = CONFIG.WIDTH / 3;
                 sv.choices.forEach((c, i) => {
-                    ctx.strokeStyle = '#00e5ff';
-                    ctx.lineWidth = 3;
+                    ctx.fillStyle = 'rgba(20, 34, 54, 0.9)';
+                    ctx.fillRect(i * w + 14, 110, w - 28, 240);
+                    ctx.strokeStyle = '#a9d6f0';
+                    ctx.lineWidth = 2;
                     ctx.strokeRect(i * w + 14, 110, w - 28, 240);
                     ctx.fillStyle = '#fff';
                     ctx.font = '22px "Press Start 2P", monospace';
@@ -2765,6 +2784,7 @@
             if (['bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron'].includes(state.mode)) drawBanner();
             drawParticles();
             drawVignette();
+            if (state.mode === 'survivor' && sv.choosing) drawLevelUp();
             ctx.restore();
         }
         
