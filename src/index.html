@@ -1019,7 +1019,7 @@
                         <div class="mode-header">
                             <span class="mode-icon">📅</span>
                             <div class="mode-text">
-                                <h3>GÜNLÜK MEYDAN OKUMA</h3>
+                                <h3 style="line-height:1.6">GÜNLÜK MEYDAN OKUMA</h3>
                                 <p>Herkese aynı gün aynı harita. Bugünün rekoru!</p>
                             </div>
                         </div>
@@ -1276,14 +1276,24 @@
         let progress = { unlocked: 1, stars: {} };
         
         // Audio
-        let audio = null, masterGain = null;
+        let audio = null, masterGain = null, fitDpr = null;
         let soundOn = true;
         
         // ======================== INIT ========================
         function init() {
             canvas = document.getElementById('gameCanvas');
             ctx = canvas.getContext('2d');
+            fitDpr = () => {
+                const cssW = canvas.getBoundingClientRect().width || CONFIG.WIDTH;
+                const nd = Math.min(3, Math.max(1, (window.devicePixelRatio || 1) * Math.max(1, cssW / CONFIG.WIDTH)));
+                if (Math.abs(nd - dpr) < 0.05) return;
+                dpr = nd;
+                canvas.width = Math.round(CONFIG.WIDTH * dpr);
+                canvas.height = Math.round(CONFIG.HEIGHT * dpr);
+            };
             dpr = Math.min(2, window.devicePixelRatio || 1);
+            window.addEventListener('resize', () => setTimeout(fitDpr, 50));
+            setTimeout(fitDpr, 0);
             canvas.width = CONFIG.WIDTH * dpr;
             canvas.height = CONFIG.HEIGHT * dpr;
             
@@ -1527,7 +1537,8 @@
         
         function startDaily() {
             setTimeout(() => unlockAch('gunluk'), 0);
-            if (records.dailyDate !== todayKey()) { records.dailyDate = todayKey(); records.daily = 0; }
+            state.dailyKey = todayKey();
+            if (records.dailyDate !== state.dailyKey) { records.dailyDate = state.dailyKey; records.daily = 0; }
             startSimple('daily', CONFIG.BASE_SPEED, { high: records.daily, levelLabel: todayKey().slice(5) });
             document.getElementById('hudLevel').textContent = 'GÜNLÜK';
             const midY = Math.floor(ROWS / 2);
@@ -1689,6 +1700,7 @@
         // ======================== GAME LOOP ========================
         function beginLoop() {
             stopGame();
+            if (typeof fitDpr === 'function') fitDpr();
             loopInterval = setInterval(tick, effSpeed());
             renderFrame();
             startMusic();
@@ -2499,6 +2511,8 @@
         function onCanvasClick(e) {
             if (state.mode !== 'survivor' || !sv.choosing) return;
             const r = canvas.getBoundingClientRect();
+            const y = (e.clientY - r.top) / r.height * CONFIG.HEIGHT;
+            if (y < 110 || y > 350) return;
             pickUpgrade(Math.min(2, Math.floor(((e.clientX - r.left) / r.width) * 3)));
         }
         
@@ -2667,9 +2681,10 @@
             startFx();
             
             let isRecord = false;
-            if (typeof records[state.mode] === 'number' && state.score > records[state.mode]) {
+            if (state.mode === 'daily' && state.dailyKey && state.dailyKey !== todayKey() && records.dailyDate !== state.dailyKey) { /* gece yarısı geçti, eski güne yazma */ }
+            else if (typeof records[state.mode] === 'number' && state.score > records[state.mode]) {
                 records[state.mode] = state.score;
-                if (state.mode === 'daily') records.dailyDate = todayKey();
+                if (state.mode === 'daily') records.dailyDate = state.dailyKey || todayKey();
                 isRecord = true;
             }
             
@@ -3711,11 +3726,17 @@
         function loadSavedData() {
             try {
                 const data = JSON.parse(localStorage.getItem('pixelSnakeArcade'));
-                if (data) {
-                    records = Object.assign(records, data.records || {});
-                    if (!records.top) records.top = {};
-                    progress = data.progress || progress;
-                    unlocked = data.unlocked || {};
+                if (data && typeof data === 'object') {
+                    const r = data.records && typeof data.records === 'object' ? data.records : {};
+                    Object.keys(records).forEach(k => { if (k !== 'top' && k !== 'dailyDate' && typeof r[k] === 'number' && isFinite(r[k])) records[k] = r[k]; });
+                    if (typeof r.dailyDate === 'string') records.dailyDate = r.dailyDate;
+                    records.top = {};
+                    if (r.top && typeof r.top === 'object') Object.keys(r.top).forEach(m => { if (Array.isArray(r.top[m])) records.top[m] = r.top[m].filter(t => t && typeof t.s === 'number').slice(0, 5); });
+                    const pr = data.progress && typeof data.progress === 'object' ? data.progress : {};
+                    progress.unlocked = Math.min(30, Math.max(1, parseInt(pr.unlocked, 10) || 1));
+                    progress.stars = {};
+                    if (pr.stars && typeof pr.stars === 'object') Object.keys(pr.stars).forEach(l => { const v = parseInt(pr.stars[l], 10); if (v >= 1 && v <= 3) progress.stars[l] = v; });
+                    unlocked = data.unlocked && typeof data.unlocked === 'object' ? data.unlocked : {};
                 }
             } catch (e) {}
         }

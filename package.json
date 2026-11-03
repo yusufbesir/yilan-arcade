@@ -1,10 +1,10 @@
 {
   "name": "yilan-arcade",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Twilight of the Serpents",
   "main": "main.js",
   "author": "Yusuf",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "start": "electron .",
