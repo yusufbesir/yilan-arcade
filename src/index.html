@@ -247,6 +247,16 @@
         }
         .mode-card.tailgun .mode-text h3 { color: #00e5ff; }
         .mode-card.bullet .mode-text h3 { color: #ff0066; }
+        .mode-card.timeattack { border-color: #ffd400; }
+        .mode-card.timeattack .mode-text h3 { color: #ffd400; }
+        .mode-card.portal { border-color: #cc66ff; }
+        .mode-card.portal .mode-text h3 { color: #cc66ff; }
+        .mode-card.tron { border-color: #ff9900; }
+        .mode-card.tron .mode-text h3 { color: #ff9900; }
+        .mode-card.chaos { border-color: #ff5ec4; }
+        .mode-card.chaos .mode-text h3 { color: #ff5ec4; }
+        .mode-card.daily { border-color: #5ec4ff; }
+        .mode-card.daily .mode-text h3 { color: #5ec4ff; }
         .mode-card.campaign .mode-text h3 { color: #00ccff; }
         
         .mode-text p {
@@ -835,6 +845,76 @@
                         </div>
                     </div>
                     
+                    <div class="mode-card timeattack" onclick="SnakeGame.startTimeAttack()">
+                        <div class="mode-header">
+                            <span class="mode-icon">⏱️</span>
+                            <div class="mode-text">
+                                <h3>ZAMANA KARŞI</h3>
+                                <p>60 saniye! Her yem süre kazandırır.</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">🏆 REKOR: <span id="menuTimeHigh">0</span></span>
+                            <span class="mode-badge">⚡ HIZLI</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mode-card portal" onclick="SnakeGame.startPortal()">
+                        <div class="mode-header">
+                            <span class="mode-icon">🌀</span>
+                            <div class="mode-text">
+                                <h3>PORTAL VE BULMACA</h3>
+                                <p>Duvarlar, boşluklar ve ışınlanan portallar.</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">🏆 REKOR: <span id="menuPortalHigh">0</span></span>
+                            <span class="mode-badge">🧩 BULMACA</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mode-card tron" onclick="SnakeGame.startTron()">
+                        <div class="mode-header">
+                            <span class="mode-icon">🏍️</span>
+                            <div class="mode-text">
+                                <h3>TRON DÜELLOSU</h3>
+                                <p>Yapay zekâyı iz bırakarak kıstır!</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">🏆 REKOR: <span id="menuTronHigh">0</span></span>
+                            <span class="mode-badge">⚔ DÜELLO</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mode-card chaos" onclick="SnakeGame.startChaos()">
+                        <div class="mode-header">
+                            <span class="mode-icon">🌪️</span>
+                            <div class="mode-text">
+                                <h3>KAOS</h3>
+                                <p>Kurallar durmadan değişir: ters kontrol, hız, hayalet…</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">🏆 REKOR: <span id="menuChaosHigh">0</span></span>
+                            <span class="mode-badge">🎲 ŞANS</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mode-card daily" onclick="SnakeGame.startDaily()">
+                        <div class="mode-header">
+                            <span class="mode-icon">📅</span>
+                            <div class="mode-text">
+                                <h3>GÜNLÜK MEYDAN OKUMA</h3>
+                                <p>Herkese aynı gün aynı harita. Bugünün rekoru!</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">🏆 REKOR: <span id="menuDailyHigh">0</span></span>
+                            <span class="mode-badge">🗓 GÜNLÜK</span>
+                        </div>
+                    </div>
+                    
                     <div class="mode-card campaign" onclick="SnakeGame.showLevels()">
                         <div class="mode-header">
                             <span class="mode-icon">🏆</span>
@@ -1025,6 +1105,11 @@
         let gems = [];
         let sv = { level: 1, xp: 0, need: 5, dmg: 1, cd: 10, multi: 1, magnet: 2.5, timer: 0, choosing: false, choices: [] };
         let banner = { text: '', until: 0 };
+        let portals = [];
+        let tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1 };
+        let chaos = { rule: null, left: 0, next: 0, saved: 0 };
+        let rand = Math.random;
+        const CLASSIC_LIKE = ['classic', 'portal', 'daily'];
         
         let powers = { shield: false, speed: false, invincible: false };
         let powerTimers = {};
@@ -1033,7 +1118,7 @@
         let frameRequest = null;
         
         // Saved Data
-        let records = { classic: 0, bullet: 0, tailgun: 0, survivor: 0 };
+        let records = { classic: 0, bullet: 0, tailgun: 0, survivor: 0, timeattack: 0, portal: 0, tron: 0, chaos: 0, daily: 0, dailyDate: '' };
         let progress = { unlocked: 1, stars: {} };
         
         // Audio
@@ -1088,6 +1173,10 @@
             document.getElementById('menuBulletHigh').textContent = records.bullet;
             document.getElementById('menuTailHigh').textContent = records.tailgun;
             document.getElementById('menuSurvHigh').textContent = records.survivor;
+            if (records.dailyDate !== todayKey()) records.daily = 0;
+            [['menuTimeHigh', 'timeattack'], ['menuPortalHigh', 'portal'], ['menuTronHigh', 'tron'], ['menuChaosHigh', 'chaos'], ['menuDailyHigh', 'daily']].forEach(([id, k]) => {
+                document.getElementById(id).textContent = records[k];
+            });
             document.getElementById('menuProgress').textContent = Math.max(0, progress.unlocked - 1);
         }
         
@@ -1216,6 +1305,150 @@
             playSound('start');
         }
         
+        function todayKey() {
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+        
+        function seededRand(key) {
+            let h = 1779033703 ^ key.length;
+            for (let i = 0; i < key.length; i++) {
+                h = Math.imul(h ^ key.charCodeAt(i), 3432918353);
+                h = (h << 13) | (h >>> 19);
+            }
+            let a = h >>> 0;
+            return function () {
+                a = (a + 0x6D2B79F5) >>> 0;
+                let t = a;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+        
+        function setHud(o) {
+            const show = (id, on) => { document.getElementById(id).style.display = on ? '' : 'none'; };
+            show('hudHighBox', o.high !== undefined);
+            if (o.high !== undefined) document.getElementById('hudHigh').textContent = o.high;
+            show('hudLevelBox', !!o.levelLabel);
+            if (o.levelLabel) document.getElementById('hudLevelLabel').textContent = o.levelLabel;
+            show('hudTargetBox', !!o.targetLabel);
+            if (o.targetLabel) document.getElementById('hudTargetLabel').textContent = o.targetLabel;
+            show('hudLivesBox', !!o.lives);
+            document.getElementById('fireBtn').style.display = 'none';
+        }
+        
+        function setSpeed(ms) {
+            state.speed = ms;
+            if (loopInterval) {
+                clearInterval(loopInterval);
+                loopInterval = setInterval(tick, state.speed);
+            }
+        }
+        
+        function startSimple(mode, speed, hudOpts) {
+            state.mode = mode;
+            state.lives = 1;
+            state.speed = speed;
+            setHud(hudOpts);
+            initGameState();
+        }
+        
+        function startTimeAttack() {
+            startSimple('timeattack', 105, { high: records.timeattack, targetLabel: 'SÜRE' });
+            showBanner('60 SANİYE! YEMLER +SÜRE');
+            showGame();
+            beginLoop();
+            playSound('start');
+        }
+        
+        function startDaily() {
+            if (records.dailyDate !== todayKey()) { records.dailyDate = todayKey(); records.daily = 0; }
+            startSimple('daily', CONFIG.BASE_SPEED, { high: records.daily, levelLabel: todayKey().slice(5) });
+            document.getElementById('hudLevel').textContent = 'GÜNLÜK';
+            const midY = Math.floor(ROWS / 2);
+            for (let i = 0; i < 9; i++) {
+                for (let t = 0; t < 30; t++) {
+                    const pos = findEmpty();
+                    if (pos && !(Math.abs(pos.y - midY) <= 1 && pos.x < 14)) { obstacles.push(pos); break; }
+                }
+            }
+            if (isOccupied(food.x, food.y) && obstacles.some(o => o.x === food.x && o.y === food.y)) spawnFood();
+            showGame();
+            beginLoop();
+            playSound('start');
+        }
+        
+        function placePortals() {
+            const midY = Math.floor(ROWS / 2);
+            const regions = [[2, 9, 12, 20], [12, 20, 23, 30]];
+            portals = [];
+            const colors = ['#ff9900', '#cc66ff'];
+            regions.forEach((r, idx) => {
+                const cells = [];
+                for (let k = 0; k < 2; k++) {
+                    const [x0, x1] = k === 0 ? [r[0], r[1]] : [r[2], r[3]];
+                    for (let t = 0; t < 60; t++) {
+                        const c = { x: x0 + Math.floor(Math.random() * (x1 - x0 + 1)), y: 2 + Math.floor(Math.random() * (ROWS - 4)) };
+                        if (isOccupied(c.x, c.y)) continue;
+                        if (x0 < 12 && Math.abs(c.y - midY) <= 1) continue;
+                        if (cells.length && cells[0].x === c.x && cells[0].y === c.y) continue;
+                        cells.push(c);
+                        break;
+                    }
+                }
+                if (cells.length === 2) portals.push({ a: cells[0], b: cells[1], color: colors[idx] });
+            });
+        }
+        
+        function startPortal() {
+            startSimple('portal', CONFIG.BASE_SPEED, { high: records.portal });
+            // iki duvar, her birinde iki boşluk
+            [11, 22].forEach(wx => {
+                const gaps = [2 + Math.floor(Math.random() * 6), 14 + Math.floor(Math.random() * 6)];
+                for (let y = 1; y < ROWS - 1; y++) {
+                    if (gaps.some(g => y >= g && y < g + 3)) continue;
+                    obstacles.push({ x: wx, y });
+                }
+            });
+            placePortals();
+            spawnFood();
+            showBanner('PORTALLARDAN GEÇ!');
+            showGame();
+            beginLoop();
+            playSound('start');
+        }
+        
+        function startChaos() {
+            startSimple('chaos', 120, { high: records.chaos, levelLabel: 'KURAL' });
+            document.getElementById('hudLevel').textContent = '-';
+            showBanner('KAOS: KURALLAR DEĞİŞİR');
+            showGame();
+            beginLoop();
+            playSound('start');
+        }
+        
+        function tronReset() {
+            const midY = Math.floor(ROWS / 2);
+            snake = [{ x: 5, y: midY }, { x: 4, y: midY }, { x: 3, y: midY }];
+            dir = { x: 1, y: 0 };
+            nextDir = { x: 1, y: 0 };
+            tron.ai = [{ x: COLS - 6, y: midY }, { x: COLS - 5, y: midY }, { x: COLS - 4, y: midY }];
+            tron.aiDir = { x: -1, y: 0 };
+        }
+        
+        function startTron() {
+            startSimple('tron', 105, { high: records.tron, levelLabel: 'TUR' });
+            food = { x: -5, y: -5, type: 'normal' };
+            tron.round = 1;
+            tronReset();
+            document.getElementById('hudLevel').textContent = 1;
+            showBanner('DÜŞMANI KAPAT!');
+            showGame();
+            beginLoop();
+            playSound('start');
+        }
+        
         function initGameState() {
             state.score = 0;
             state.paused = false;
@@ -1247,6 +1480,12 @@
             shotCooldown = 0;
             state.wave = 1;
             banner = { text: '', until: 0 };
+            food = null;
+            portals = [];
+            tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1 };
+            chaos = { rule: null, left: 0, next: 120, saved: 0 };
+            state.timeLeft = 60;
+            rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
             
             powers = { shield: false, speed: false, invincible: false };
             Object.values(powerTimers).forEach(t => clearTimeout(t));
@@ -1309,12 +1548,26 @@
             if (state.paused || state.over || state.complete) return;
             if (state.mode === 'survivor' && sv.choosing) return;
             
+            if (state.mode === 'tron') { tickTron(); return; }
+            if (state.mode === 'timeattack') {
+                state.timeLeft -= state.speed / 1000;
+                if (state.timeLeft <= 0) { state.timeLeft = 0; updateHUD(); endGame(); return; }
+                updateHUD();
+            }
+            
             dir = { ...nextDir };
             
-            const head = {
+            let head = {
                 x: snake[0].x + dir.x,
                 y: snake[0].y + dir.y
             };
+            
+            if (state.mode === 'portal') {
+                for (const p of portals) {
+                    if (head.x === p.a.x && head.y === p.a.y) { head = { ...p.b }; playSound('powerup'); break; }
+                    if (head.x === p.b.x && head.y === p.b.y) { head = { ...p.a }; playSound('powerup'); break; }
+                }
+            }
             
             // Wall collision
             if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
@@ -1360,6 +1613,7 @@
             
             if (state.mode === 'tailgun') tickTailgun();
             if (state.mode === 'survivor') tickSurvivor();
+            if (state.mode === 'chaos') tickChaos();
             
             if (state.mode === 'campaign') {
                 tickMovingObs();
@@ -1369,7 +1623,7 @@
             }
             
             // Classic speed increase
-            if (state.mode === 'classic' && state.score > 0 && state.score % 5 === 0) {
+            if (CLASSIC_LIKE.includes(state.mode) && state.score > 0 && state.score % 5 === 0) {
                 if (state.speed > 50) {
                     state.speed -= 3;
                     clearInterval(loopInterval);
@@ -1431,12 +1685,15 @@
                 food = { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2), type: 'normal' };
                 return;
             }
-            food = { ...pos, type: Math.random() < 0.12 ? 'super' : 'normal' };
+            food = { ...pos, type: rand() < 0.12 ? 'super' : 'normal' };
         }
         
         function eatFood() {
-            const pts = food.type === 'super' ? 5 : 1;
+            let pts = food.type === 'super' ? 5 : 1;
+            if (chaos.rule === 'triple') pts *= 3;
             state.score += pts;
+            if (state.mode === 'timeattack') state.timeLeft += food.type === 'super' ? 5 : 2;
+            if (state.mode === 'portal' && state.score % 5 === 0) placePortals();
             updateHUD();
             playSound('eat');
             if (state.mode === 'bullet' && boss) hurtBoss(food.type === 'super' ? 3 : 1);
@@ -1446,8 +1703,8 @@
         function findEmpty() {
             for (let i = 0; i < 100; i++) {
                 const pos = {
-                    x: Math.floor(Math.random() * (COLS - 4)) + 2,
-                    y: Math.floor(Math.random() * (ROWS - 4)) + 2
+                    x: Math.floor(rand() * (COLS - 4)) + 2,
+                    y: Math.floor(rand() * (ROWS - 4)) + 2
                 };
                 if (!isOccupied(pos.x, pos.y)) return pos;
             }
@@ -1458,6 +1715,7 @@
             if (snake.some(s => s.x === x && s.y === y)) return true;
             if (obstacles.some(o => o.x === x && o.y === y)) return true;
             if (food && food.x === x && food.y === y) return true;
+            if (portals.some(p => (p.a.x === x && p.a.y === y) || (p.b.x === x && p.b.y === y))) return true;
             return false;
         }
         
@@ -2170,17 +2428,9 @@
             playSound('gameover');
             
             let isRecord = false;
-            if (state.mode === 'classic' && state.score > records.classic) {
-                records.classic = state.score;
-                isRecord = true;
-            } else if (state.mode === 'bullet' && state.score > records.bullet) {
-                records.bullet = state.score;
-                isRecord = true;
-            } else if (state.mode === 'survivor' && state.score > records.survivor) {
-                records.survivor = state.score;
-                isRecord = true;
-            } else if (state.mode === 'tailgun' && state.score > records.tailgun) {
-                records.tailgun = state.score;
+            if (typeof records[state.mode] === 'number' && state.score > records[state.mode]) {
+                records[state.mode] = state.score;
+                if (state.mode === 'daily') records.dailyDate = todayKey();
                 isRecord = true;
             }
             
@@ -2218,10 +2468,8 @@
         
         function restart() {
             closeOverlays();
-            if (state.mode === 'classic') startClassic();
-            else if (state.mode === 'bullet') startBullet();
-            else if (state.mode === 'tailgun') startTailgun();
-            else if (state.mode === 'survivor') startSurvivor();
+            const starters = { classic: startClassic, bullet: startBullet, tailgun: startTailgun, survivor: startSurvivor, timeattack: startTimeAttack, portal: startPortal, tron: startTron, chaos: startChaos, daily: startDaily };
+            if (starters[state.mode]) starters[state.mode]();
             else startCampaign(state.level);
         }
         
@@ -2264,29 +2512,22 @@
             }
             
             switch (key) {
-                case 'arrowup': case 'w':
-                    if (dir.y !== 1) nextDir = { x: 0, y: -1 };
-                    e.preventDefault();
-                    break;
-                case 'arrowdown': case 's':
-                    if (dir.y !== -1) nextDir = { x: 0, y: 1 };
-                    e.preventDefault();
-                    break;
-                case 'arrowleft': case 'a':
-                    if (dir.x !== 1) nextDir = { x: -1, y: 0 };
-                    e.preventDefault();
-                    break;
-                case 'arrowright': case 'd':
-                    if (dir.x !== -1) nextDir = { x: 1, y: 0 };
-                    e.preventDefault();
-                    break;
+                case 'arrowup': case 'w': steer(0, -1); e.preventDefault(); break;
+                case 'arrowdown': case 's': steer(0, 1); e.preventDefault(); break;
+                case 'arrowleft': case 'a': steer(-1, 0); e.preventDefault(); break;
+                case 'arrowright': case 'd': steer(1, 0); e.preventDefault(); break;
             }
+        }
+        
+        function steer(dx, dy) {
+            if (chaos.rule === 'reverse') { dx = -dx; dy = -dy; }
+            if (dx !== 0 && dir.x !== -dx) nextDir = { x: dx, y: 0 };
+            if (dy !== 0 && dir.y !== -dy) nextDir = { x: 0, y: dy };
         }
         
         function input(dx, dy) {
             if (state.paused || state.over || state.complete) return;
-            if (dx !== 0 && dir.x !== -dx) nextDir = { x: dx, y: 0 };
-            if (dy !== 0 && dir.y !== -dy) nextDir = { x: 0, y: dy };
+            steer(dx, dy);
         }
         
         function togglePause() {
@@ -2310,6 +2551,9 @@
             
             if (state.mode === 'campaign') {
                 document.getElementById('hudTarget').textContent = `${state.score}/${state.target}`;
+            }
+            if (state.mode === 'timeattack') {
+                document.getElementById('hudTarget').textContent = Math.max(0, Math.ceil(state.timeLeft)) + ' sn';
             }
         }
         
@@ -2347,8 +2591,11 @@
             // Powerups
             powerups.forEach(p => drawPowerup(p));
             
+            portals.forEach(drawPortal);
+            
             // Food
-            drawFood();
+            if (state.mode !== 'tron') drawFood();
+            if (state.mode === 'tron') drawTronLayer();
             
             // Lasers, warnings, boss
             if (state.mode === 'bullet') drawBulletLayer();
@@ -2360,6 +2607,7 @@
             
             // Snake
             for (let i = snake.length - 1; i >= 0; i--) {
+                if (chaos.rule === 'ghost' && i > 0) continue;
                 if (i === 0) drawSnakeHead(snake[i]);
                 else drawSnakeBody(snake[i], i);
             }
@@ -2368,7 +2616,7 @@
             if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
             if (powers.shield) drawAura(snake[0], '#00ccff', 22);
             
-            if (state.mode === 'bullet' || state.mode === 'tailgun' || state.mode === 'survivor') drawBanner();
+            if (['bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron'].includes(state.mode)) drawBanner();
         }
         
         function drawBlock(x, y, color, highlight) {
@@ -2546,6 +2794,139 @@
             ctx.globalAlpha = 1;
         }
         
+        function drawPortal(p) {
+            const S = CONFIG.CELL;
+            [p.a, p.b].forEach(c => {
+                const cx = c.x * S + S / 2, cy = c.y * S + S / 2;
+                const t = Date.now() / 200;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 14;
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 8, 8, 0, t, t + Math.PI * 1.6);
+                ctx.stroke();
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 4, 4, 0, -t, -t + Math.PI * 1.4);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            });
+        }
+        
+        function drawTronLayer() {
+            const S = CONFIG.CELL;
+            tron.ai.forEach((c, i) => {
+                ctx.fillStyle = i === 0 ? '#ffcc66' : '#cc5500';
+                ctx.fillRect(c.x * S + 2, c.y * S + 2, S - 4, S - 4);
+            });
+        }
+        
+        // ======================== TRON ========================
+        const DIRS4 = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+        
+        function tronBlocked(x, y) {
+            if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return true;
+            return snake.some(c => c.x === x && c.y === y) || tron.ai.some(c => c.x === x && c.y === y);
+        }
+        
+        function floodCount(sx, sy) {
+            const seen = new Set([sx + ',' + sy]);
+            const stack = [[sx, sy]];
+            let n = 0;
+            while (stack.length && n < 400) {
+                const [x, y] = stack.pop();
+                n++;
+                for (const d of DIRS4) {
+                    const nx = x + d.x, ny = y + d.y, k = nx + ',' + ny;
+                    if (seen.has(k) || tronBlocked(nx, ny)) continue;
+                    seen.add(k);
+                    stack.push([nx, ny]);
+                }
+            }
+            return n;
+        }
+        
+        function aiChooseDir() {
+            const h = tron.ai[0];
+            const wins = state.score;
+            const opts = DIRS4.filter(d => !(d.x === -tron.aiDir.x && d.y === -tron.aiDir.y))
+                .map(d => ({ d, ok: !tronBlocked(h.x + d.x, h.y + d.y) }))
+                .filter(o => o.ok);
+            if (!opts.length) return tron.aiDir;
+            const dumb = Math.max(0.02, 0.2 - wins * 0.03);
+            if (Math.random() < dumb) return opts[Math.floor(Math.random() * opts.length)].d;
+            let best = opts[0], bestN = -1;
+            opts.forEach(o => {
+                let n = floodCount(h.x + o.d.x, h.y + o.d.y);
+                if (o.d.x === tron.aiDir.x && o.d.y === tron.aiDir.y) n += 0.5;
+                if (n > bestN) { bestN = n; best = o; }
+            });
+            return best.d;
+        }
+        
+        function tronWin() {
+            state.score++;
+            state.round = (state.round || 1) + 1;
+            tron.round++;
+            updateHUD();
+            document.getElementById('hudLevel').textContent = tron.round;
+            playSound('complete');
+            setSpeed(Math.max(60, 105 - state.score * 3));
+            tronReset();
+            showBanner('TUR KAZANDIN! SIRADAKİ TUR');
+        }
+        
+        function tickTron() {
+            dir = { ...nextDir };
+            tron.aiDir = aiChooseDir();
+            const ph = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+            const ah = { x: tron.ai[0].x + tron.aiDir.x, y: tron.ai[0].y + tron.aiDir.y };
+            const pDead = tronBlocked(ph.x, ph.y) || (ph.x === ah.x && ph.y === ah.y);
+            const aDead = tronBlocked(ah.x, ah.y) || (ph.x === ah.x && ph.y === ah.y);
+            if (pDead && aDead) {
+                tronReset();
+                showBanner('BERABERE! TUR YENİLENDİ');
+                return;
+            }
+            if (pDead) { endGame(); return; }
+            if (aDead) { tronWin(); return; }
+            snake.unshift(ph);
+            tron.ai.unshift(ah);
+        }
+        
+        function tickChaos() {
+            if (chaos.rule) {
+                chaos.left--;
+                if (chaos.left <= 0) {
+                    if (chaos.rule === 'fast' || chaos.rule === 'slow') setSpeed(chaos.saved);
+                    chaos.rule = null;
+                    document.getElementById('hudLevel').textContent = '-';
+                    showBanner('KURAL BİTTİ');
+                }
+                return;
+            }
+            chaos.next--;
+            if (chaos.next > 0) return;
+            const rules = [
+                ['reverse', 'TERS KONTROL!'],
+                ['fast', 'HIZLANDIN!'],
+                ['slow', 'YAVAŞLADIN'],
+                ['ghost', 'GÖVDE GÖRÜNMEZ'],
+                ['triple', 'YEMLER x3 PUAN']
+            ];
+            const [rule, label] = rules[Math.floor(Math.random() * rules.length)];
+            chaos.rule = rule;
+            chaos.left = 70;
+            chaos.next = 140;
+            chaos.saved = state.speed;
+            if (rule === 'fast') setSpeed(Math.round(state.speed * 0.65));
+            if (rule === 'slow') setSpeed(Math.round(state.speed * 1.5));
+            document.getElementById('hudLevel').textContent = label.slice(0, 8);
+            showBanner(label);
+            playSound('powerup');
+        }
+        
         // ======================== AUDIO ========================
         function playSound(type) {
             try {
@@ -2603,6 +2984,11 @@
             startBullet,
             startTailgun,
             startSurvivor,
+            startTimeAttack,
+            startPortal,
+            startTron,
+            startChaos,
+            startDaily,
             fire,
             pickUpgrade,
             startCampaign,
@@ -2610,7 +2996,7 @@
             nextLevel,
             input,
             togglePause,
-            _debug: { tick, get: () => ({ sv, gems, state, snake, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; } }
+            _debug: { tick, get: () => ({ sv, gems, state, snake, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records }) }
         };
     })();
     
