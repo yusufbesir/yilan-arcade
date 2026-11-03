@@ -1720,7 +1720,7 @@
         function eatFood() {
             let pts = food.type === 'super' ? 5 : 1;
             if (chaos.rule === 'triple') pts *= 3;
-            burst(food.x + 0.5, food.y + 0.5, food.type === 'super' ? '#ffdd00' : '#ff5566', food.type === 'super' ? 22 : 12);
+            burst(food.x + 0.5, food.y + 0.5, food.type === 'super' ? '#ffdd00' : '#ffbf2e', food.type === 'super' ? 22 : 12);
             state.score += pts;
             if (state.mode === 'timeattack') state.timeLeft += food.type === 'super' ? 5 : 2;
             if (state.mode === 'portal' && state.score % 5 === 0) placePortals();
@@ -2017,29 +2017,76 @@
             // lazerler
             lasers.forEach(l => {
                 const live = l.t >= l.warn;
-                ctx.fillStyle = live ? 'rgba(255,40,80,0.85)' : 'rgba(255,40,80,' + (0.12 + 0.12 * Math.abs(Math.sin(now / 70))) + ')';
-                ctx.shadowColor = '#ff2850';
-                ctx.shadowBlur = live ? 18 : 0;
-                if (l.horizontal) ctx.fillRect(0, l.idx * CELL + (live ? 2 : 8), CONFIG.WIDTH, live ? CELL - 4 : 4);
-                else ctx.fillRect(l.idx * CELL + (live ? 2 : 8), 0, live ? CELL - 4 : 4, CONFIG.HEIGHT);
+                // Yıldırım: uyarıda soluk buz mavisi çizgi, canlıyken beyaz çekirdekli şimşek bandı
+                const rx = l.horizontal ? 0 : l.idx * CELL + (live ? 2 : 8);
+                const ry = l.horizontal ? l.idx * CELL + (live ? 2 : 8) : 0;
+                const rw = l.horizontal ? CONFIG.WIDTH : (live ? CELL - 4 : 4);
+                const rh = l.horizontal ? (live ? CELL - 4 : 4) : CONFIG.HEIGHT;
+                ctx.fillStyle = live ? 'rgba(120,190,255,0.85)' : 'rgba(120,190,255,' + (0.12 + 0.12 * Math.abs(Math.sin(now / 70))) + ')';
+                ctx.shadowColor = '#7ec8ff';
+                ctx.shadowBlur = live ? 20 : 0;
+                ctx.fillRect(rx, ry, rw, rh);
                 ctx.shadowBlur = 0;
+                if (live) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                    if (l.horizontal) ctx.fillRect(0, ry + rh / 2 - 1.5, CONFIG.WIDTH, 3);
+                    else ctx.fillRect(rx + rw / 2 - 1.5, 0, 3, CONFIG.HEIGHT);
+                }
             });
             
             // patron
             if (boss) {
                 const bx = boss.x * CELL - CELL, by = boss.y * CELL - CELL;
-                ctx.shadowColor = '#ff3df0';
-                ctx.shadowBlur = 16;
-                ctx.fillStyle = boss.hit > 0 ? '#ffffff' : '#a020c0';
-                ctx.fillRect(bx, by, CELL * 3, CELL * 3);
-                ctx.fillStyle = '#ff3df0';
-                ctx.fillRect(bx + 6, by + 14, 10, 10);
-                ctx.fillRect(bx + CELL * 3 - 16, by + 14, 10, 10);
+                // Jörmungandr: kor gözlü deniz yılanı başı
+                const bcx = bx + CELL * 1.5, bcy = by + CELL * 1.5;
+                const bt = now / 1000;
+                ctx.shadowColor = '#3ad6c0';
+                ctx.shadowBlur = 20;
+                const bg = ctx.createRadialGradient(bcx - 8, bcy - 8, 4, bcx, bcy, CELL * 2);
+                bg.addColorStop(0, boss.hit > 0 ? '#ffffff' : '#2fa89a');
+                bg.addColorStop(1, boss.hit > 0 ? '#ffd6d6' : '#0b3b46');
+                ctx.fillStyle = bg;
+                ctx.beginPath();
+                ctx.ellipse(bcx, bcy, CELL * 1.55, CELL * 1.4, 0, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.shadowBlur = 0;
+                ctx.strokeStyle = 'rgba(255,208,100,0.75)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(bcx, bcy, CELL * 1.55, CELL * 1.4, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                for (let k = -2; k <= 2; k++) {
+                    ctx.beginPath();
+                    ctx.arc(bcx + k * 9, bcy - 17, 4, Math.PI, 0);
+                    ctx.stroke();
+                }
+                [-1, 1].forEach(sd => {
+                    ctx.shadowColor = '#ff6a00';
+                    ctx.shadowBlur = 14;
+                    ctx.fillStyle = '#ffb347';
+                    ctx.beginPath();
+                    ctx.ellipse(bcx + sd * 12, bcy - 3, 5.5, 4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#1a0800';
+                    ctx.fillRect(bcx + sd * 12 - 1, bcy - 7, 2, 8);
+                });
+                if (Math.sin(bt * 3) > 0.2) {
+                    ctx.strokeStyle = '#ff4466';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(bcx, bcy + 14);
+                    ctx.lineTo(bcx, bcy + 24);
+                    ctx.moveTo(bcx, bcy + 24);
+                    ctx.lineTo(bcx - 5, bcy + 29);
+                    ctx.moveTo(bcx, bcy + 24);
+                    ctx.lineTo(bcx + 5, bcy + 29);
+                    ctx.stroke();
+                }
                 // can çubuğu
-                ctx.fillStyle = '#222';
+                ctx.fillStyle = '#0d1424';
                 ctx.fillRect(40, CONFIG.HEIGHT - 12, CONFIG.WIDTH - 80, 6);
-                ctx.fillStyle = '#ff3df0';
+                ctx.fillStyle = '#ffb347';
                 ctx.fillRect(40, CONFIG.HEIGHT - 12, (CONFIG.WIDTH - 80) * Math.max(0, boss.hp) / boss.max, 6);
             }
         }
@@ -2613,7 +2660,7 @@
             obstacles.forEach(o => drawBlock(o.x, o.y, C.obstacle, '#55557a'));
             
             // Moving obstacles
-            movingObs.forEach(o => drawBlock(Math.floor(o.x), Math.floor(o.y), C.movingObs, '#ffaa44'));
+            movingObs.forEach(o => drawBlock(Math.floor(o.x), Math.floor(o.y), C.movingObs, '#ffaa44', true));
             
             // Powerups
             powerups.forEach(p => drawPowerup(p));
@@ -2635,9 +2682,10 @@
             // Snake
             const prog = state.paused || state.over ? 1 : Math.max(0, Math.min(1, (nowT - lastTickAt) / Math.max(40, state.speed)));
             const total = snake.length;
+            renderPos = snake.map((c, i) => lerpPos(prevSnake[i], c, prog));
             for (let i = total - 1; i >= 0; i--) {
                 if (chaos.rule === 'ghost' && i > 0) continue;
-                const pos = lerpPos(prevSnake[i], snake[i], prog);
+                const pos = renderPos[i];
                 if (i === 0) {
                     drawSnakeHead(pos);
                     if (!REDUCED && state.running && Math.random() < 0.35) spark(pos.x + 0.5, pos.y + 0.5);
@@ -2654,115 +2702,296 @@
             ctx.restore();
         }
         
-        function drawBlock(x, y, color, highlight) {
-            const px = x * CONFIG.CELL;
-            const py = y * CONFIG.CELL;
-            const s = CONFIG.CELL;
-            
-            ctx.fillStyle = color;
-            ctx.fillRect(px + 2, py + 2, s - 4, s - 4);
-            
-            // Highlight
-            ctx.fillStyle = highlight || color;
-            ctx.fillRect(px + 3, py + 3, s - 8, 3);
-            ctx.fillRect(px + 3, py + 3, 3, s - 8);
-            
-            // Shadow
-            ctx.fillStyle = 'rgba(0,0,0,0.25)';
-            ctx.fillRect(px + s - 5, py + 5, 2, s - 8);
-            ctx.fillRect(px + 5, py + s - 5, s - 8, 2);
+        let nors = { bg: null, key: '' };
+        let renderPos = [];
+
+        function buildNorsBackground() {
+            const W = CONFIG.WIDTH, H = CONFIG.HEIGHT, CELL = CONFIG.CELL;
+            const c = document.createElement('canvas');
+            c.width = Math.round(W * dpr);
+            c.height = Math.round(H * dpr);
+            const g = c.getContext('2d');
+            g.scale(dpr, dpr);
+            const sky = g.createLinearGradient(0, 0, 0, H);
+            sky.addColorStop(0, '#0a1226');
+            sky.addColorStop(1, '#05080f');
+            g.fillStyle = sky;
+            g.fillRect(0, 0, W, H);
+            // Taş plaka dokusu
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    g.fillStyle = (x + y) % 2 === 0 ? 'rgba(120,160,220,0.045)' : 'rgba(0,0,0,0.12)';
+                    g.fillRect(x * CELL, y * CELL, CELL, CELL);
+                }
+            }
+            g.strokeStyle = 'rgba(110,170,255,0.09)';
+            g.lineWidth = 1;
+            g.beginPath();
+            for (let x = 0; x <= W; x += CELL) { g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, H); }
+            for (let y = 0; y <= H; y += CELL) { g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); }
+            g.stroke();
+            // Köşe rünleri
+            g.strokeStyle = 'rgba(255,208,100,0.3)';
+            g.lineWidth = 2;
+            g.lineCap = 'round';
+            const runes = [
+                [[0, 0, 0, 10], [0, 0, 6, 5], [6, 5, 0, 10]],
+                [[0, 0, 0, 10], [0, 5, 6, 0], [0, 5, 6, 10]],
+                [[0, 0, 6, 10], [6, 0, 0, 10]],
+                [[3, 0, 3, 10], [0, 3, 3, 0], [6, 3, 3, 0]]
+            ];
+            [[10, 10], [W - 22, 10], [10, H - 22], [W - 22, H - 22]].forEach((p, i) => {
+                g.beginPath();
+                runes[i].forEach(s => { g.moveTo(p[0] + s[0], p[1] + s[1]); g.lineTo(p[0] + s[2], p[1] + s[3]); });
+                g.stroke();
+            });
+            // Altın çerçeve
+            g.strokeStyle = 'rgba(255,208,100,0.35)';
+            g.lineWidth = 2;
+            g.strokeRect(1, 1, W - 2, H - 2);
+            return c;
         }
-        
+
+        function drawBackground(now) {
+            const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+            const key = dpr + ':' + W + 'x' + H;
+            if (!nors.bg || nors.key !== key) { nors.bg = buildNorsBackground(); nors.key = key; }
+            ctx.drawImage(nors.bg, 0, 0, W, H);
+            const t = now / 1000;
+            // Yıldızlar (0.3.0'ın kayan yıldızları korunur)
+            STARS.forEach(st => {
+                const x = (st.x + t * st.s * 6) % W;
+                ctx.globalAlpha = 0.2 + 0.25 * Math.sin(t * st.s * 2 + st.p);
+                ctx.fillStyle = st.p % 4 === 0 ? '#aad4ff' : '#ffffff';
+                ctx.fillRect(x, st.y, st.r, st.r);
+            });
+            ctx.globalAlpha = 1;
+            // Kuzey ışıkları
+            if (!REDUCED) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < 3; i++) {
+                    const cx = W * (0.2 + 0.3 * i) + Math.sin(t * 0.25 + i * 2) * 60;
+                    const cy = 40 + Math.sin(t * 0.18 + i) * 25;
+                    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 190);
+                    const hue = i === 1 ? '90,255,200' : '80,160,255';
+                    g.addColorStop(0, `rgba(${hue},0.07)`);
+                    g.addColorStop(1, `rgba(${hue},0)`);
+                    ctx.fillStyle = g;
+                    ctx.fillRect(0, 0, W, H);
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawBlock(x, y, color, highlight, ember) {
+            const s = CONFIG.CELL;
+            const px = x * s;
+            const py = y * s;
+            const t = performance.now() / 1000;
+            if (ember) {
+                ctx.shadowColor = '#ff6a00';
+                ctx.shadowBlur = 10 + Math.sin(t * 5 + x) * 3;
+            }
+            const g = ctx.createLinearGradient(px, py, px + s, py + s);
+            g.addColorStop(0, ember ? '#ffb347' : '#6d7192');
+            g.addColorStop(1, ember ? '#b33a00' : '#2a2d44');
+            ctx.fillStyle = g;
+            ctx.fillRect(px + 1, py + 1, s - 2, s - 2);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255,255,255,0.22)';
+            ctx.fillRect(px + 1, py + 1, s - 2, 2);
+            ctx.fillRect(px + 1, py + 1, 2, s - 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
+            ctx.fillRect(px + 1, py + s - 3, s - 2, 2);
+            ctx.fillRect(px + s - 3, py + 1, 2, s - 2);
+            const v = (x * 7 + y * 13) % 4;
+            ctx.strokeStyle = ember ? 'rgba(80,20,0,0.65)' : 'rgba(180,215,255,0.55)';
+            ctx.lineWidth = 1.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            const cx = px + s / 2, cy = py + s / 2;
+            if (v === 0) { ctx.moveTo(cx - 2, cy - 5); ctx.lineTo(cx - 2, cy + 5); ctx.moveTo(cx - 2, cy - 5); ctx.lineTo(cx + 3, cy - 1); ctx.lineTo(cx - 2, cy + 2); }
+            else if (v === 1) { ctx.moveTo(cx - 3, cy - 5); ctx.lineTo(cx - 3, cy + 5); ctx.moveTo(cx - 3, cy); ctx.lineTo(cx + 3, cy - 5); ctx.moveTo(cx - 3, cy); ctx.lineTo(cx + 3, cy + 5); }
+            else if (v === 2) { ctx.moveTo(cx - 4, cy - 5); ctx.lineTo(cx + 4, cy + 5); ctx.moveTo(cx + 4, cy - 5); ctx.lineTo(cx - 4, cy + 5); }
+            else { ctx.moveTo(cx, cy - 5); ctx.lineTo(cx, cy + 5); ctx.moveTo(cx - 4, cy - 1); ctx.lineTo(cx, cy - 5); ctx.lineTo(cx + 4, cy - 1); }
+            ctx.stroke();
+        }
+
         function lerpPos(a, b, t) {
             if (!a || Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > 1.5) return { x: b.x, y: b.y };
             return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
         }
-        
+
         function rr(x, y, w, h, r) {
             ctx.beginPath();
             if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
             else ctx.rect(x, y, w, h);
         }
-        
+
         function drawSnakeHead(pos) {
             const S = CONFIG.CELL;
-            const px = pos.x * S, py = pos.y * S;
+            const t = performance.now() / 1000;
+            const cx = pos.x * S + S / 2;
+            const cy = pos.y * S + S / 2;
+            const fx = dir.x, fy = dir.y;
+            const px = -fy, py = fx;
+
+            if ((t * 2.2) % 1 < 0.35) {
+                const bx = cx + fx * 9, by = cy + fy * 9;
+                const tx = cx + fx * 15, ty = cy + fy * 15;
+                ctx.strokeStyle = '#ff4466';
+                ctx.lineWidth = 1.5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(bx, by);
+                ctx.lineTo(tx, ty);
+                ctx.moveTo(tx, ty);
+                ctx.lineTo(tx + fx * 3 + px * 2.5, ty + fy * 3 + py * 2.5);
+                ctx.moveTo(tx, ty);
+                ctx.lineTo(tx + fx * 3 - px * 2.5, ty + fy * 3 - py * 2.5);
+                ctx.stroke();
+            }
+
             ctx.shadowColor = '#00ffaa';
-            ctx.shadowBlur = 22;
-            const g = ctx.createLinearGradient(px, py, px + S, py + S);
-            g.addColorStop(0, '#b6ffd8');
-            g.addColorStop(1, '#00e676');
+            ctx.shadowBlur = 18;
+            const g = ctx.createRadialGradient(cx - fx * 2, cy - fy * 2, 1, cx, cy, 11);
+            g.addColorStop(0, '#9dffd0');
+            g.addColorStop(1, '#13c27a');
             ctx.fillStyle = g;
-            rr(px - 1, py - 1, S + 2, S + 2, 7);
+            ctx.beginPath();
+            ctx.ellipse(cx + fx * 1.5, cy + fy * 1.5, fx ? 10.5 : 9.5, fy ? 10.5 : 9.5, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
-            const ex = dir.x, ey = dir.y;
-            const cx = px + S / 2, cy = py + S / 2;
-            const px2 = -ey, py2 = ex;
-            [-1, 1].forEach(sd => {
-                const ox = cx + ex * 4 + px2 * sd * 4.5;
-                const oy = cy + ey * 4 + py2 * sd * 4.5;
-                ctx.fillStyle = '#fff';
-                ctx.beginPath(); ctx.arc(ox, oy, 3.2, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#05200f';
-                ctx.beginPath(); ctx.arc(ox + ex * 1, oy + ey * 1, 1.6, 0, Math.PI * 2); ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255,214,102,0.8)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(cx - fx * 5 + px * 5, cy - fy * 5 + py * 5);
+            ctx.lineTo(cx + fx * 4 + px * 5.5, cy + fy * 4 + py * 5.5);
+            ctx.moveTo(cx - fx * 5 - px * 5, cy - fy * 5 - py * 5);
+            ctx.lineTo(cx + fx * 4 - px * 5.5, cy + fy * 4 - py * 5.5);
+            ctx.stroke();
+
+            [1, -1].forEach(side => {
+                const ex = cx + fx * 3 + px * 4.6 * side;
+                const ey = cy + fy * 3 + py * 4.6 * side;
+                ctx.shadowColor = '#ffd24a';
+                ctx.shadowBlur = 6;
+                ctx.fillStyle = '#ffd24a';
+                ctx.beginPath();
+                ctx.arc(ex, ey, 2.9, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#10110a';
+                ctx.beginPath();
+                ctx.ellipse(ex, ey, fx ? 0.8 : 1.5, fy ? 0.8 : 1.5, 0, 0, Math.PI * 2);
+                ctx.fill();
             });
         }
-        
+
         function drawSnakeBody(pos, idx, total) {
             const S = CONFIG.CELL;
-            const f = idx / Math.max(1, total);
-            const size = S - 3 - f * 5;
-            const off = (S - size) / 2;
-            const hue = 150 + f * 60;
-            const light = 52 - f * 16;
-            if (idx < 14) { ctx.shadowColor = `hsl(${hue},100%,55%)`; ctx.shadowBlur = 9 - idx * 0.6; }
-            ctx.fillStyle = `hsl(${hue},95%,${light}%)`;
-            rr(pos.x * S + off, pos.y * S + off, size, size, 5);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = 'rgba(255,255,255,0.18)';
-            rr(pos.x * S + off + 2, pos.y * S + off + 2, size - 6, 3, 1.5);
-            ctx.fill();
+            const k = total > 1 ? idx / (total - 1) : 0;
+            const r = Math.max(5.2, 8.6 - k * 3.2);
+            const col = `hsl(${158 - 16 * k} ${88 - 14 * k}% ${50 - 22 * k}%)`;
+            const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2;
+            const prev = renderPos[idx - 1];
+            ctx.fillStyle = col;
+            ctx.strokeStyle = col;
+            ctx.lineCap = 'round';
+            if (prev && Math.abs(prev.x - pos.x) + Math.abs(prev.y - pos.y) <= 1.5) {
+                ctx.lineWidth = r * 2;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(prev.x * S + S / 2, prev.y * S + S / 2);
+                ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // Pul ve altın sırt elması
+            ctx.strokeStyle = 'rgba(0,30,20,0.35)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.arc(cx, cy + 1.5, r * 0.55, Math.PI * 0.15, Math.PI * 0.85);
+            ctx.stroke();
+            if (idx % 3 === 1) {
+                ctx.fillStyle = `rgba(255,214,102,${Math.max(0.25, 0.9 - idx * 0.03)})`;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 3);
+                ctx.lineTo(cx + 2.6, cy);
+                ctx.lineTo(cx, cy + 3);
+                ctx.lineTo(cx - 2.6, cy);
+                ctx.closePath();
+                ctx.fill();
+            }
         }
-        
+
         function drawFood() {
             const S = CONFIG.CELL;
             const t = performance.now() / 1000;
             const isSuper = food.type === 'super';
             const cx = food.x * S + S / 2, cy = food.y * S + S / 2;
-            const pulse = 1 + Math.sin(t * 5) * 0.12;
-            const col = isSuper ? '#ffdd00' : '#ff3355';
+            const pulse = 1 + Math.sin(t * 5) * 0.1;
+            const col = isSuper ? '#ffdd00' : '#ffbf2e';
+
             const halo = ctx.createRadialGradient(cx, cy, 2, cx, cy, 20 * pulse);
-            halo.addColorStop(0, isSuper ? 'rgba(255,221,0,0.45)' : 'rgba(255,51,85,0.4)');
+            halo.addColorStop(0, isSuper ? 'rgba(255,221,0,0.45)' : 'rgba(255,191,46,0.38)');
             halo.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = halo;
             ctx.fillRect(cx - 22, cy - 22, 44, 44);
-            ctx.shadowColor = col;
-            ctx.shadowBlur = 16;
-            ctx.fillStyle = col;
+
             if (isSuper) {
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(t * 1.5);
+                ctx.shadowColor = '#ffdd00';
+                ctx.shadowBlur = 18;
+                const g = ctx.createRadialGradient(0, 0, 1, 0, 0, 10);
+                g.addColorStop(0, '#fffbe0');
+                g.addColorStop(1, '#ffb800');
+                ctx.fillStyle = g;
                 ctx.beginPath();
-                for (let i = 0; i < 10; i++) {
-                    const a = (i * 36 - 90) * Math.PI / 180 + t * 1.5;
-                    const r = (i % 2 === 0 ? 9 : 4) * pulse;
-                    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+                for (let i = 0; i < 12; i++) {
+                    const a = (i * 30 - 90) * Math.PI / 180;
+                    const r = (i % 2 === 0 ? 10 : 4.5) * pulse;
+                    const x = Math.cos(a) * r, y = Math.sin(a) * r;
                     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                 }
                 ctx.closePath();
                 ctx.fill();
+                ctx.restore();
+                ctx.shadowBlur = 0;
             } else {
+                ctx.shadowColor = '#ffb347';
+                ctx.shadowBlur = 14 + Math.sin(t * 4) * 4;
+                const g = ctx.createRadialGradient(cx - 3, cy - 3, 1, cx, cy + 1, 9 * pulse);
+                g.addColorStop(0, '#fff2a8');
+                g.addColorStop(0.55, '#ffbf2e');
+                g.addColorStop(1, '#d4541a');
+                ctx.fillStyle = g;
                 ctx.beginPath();
-                ctx.arc(cx, cy + 1, 7 * pulse, 0, Math.PI * 2);
+                ctx.arc(cx, cy + 1.5, 7.6 * pulse, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                ctx.fillStyle = 'rgba(255,255,255,0.55)';
-                ctx.beginPath(); ctx.arc(cx - 2.5, cy - 2, 2, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = '#33dd66';
-                ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(cx, cy - 6); ctx.quadraticCurveTo(cx + 2, cy - 10, cx + 5, cy - 10); ctx.stroke();
+                ctx.strokeStyle = '#5a3a1a';
+                ctx.lineWidth = 1.5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 5);
+                ctx.lineTo(cx + 1, cy - 8.5);
+                ctx.stroke();
+                ctx.fillStyle = '#4ad36b';
+                ctx.beginPath();
+                ctx.ellipse(cx + 4, cy - 7, 3.6, 1.7, -0.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.65)';
+                ctx.beginPath();
+                ctx.ellipse(cx - 3, cy - 1, 1.8, 2.8, -0.5, 0, Math.PI * 2);
+                ctx.fill();
             }
-            ctx.shadowBlur = 0;
             if (!REDUCED) {
                 ctx.fillStyle = col;
                 for (let k = 0; k < 3; k++) {
@@ -2818,30 +3047,6 @@
             ctx.globalCompositeOperation = 'source-over';
         }
         
-        function drawBackground(now) {
-            const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
-            const g = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W * 0.7);
-            g.addColorStop(0, '#16163a');
-            g.addColorStop(0.6, '#0b0b1f');
-            g.addColorStop(1, '#04040a');
-            ctx.fillStyle = g;
-            ctx.fillRect(0, 0, W, H);
-            const t = now / 1000;
-            STARS.forEach(st => {
-                const x = (st.x + t * st.s * 6) % W;
-                ctx.globalAlpha = 0.25 + 0.25 * Math.sin(t * st.s * 2 + st.p);
-                ctx.fillStyle = st.p % 4 === 0 ? '#aab8ff' : '#ffffff';
-                ctx.fillRect(x, st.y, st.r, st.r);
-            });
-            ctx.globalAlpha = 1;
-            const C = CONFIG.CELL;
-            ctx.fillStyle = 'rgba(120,130,255,0.13)';
-            for (let x = C; x < W; x += C) for (let y = C; y < H; y += C) ctx.fillRect(x - 1, y - 1, 2, 2);
-            ctx.strokeStyle = 'rgba(0,255,150,0.25)';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(1, 1, W - 2, H - 2);
-        }
-        
         function drawVignette() {
             const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
             const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, W * 0.65);
@@ -2852,32 +3057,45 @@
         }
         
         function drawBullet(b) {
-            const px = b.x * CONFIG.CELL;
-            const py = b.y * CONFIG.CELL;
-            const s = CONFIG.CELL;
-            
+            const S = CONFIG.CELL;
+            const cx = b.x * S + S / 2;
+            const cy = b.y * S + S / 2;
+            const t = performance.now() / 1000;
             const bc = b.color || (b.homing ? CONFIG.COLORS.bulletHoming : CONFIG.COLORS.bullet);
+
+            // Ateş topu: dış hale + sıcak çekirdek + titreşen kıvılcım
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const halo = ctx.createRadialGradient(cx, cy, 1, cx, cy, 12);
+            halo.addColorStop(0, bc);
+            halo.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = 0.55;
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
             ctx.shadowColor = bc;
-            ctx.shadowBlur = 12;
-            
+            ctx.shadowBlur = 10;
             ctx.fillStyle = bc;
             ctx.beginPath();
-            ctx.arc(px + s / 2, py + s / 2, 6, 0, Math.PI * 2);
+            ctx.arc(cx, cy, 5.2 + Math.sin(t * 18 + b.x) * 0.5, 0, Math.PI * 2);
             ctx.fill();
-            
-            ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.arc(px + s / 2 - 2, py + s / 2 - 2, 2, 0, Math.PI * 2);
-            ctx.fill();
-            
             ctx.shadowBlur = 0;
+            ctx.fillStyle = '#fff6d8';
+            ctx.beginPath();
+            ctx.arc(cx - 1, cy - 1, 2.2, 0, Math.PI * 2);
+            ctx.fill();
         }
-        
+
         function drawPowerup(p) {
-            const px = p.x * CONFIG.CELL;
-            const py = p.y * CONFIG.CELL;
-            const s = CONFIG.CELL;
-            
+            const S = CONFIG.CELL;
+            const px = p.x * S;
+            const py = p.y * S;
+            const cx = px + S / 2, cy = py + S / 2;
+            const t = performance.now() / 1000;
+
             const colors = {
                 shield: CONFIG.COLORS.powerShield,
                 speed: CONFIG.COLORS.powerSpeed,
@@ -2885,65 +3103,128 @@
                 clear: CONFIG.COLORS.powerClear
             };
             const icons = { shield: '🛡️', speed: '⚡', invincible: '🌟', clear: '💥' };
-            
-            ctx.shadowColor = colors[p.type];
-            ctx.shadowBlur = 12 + Math.sin(Date.now() / 100) * 5;
-            
-            ctx.fillStyle = colors[p.type];
-            ctx.globalAlpha = 0.25;
-            ctx.fillRect(px + 2, py + 2, s - 4, s - 4);
+            const col = colors[p.type];
+
+            // Rün taşı: dönen elmas çerçeve + içte yumuşak ışık
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.shadowColor = col;
+            ctx.shadowBlur = 12 + Math.sin(t * 6) * 4;
+            const g = ctx.createRadialGradient(0, 0, 1, 0, 0, 10);
+            g.addColorStop(0, 'rgba(255,255,255,0.55)');
+            g.addColorStop(1, col);
+            ctx.globalAlpha = 0.35;
+            ctx.fillStyle = g;
+            ctx.rotate(Math.PI / 4 + Math.sin(t * 2) * 0.12);
+            ctx.fillRect(-7, -7, 14, 14);
             ctx.globalAlpha = 1;
-            
-            ctx.strokeStyle = colors[p.type];
+            ctx.strokeStyle = col;
             ctx.lineWidth = 2;
-            ctx.strokeRect(px + 2, py + 2, s - 4, s - 4);
-            
+            ctx.strokeRect(-7, -7, 14, 14);
+            ctx.restore();
             ctx.shadowBlur = 0;
-            ctx.font = '12px Arial';
+
+            ctx.font = '11px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(icons[p.type], px + s / 2, py + s / 2);
+            ctx.fillText(icons[p.type], cx, cy + 0.5);
         }
-        
+
         function drawAura(pos, color, radius) {
-            const px = pos.x * CONFIG.CELL + CONFIG.CELL / 2;
-            const py = pos.y * CONFIG.CELL + CONFIG.CELL / 2;
-            
+            const S = CONFIG.CELL;
+            const cx = pos.x * S + S / 2;
+            const cy = pos.y * S + S / 2;
+            const t = performance.now() / 1000;
+
+            // Dönen kesikli rün halkası + yumuşak parıltı
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            const g = ctx.createRadialGradient(cx, cy, radius * 0.4, cx, cy, radius * 1.3);
+            g.addColorStop(0, 'rgba(0,0,0,0)');
+            g.addColorStop(1, color);
+            ctx.globalAlpha = 0.22 + Math.sin(t * 6) * 0.08;
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius * 1.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
             ctx.strokeStyle = color;
             ctx.lineWidth = 2;
-            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 100) * 0.3;
+            ctx.globalAlpha = 0.6 + Math.sin(t * 6) * 0.25;
+            ctx.setLineDash([6, 5]);
+            ctx.lineDashOffset = -t * 30;
             ctx.beginPath();
-            ctx.arc(px, py, radius, 0, Math.PI * 2);
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
             ctx.stroke();
+            ctx.setLineDash([]);
             ctx.globalAlpha = 1;
         }
-        
+
         function drawPortal(p) {
             const S = CONFIG.CELL;
+            const t = performance.now() / 1000;
             [p.a, p.b].forEach(c => {
                 const cx = c.x * S + S / 2, cy = c.y * S + S / 2;
-                const t = Date.now() / 200;
+
+                // Girdap: iç parıltı + ters yönde dönen iki halka + merkez noktası
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, 14);
+                g.addColorStop(0, p.color);
+                g.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.globalAlpha = 0.4 + Math.sin(t * 4) * 0.1;
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
                 ctx.shadowColor = p.color;
-                ctx.shadowBlur = 14;
+                ctx.shadowBlur = 12;
                 ctx.strokeStyle = p.color;
                 ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
                 ctx.beginPath();
-                ctx.ellipse(cx, cy, 8, 8, 0, t, t + Math.PI * 1.6);
+                ctx.arc(cx, cy, 8.5, t * 3, t * 3 + Math.PI * 1.6);
                 ctx.stroke();
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.ellipse(cx, cy, 4, 4, 0, -t, -t + Math.PI * 1.4);
+                ctx.arc(cx, cy, 4.5, -t * 4, -t * 4 + Math.PI * 1.4);
                 ctx.stroke();
                 ctx.shadowBlur = 0;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(cx - 1, cy - 1, 2, 2);
             });
         }
-        
+
         function drawTronLayer() {
             const S = CONFIG.CELL;
-            tron.ai.forEach((c, i) => {
-                ctx.fillStyle = i === 0 ? '#ffcc66' : '#cc5500';
-                ctx.fillRect(c.x * S + 2, c.y * S + 2, S - 4, S - 4);
-            });
+            // Rakip yılan: kor/bakır renkli, aynı kesintisiz gövde diliyle
+            ctx.lineCap = 'round';
+            for (let i = tron.ai.length - 1; i >= 0; i--) {
+                const c = tron.ai[i];
+                const cx = c.x * S + S / 2, cy = c.y * S + S / 2;
+                const k = tron.ai.length > 1 ? i / (tron.ai.length - 1) : 0;
+                const r = i === 0 ? 9 : Math.max(5, 8 - k * 3);
+                ctx.fillStyle = i === 0 ? '#ffd27a' : `hsl(${28 - 8 * k} 90% ${52 - 20 * k}%)`;
+                if (i === 0) { ctx.shadowColor = '#ff8a00'; ctx.shadowBlur = 12; }
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                if (i > 0) {
+                    const n = tron.ai[i - 1];
+                    if (Math.abs(n.x - c.x) + Math.abs(n.y - c.y) === 1) {
+                        ctx.strokeStyle = ctx.fillStyle;
+                        ctx.lineWidth = r * 2;
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy);
+                        ctx.lineTo(n.x * S + S / 2, n.y * S + S / 2);
+                        ctx.stroke();
+                    }
+                }
+            }
         }
         
         // ======================== TRON ========================
