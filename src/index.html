@@ -930,8 +930,9 @@
                     </div>
                     
                     <div class="controls-help">
+                        <button id="soundBtn" class="key-hint" style="cursor:pointer;background:none;font-family:inherit" onclick="SnakeGame.toggleSound()">🔊 SES: AÇIK</button><br>
                         <span class="key-hint">← → ↑ ↓</span> veya <span class="key-hint">W A S D</span> Hareket<br>
-                        <span class="key-hint">P</span> Duraklat &nbsp; <span class="key-hint">R</span> Yeniden Başlat &nbsp; <span class="key-hint">M</span> Menü
+                        <span class="key-hint">P</span> Duraklat &nbsp; <span class="key-hint">R</span> Yeniden Başlat &nbsp; <span class="key-hint">M</span> Menü &nbsp; <span class="key-hint">N</span> Ses
                     </div>
                 </div>
             </div>
@@ -1123,6 +1124,7 @@
         
         // Audio
         let audio = null;
+        let soundOn = true;
         
         // ======================== INIT ========================
         function init() {
@@ -1130,6 +1132,8 @@
             ctx = canvas.getContext('2d');
             
             loadSavedData();
+            try { soundOn = localStorage.getItem('twilightSound') !== '0'; } catch (e) {}
+            refreshSoundBtn();
             refreshMenuStats();
             
             document.addEventListener('keydown', onKey);
@@ -2498,6 +2502,11 @@
                 return;
             }
             
+            if (key === 'n') {
+                toggleSound();
+                return;
+            }
+            
             if (state.paused || state.over || state.complete) return;
             
             if (state.mode === 'survivor' && sv.choosing && ['1', '2', '3'].includes(key)) {
@@ -2928,7 +2937,20 @@
         }
         
         // ======================== AUDIO ========================
+        function toggleSound() {
+            soundOn = !soundOn;
+            try { localStorage.setItem('twilightSound', soundOn ? '1' : '0'); } catch (e) {}
+            refreshSoundBtn();
+            if (soundOn) playSound('eat');
+        }
+        
+        function refreshSoundBtn() {
+            const b = document.getElementById('soundBtn');
+            if (b) b.textContent = soundOn ? '🔊 SES: AÇIK' : '🔇 SES: KAPALI';
+        }
+        
         function playSound(type) {
+            if (!soundOn) return;
             try {
                 if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
                 
@@ -2989,6 +3011,7 @@
             startTron,
             startChaos,
             startDaily,
+            toggleSound,
             fire,
             pickUpgrade,
             startCampaign,

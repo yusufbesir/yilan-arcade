@@ -19,3 +19,9 @@ Mod duman testleri (Playwright gerekir): `npm test`. Yazı tipi yerel (`src/font
 
 ## Derleme
 Tekrarlanabilir derleme için `npm ci`, sonra `npm run dist`. `npm audit --omit=dev`: 0 açık; kalan uyarılar yalnız geliştirme araçlarında (electron-builder, test), uygulamanın içine girmiyor.
+
+## Kurulum notu (kod imzası yok)
+Kurulum dosyası kod imzalı değil, bu yüzden Windows SmartScreen "Windows bilgisayarınızı korudu" uyarısı gösterebilir. Dosyayı kendiniz derlediyseniz veya SHA256 değeri `BUILD-NOTU.md` ile aynıysa: **Ek bilgi** → **Yine de çalıştır**. Kişisel kullanım için ayrı bir sertifika alınmadı.
+
+## Ses
+Menüdeki düğmeyle veya oyunda `N` tuşuyla ses açılıp kapanır; tercih kaydedilir.
