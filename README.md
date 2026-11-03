@@ -1,6 +1,6 @@
 # Yılan Arcade
 
-Pixel Yılan Arcade: Klasik, Kampanya (30 bölüm) ve Mermi modları.
+Pixel Yılan Arcade: Klasik, Mermi Manyağı, Kuyruk Silahı, Survivor ve Bölüm (30 bölüm) modları.
 
 - `src/index.html`: güncel oyun (tek dosya)
 - `legacy/eski-surum.html`: eski sürüm, saklanır
@@ -15,4 +15,4 @@ Pixel Yılan Arcade: Klasik, Kampanya (30 bölüm) ve Mermi modları.
 Not: oyun yazı tipini Google Fonts'tan alır; internet yoksa sistem tek aralıklı yazı tipine döner.
 
 ## Test
-Mermi Manyağı duman testi: `node test/bullet-mode.test.js` (Playwright gerekir).
+Mod duman testleri (Playwright gerekir): `npm test`. Yazı tipi yerel (`src/fonts`, SIL OFL), ağ gerekmez.

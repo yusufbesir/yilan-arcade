@@ -2,10 +2,24 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>🐍 Pixel Yılan Arcade</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        @font-face {
+            font-family: 'Press Start 2P';
+            font-style: normal;
+            font-weight: 400;
+            src: url(fonts/PressStart2P-latin-ext.woff2) format('woff2');
+            unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+        }
+        @font-face {
+            font-family: 'Press Start 2P';
+            font-style: normal;
+            font-weight: 400;
+            src: url(fonts/PressStart2P-latin.woff2) format('woff2');
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
         
         * {
             margin: 0;
@@ -683,7 +697,14 @@
         .dpad-btn.down { grid-column: 2; grid-row: 3; }
         
         /* Responsive */
+        .overlay-title, .overlay-score, .overlay-message { line-height: 1.4; }
+        
         @media (max-width: 700px) {
+            .subtitle { letter-spacing: 2px; }
+            .overlay-box { padding: 12px; }
+            .overlay-title { margin-bottom: 8px; font-size: 18px; }
+            .overlay-score { font-size: 15px; margin: 6px 0; }
+            .overlay-buttons { margin-top: 12px; gap: 8px; }
             .arcade-cabinet {
                 padding: 15px;
                 border-radius: 15px;
@@ -928,7 +949,7 @@
                         <button class="dpad-btn up" ontouchstart="SnakeGame.input(0,-1)" onclick="SnakeGame.input(0,-1)">▲</button>
                         <button class="dpad-btn left" ontouchstart="SnakeGame.input(-1,0)" onclick="SnakeGame.input(-1,0)">◀</button>
                         <button class="dpad-btn center" onclick="SnakeGame.togglePause()">| |</button>
-                        <button class="dpad-btn fire" ontouchstart="SnakeGame.fire()" onclick="SnakeGame.fire()">🔫</button>
+                        <button class="dpad-btn fire" id="fireBtn" style="display:none" onpointerdown="SnakeGame.fire()">🔫</button>
                         <button class="dpad-btn right" ontouchstart="SnakeGame.input(1,0)" onclick="SnakeGame.input(1,0)">▶</button>
                         <button class="dpad-btn down" ontouchstart="SnakeGame.input(0,1)" onclick="SnakeGame.input(0,1)">▼</button>
                     </div>
@@ -1028,7 +1049,7 @@
             
             document.addEventListener('keydown', onKey);
             canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
-            canvas.addEventListener('click', onCanvasClick);
+            canvas.addEventListener('pointerdown', onCanvasClick);
         }
         
         // ======================== SCREEN NAVIGATION ========================
@@ -1113,6 +1134,7 @@
         
         // ======================== GAME START ========================
         function startClassic() {
+            document.getElementById('fireBtn').style.display = 'none';
             state.mode = 'classic';
             state.lives = 1;
             state.speed = CONFIG.BASE_SPEED;
@@ -1130,6 +1152,7 @@
         }
         
         function startBullet() {
+            document.getElementById('fireBtn').style.display = 'none';
             state.mode = 'bullet';
             state.lives = 3;
             state.speed = 115;
@@ -1151,6 +1174,7 @@
         
         function startTailgun() {
             state.mode = 'tailgun';
+            document.getElementById('fireBtn').style.display = '';
             state.lives = 3;
             state.speed = 115;
             
@@ -1170,6 +1194,7 @@
         }
         
         function startCampaign(level) {
+            document.getElementById('fireBtn').style.display = 'none';
             state.mode = 'campaign';
             state.level = level;
             state.lives = 3;
@@ -1442,7 +1467,7 @@
         
         function rnd(a, b) { return a + Math.random() * (b - a); }
         
-        function fire(x, y, ang, spd, color) {
+        function emitBullet(x, y, ang, spd, color) {
             bullets.push({ x, y, dx: Math.cos(ang) * spd, dy: Math.sin(ang) * spd, homing: false, color, grazed: false });
         }
         
@@ -1553,8 +1578,8 @@
             if (type === 'spiral') {
                 const t = turretPos();
                 patterns.push({ x: t.x, y: t.y, t: 0, warn: 10, n: 0, run(p) {
-                    fire(p.x, p.y, p.n * 0.5, spd, '#ff3df0');
-                    fire(p.x, p.y, p.n * 0.5 + Math.PI, spd, '#ff3df0');
+                    emitBullet(p.x, p.y, p.n * 0.5, spd, '#ff3df0');
+                    emitBullet(p.x, p.y, p.n * 0.5 + Math.PI, spd, '#ff3df0');
                     p.n++;
                     return p.n >= 34;
                 }});
@@ -1564,7 +1589,7 @@
                 patterns.push({ x: t.x, y: t.y, t: 0, warn: 10, n: 0, run(p) {
                     if ((p.t - p.warn) % 12 === 1) {
                         const off = p.n * (Math.PI / count);
-                        for (let i = 0; i < count; i++) fire(p.x, p.y, off + (i / count) * Math.PI * 2, spd * 0.9, '#ffd400');
+                        for (let i = 0; i < count; i++) emitBullet(p.x, p.y, off + (i / count) * Math.PI * 2, spd * 0.9, '#ffd400');
                         p.n++;
                     }
                     return p.n >= 3;
@@ -1575,7 +1600,7 @@
                     if ((p.t - p.warn) % 8 === 1) {
                         const h = snake[0];
                         const a = Math.atan2(h.y - p.y, h.x - p.x);
-                        for (const d of [-0.22, 0, 0.22]) fire(p.x, p.y, a + d, spd + 0.04, '#ff7a00');
+                        for (const d of [-0.22, 0, 0.22]) emitBullet(p.x, p.y, a + d, spd + 0.04, '#ff7a00');
                         p.n++;
                     }
                     return p.n >= 3;
@@ -1628,13 +1653,13 @@
             
             if (boss.t % 44 === 0) {
                 const count = rage ? 22 : 16;
-                for (let i = 0; i < count; i++) fire(boss.x, boss.y, (i / count) * Math.PI * 2 + boss.t * 0.01, spd * 0.9, '#ffd400');
+                for (let i = 0; i < count; i++) emitBullet(boss.x, boss.y, (i / count) * Math.PI * 2 + boss.t * 0.01, spd * 0.9, '#ffd400');
             }
-            if (rage && boss.t % 5 === 0) fire(boss.x, boss.y, boss.t * 0.35, spd, '#ff3df0');
+            if (rage && boss.t % 5 === 0) emitBullet(boss.x, boss.y, boss.t * 0.35, spd, '#ff3df0');
             if (boss.t % 100 === 50) {
                 const h = snake[0];
                 const a = Math.atan2(h.y - boss.y, h.x - boss.x);
-                for (const d of [-0.3, -0.15, 0, 0.15, 0.3]) fire(boss.x, boss.y, a + d, spd + 0.05, '#ff7a00');
+                for (const d of [-0.3, -0.15, 0, 0.15, 0.3]) emitBullet(boss.x, boss.y, a + d, spd + 0.05, '#ff7a00');
             }
             if (boss.t % 120 === 90) {
                 const h = snake[0];
@@ -1754,6 +1779,7 @@
         }
         
         function spawnEnemy() {
+            if (enemies.length >= 60) return;
             const side = Math.floor(Math.random() * 4);
             const e = { x: 0, y: 0, hp: state.wave >= 4 && Math.random() < 0.25 ? 2 : 1 };
             if (side === 0) { e.x = Math.random() * COLS; e.y = -1; }
@@ -1856,6 +1882,7 @@
         ];
         
         function startSurvivor() {
+            document.getElementById('fireBtn').style.display = 'none';
             state.mode = 'survivor';
             state.lives = 3;
             state.speed = 115;
@@ -1922,6 +1949,7 @@
                 state.score += 2;
                 updateHUD();
                 gems.push({ x: enemy.x, y: enemy.y });
+                if (gems.length > 80) gems.shift();
             });
             
             enemies.forEach(e => {

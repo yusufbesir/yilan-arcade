@@ -25,6 +25,7 @@ const path = require('path');
         out.laser = out.laser || g.lasers.length > 0;
         out.pattern = out.pattern || g.patterns.length > 0;
         out.bullets = Math.max(out.bullets, g.bullets.length);
+        out.patBullets = Math.max(out.patBullets || 0, g.bullets.filter(b => b.color).length);
         if (g.state.over) return Object.assign(out, { over: true });
       }
     }
@@ -32,7 +33,7 @@ const path = require('path');
   });
   console.log(JSON.stringify(res), 'hatalar:', errors.length);
   await browser.close();
-  const ok = errors.length === 0 && res.boss && res.laser && res.pattern && res.maxWave >= 5 && res.bullets > 0;
+  const ok = errors.length === 0 && res.boss && res.laser && res.pattern && res.maxWave >= 5 && res.bullets > 0 && res.patBullets > 20;
   if (!ok) { console.error('BAŞARISIZ', errors); process.exit(1); }
   console.log('GEÇTİ');
 })();
