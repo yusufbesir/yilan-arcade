@@ -1,7 +1,7 @@
 {
   "name": "yilan-arcade",
   "version": "0.2.0",
-  "description": "Pixel Yılan Arcade",
+  "description": "Sampo - Yılan Arcade",
   "main": "main.js",
   "author": "Yusuf",
   "license": "UNLICENSED",
@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "com.yusuf.yilanarcade",
-    "productName": "Yılan Arcade",
+    "productName": "Sampo",
     "files": [
       "main.js",
       "src/**/*",
@@ -35,8 +35,8 @@
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "deleteAppDataOnUninstall": false,
-      "shortcutName": "Yılan Arcade",
-      "artifactName": "Yilan-Arcade-Kurulum-${version}.exe"
+      "shortcutName": "Sampo",
+      "artifactName": "Sampo-Kurulum-${version}.exe"
     }
   }
 }
