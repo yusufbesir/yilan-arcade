@@ -16,3 +16,6 @@ Not: oyun yazı tipini Google Fonts'tan alır; internet yoksa sistem tek aralık
 
 ## Test
 Mod duman testleri (Playwright gerekir): `npm test`. Yazı tipi yerel (`src/fonts`, SIL OFL), ağ gerekmez.
+
+## Derleme
+Tekrarlanabilir derleme için `npm ci`, sonra `npm run dist`. `npm audit --omit=dev`: 0 açık; kalan uyarılar yalnız geliştirme araçlarında (electron-builder, test), uygulamanın içine girmiyor.

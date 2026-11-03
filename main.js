@@ -8,7 +8,7 @@ function createWindow() {
     title: 'Yılan Arcade',
     backgroundColor: '#0d0d1a',
     autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: false }
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: !app.isPackaged }
   });
   Menu.setApplicationMenu(null);
   win.loadFile(path.join(__dirname, 'src', 'index.html'));

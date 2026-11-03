@@ -1251,6 +1251,7 @@
             powers = { shield: false, speed: false, invincible: false };
             Object.values(powerTimers).forEach(t => clearTimeout(t));
             powerTimers = {};
+            powerMeta = {};
             refreshPowerDisplay();
             
             spawnFood();
@@ -1988,6 +1989,7 @@
             const pool = UPGRADES.slice().sort(() => Math.random() - 0.5);
             sv.choices = pool.slice(0, 3);
             sv.choosing = true;
+            pausePowerTimers();
             playSound('powerup');
         }
         
@@ -2001,6 +2003,7 @@
                 case 'life': state.lives = 3; updateHUD(); break;
             }
             sv.choosing = false;
+            resumePowerTimers();
             document.getElementById('hudTarget').textContent = sv.xp + '/' + sv.need;
         }
         
@@ -2066,6 +2069,29 @@
             });
         }
         
+        // güç süreleri: seviye seçimi sırasında durdurulabilsin diye kalan süre tutulur
+        let powerMeta = {};
+        
+        function armTimer(type, ms, fn) {
+            if (powerTimers[type]) clearTimeout(powerTimers[type]);
+            powerMeta[type] = { fn, end: Date.now() + ms };
+            powerTimers[type] = setTimeout(() => { delete powerMeta[type]; fn(); }, ms);
+        }
+        
+        function pausePowerTimers() {
+            Object.keys(powerMeta).forEach(t => {
+                clearTimeout(powerTimers[t]);
+                powerMeta[t].left = Math.max(50, powerMeta[t].end - Date.now());
+            });
+        }
+        
+        function resumePowerTimers() {
+            Object.keys(powerMeta).forEach(t => {
+                const m = powerMeta[t];
+                armTimer(t, m.left || 1000, m.fn);
+            });
+        }
+        
         function activatePower(type) {
             if (powerTimers[type]) clearTimeout(powerTimers[type]);
             
@@ -2074,10 +2100,10 @@
             switch (type) {
                 case 'shield':
                     powers.shield = true;
-                    powerTimers.shield = setTimeout(() => {
+                    armTimer('shield', 12000, () => {
                         powers.shield = false;
                         refreshPowerDisplay();
-                    }, 12000);
+                    });
                     break;
                     
                 case 'speed':
@@ -2087,21 +2113,21 @@
                         clearInterval(loopInterval);
                         loopInterval = setInterval(tick, state.speed);
                     }
-                    powerTimers.speed = setTimeout(() => {
+                    armTimer('speed', 6500, () => {
                         powers.speed = false;
                         state.speed += 35;
                         clearInterval(loopInterval);
                         loopInterval = setInterval(tick, state.speed);
                         refreshPowerDisplay();
-                    }, 6500);
+                    });
                     break;
                     
                 case 'invincible':
                     powers.invincible = true;
-                    powerTimers.invincible = setTimeout(() => {
+                    armTimer('invincible', 5000, () => {
                         powers.invincible = false;
                         refreshPowerDisplay();
-                    }, 5000);
+                    });
                     break;
                     
                 case 'clear':
