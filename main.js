@@ -5,7 +5,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
     height: 900,
-    title: 'Yılan Arcade',
+    title: 'Sampo',
     backgroundColor: '#0d0d1a',
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: !app.isPackaged }
