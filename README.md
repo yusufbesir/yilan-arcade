@@ -1,6 +1,6 @@
 # Yılan Arcade
 
-Pixel Yılan Arcade: Klasik, Mermi Manyağı, Kuyruk Silahı, Survivor ve Bölüm (30 bölüm) modları.
+Pixel Yılan Arcade: Klasik, Mermi Manyağı, Kuyruk Silahı, Survivor, Zamana Karşı, Portal ve Bulmaca, Tron Düellosu, Kaos, Günlük Meydan Okuma ve Bölüm (30 bölüm) modları.
 
 - `src/index.html`: güncel oyun (tek dosya)
 - `legacy/eski-surum.html`: eski sürüm, saklanır
