@@ -763,8 +763,8 @@
                         <div class="mode-header">
                             <span class="mode-icon">💥</span>
                             <div class="mode-text">
-                                <h3>MERMİ ÇILGINLIĞI</h3>
-                                <p>Mermilerden kaç, güç topla, hayatta kal!</p>
+                                <h3>MERMİ MANYAĞI</h3>
+                                <p>Desenli mermi dalgaları, lazerler ve patronlar!</p>
                             </div>
                         </div>
                         <div class="mode-stats">
@@ -822,7 +822,7 @@
                         </div>
                         <div class="hud-section">
                             <div class="hud-item" id="hudLevelBox" style="display:none;">
-                                <div class="hud-label">BÖLÜM</div>
+                                <div class="hud-label" id="hudLevelLabel">BÖLÜM</div>
                                 <div class="hud-value level" id="hudLevel">1</div>
                             </div>
                             <div class="hud-item" id="hudTargetBox" style="display:none;">
@@ -952,6 +952,11 @@
         let bullets = [];
         let powerups = [];
         let bulletTimer = 0;
+        let patterns = [];
+        let lasers = [];
+        let boss = null;
+        let waveTick = 0;
+        let banner = { text: '', until: 0 };
         
         let powers = { shield: false, speed: false, invincible: false };
         let powerTimers = {};
@@ -1080,12 +1085,15 @@
             state.speed = 115;
             
             document.getElementById('hudHighBox').style.display = '';
-            document.getElementById('hudLevelBox').style.display = 'none';
+            document.getElementById('hudLevelBox').style.display = '';
+            document.getElementById('hudLevelLabel').textContent = 'DALGA';
             document.getElementById('hudTargetBox').style.display = 'none';
             document.getElementById('hudLivesBox').style.display = '';
             document.getElementById('hudHigh').textContent = records.bullet;
             
             initGameState();
+            document.getElementById('hudLevel').textContent = state.wave;
+            showBanner('DALGA 1');
             showGame();
             beginLoop();
             playSound('start');
@@ -1100,6 +1108,7 @@
             
             document.getElementById('hudHighBox').style.display = 'none';
             document.getElementById('hudLevelBox').style.display = '';
+            document.getElementById('hudLevelLabel').textContent = 'BÖLÜM';
             document.getElementById('hudTargetBox').style.display = '';
             document.getElementById('hudLivesBox').style.display = '';
             document.getElementById('hudLevel').textContent = level;
@@ -1133,6 +1142,12 @@
             bullets = [];
             powerups = [];
             bulletTimer = 0;
+            patterns = [];
+            lasers = [];
+            boss = null;
+            waveTick = 0;
+            state.wave = 1;
+            banner = { text: '', until: 0 };
             
             powers = { shield: false, speed: false, invincible: false };
             Object.values(powerTimers).forEach(t => clearTimeout(t));
@@ -1320,6 +1335,7 @@
             state.score += pts;
             updateHUD();
             playSound('eat');
+            if (state.mode === 'bullet' && boss) hurtBoss(food.type === 'super' ? 3 : 1);
             spawnFood();
         }
         
@@ -1342,22 +1358,33 @@
         }
         
         // ======================== BULLETS ========================
+        function showBanner(text) {
+            banner = { text, until: performance.now() + 1600 };
+        }
+        
+        function rnd(a, b) { return a + Math.random() * (b - a); }
+        
+        function fire(x, y, ang, spd, color) {
+            bullets.push({ x, y, dx: Math.cos(ang) * spd, dy: Math.sin(ang) * spd, homing: false, color, grazed: false });
+        }
+        
         function tickBullets() {
-            bulletTimer++;
+            tickWaves();
             
-            const rate = Math.max(10, 45 - Math.floor(state.score / 2));
+            // seyrek rastgele mermi (dalga arttıkça artar)
+            bulletTimer++;
+            const rate = Math.max(18, 60 - state.wave * 4);
             if (bulletTimer >= rate) {
                 bulletTimer = 0;
                 spawnBullet();
             }
             
+            const head = snake[0];
             bullets = bullets.filter(b => {
                 b.x += b.dx;
                 b.y += b.dy;
                 
-                // Homing
                 if (b.homing && Math.random() < 0.07) {
-                    const head = snake[0];
                     const ang = Math.atan2(head.y - b.y, head.x - b.x);
                     b.dx += Math.cos(ang) * 0.012;
                     b.dy += Math.sin(ang) * 0.012;
@@ -1368,54 +1395,209 @@
                     }
                 }
                 
-                return b.x >= -2 && b.x <= COLS + 2 && b.y >= -2 && b.y <= ROWS + 2;
+                // yakın geçiş (graze) puanı
+                if (!b.grazed && Math.hypot(head.x - b.x, head.y - b.y) < 1.8) {
+                    b.grazed = true;
+                    if (!powers.invincible) {
+                        state.score += 1;
+                        updateHUD();
+                    }
+                }
+                
+                return b.x >= -3 && b.x <= COLS + 3 && b.y >= -3 && b.y <= ROWS + 3;
             });
             
-            // Powerup spawn
-            if (Math.random() < 0.005) spawnPowerup();
+            if (Math.random() < 0.006) spawnPowerup();
         }
         
         function spawnBullet() {
             const side = Math.floor(Math.random() * 4);
-            const b = { x: 0, y: 0, dx: 0, dy: 0, homing: false };
-            const spd = 0.16 + state.score * 0.002;
+            const b = { x: 0, y: 0, dx: 0, dy: 0, homing: false, grazed: false };
+            const spd = Math.min(0.3, 0.15 + state.wave * 0.012);
             
             switch (side) {
-                case 0:
-                    b.x = Math.random() * COLS;
-                    b.y = -1;
-                    b.dy = spd + Math.random() * 0.08;
-                    b.dx = (Math.random() - 0.5) * 0.12;
-                    break;
-                case 1:
-                    b.x = Math.random() * COLS;
-                    b.y = ROWS;
-                    b.dy = -(spd + Math.random() * 0.08);
-                    b.dx = (Math.random() - 0.5) * 0.12;
-                    break;
-                case 2:
-                    b.x = -1;
-                    b.y = Math.random() * ROWS;
-                    b.dx = spd + Math.random() * 0.08;
-                    b.dy = (Math.random() - 0.5) * 0.12;
-                    break;
-                case 3:
-                    b.x = COLS;
-                    b.y = Math.random() * ROWS;
-                    b.dx = -(spd + Math.random() * 0.08);
-                    b.dy = (Math.random() - 0.5) * 0.12;
-                    break;
+                case 0: b.x = Math.random() * COLS; b.y = -1; b.dy = spd + Math.random() * 0.08; b.dx = (Math.random() - 0.5) * 0.12; break;
+                case 1: b.x = Math.random() * COLS; b.y = ROWS; b.dy = -(spd + Math.random() * 0.08); b.dx = (Math.random() - 0.5) * 0.12; break;
+                case 2: b.x = -1; b.y = Math.random() * ROWS; b.dx = spd + Math.random() * 0.08; b.dy = (Math.random() - 0.5) * 0.12; break;
+                default: b.x = COLS; b.y = Math.random() * ROWS; b.dx = -(spd + Math.random() * 0.08); b.dy = (Math.random() - 0.5) * 0.12; break;
             }
             
-            if (state.score >= 15 && Math.random() < 0.18) b.homing = true;
-            
+            if (state.wave >= 3 && Math.random() < 0.18) b.homing = true;
             bullets.push(b);
+        }
+        
+        // ---- dalgalar ve desenler ----
+        const WAVE_TICKS = 150;
+        
+        function tickWaves() {
+            waveTick++;
+            
+            if (!boss && waveTick % WAVE_TICKS === 0) {
+                state.wave++;
+                document.getElementById('hudLevel').textContent = state.wave;
+                if (state.wave % 5 === 0) {
+                    spawnBoss();
+                } else {
+                    showBanner('DALGA ' + state.wave);
+                }
+            }
+            
+            if (boss) {
+                tickBoss();
+            } else {
+                const gap = Math.max(26, 72 - state.wave * 4);
+                if (waveTick % gap === 0) startPattern(pickPattern());
+            }
+            
+            patterns = patterns.filter(stepPattern);
+            lasers = lasers.filter(l => { l.t++; return l.t < l.warn + l.live; });
+        }
+        
+        function pickPattern() {
+            const pool = ['aimed', 'rain'];
+            if (state.wave >= 2) pool.push('ring');
+            if (state.wave >= 3) pool.push('spiral');
+            if (state.wave >= 4) pool.push('laser');
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+        
+        function turretPos() {
+            const spots = [
+                { x: COLS / 2, y: 2.5 }, { x: COLS / 2, y: ROWS - 3.5 },
+                { x: 2.5, y: ROWS / 2 }, { x: COLS - 3.5, y: ROWS / 2 }
+            ];
+            return spots[Math.floor(Math.random() * spots.length)];
+        }
+        
+        function startPattern(type) {
+            const spd = Math.min(0.28, 0.17 + state.wave * 0.008);
+            
+            if (type === 'spiral') {
+                const t = turretPos();
+                patterns.push({ x: t.x, y: t.y, t: 0, warn: 10, n: 0, run(p) {
+                    fire(p.x, p.y, p.n * 0.5, spd, '#ff3df0');
+                    fire(p.x, p.y, p.n * 0.5 + Math.PI, spd, '#ff3df0');
+                    p.n++;
+                    return p.n >= 34;
+                }});
+            } else if (type === 'ring') {
+                const t = turretPos();
+                const count = Math.min(24, 14 + state.wave);
+                patterns.push({ x: t.x, y: t.y, t: 0, warn: 10, n: 0, run(p) {
+                    if ((p.t - p.warn) % 12 === 1) {
+                        const off = p.n * (Math.PI / count);
+                        for (let i = 0; i < count; i++) fire(p.x, p.y, off + (i / count) * Math.PI * 2, spd * 0.9, '#ffd400');
+                        p.n++;
+                    }
+                    return p.n >= 3;
+                }});
+            } else if (type === 'aimed') {
+                const t = turretPos();
+                patterns.push({ x: t.x, y: t.y, t: 0, warn: 6, n: 0, run(p) {
+                    if ((p.t - p.warn) % 8 === 1) {
+                        const h = snake[0];
+                        const a = Math.atan2(h.y - p.y, h.x - p.x);
+                        for (const d of [-0.22, 0, 0.22]) fire(p.x, p.y, a + d, spd + 0.04, '#ff7a00');
+                        p.n++;
+                    }
+                    return p.n >= 3;
+                }});
+            } else if (type === 'laser') {
+                const n = Math.min(3, 1 + Math.floor(state.wave / 4));
+                const h = snake[0];
+                for (let i = 0; i < n; i++) {
+                    const horizontal = Math.random() < 0.5;
+                    const idx = horizontal
+                        ? Math.max(0, Math.min(ROWS - 1, Math.round(h.y + rnd(-6, 6))))
+                        : Math.max(0, Math.min(COLS - 1, Math.round(h.x + rnd(-8, 8))));
+                    lasers.push({ horizontal, idx, t: 0, warn: 12, live: 5 });
+                }
+            } else {
+                // rain: bir kenardan sıralı mermi perdesi
+                const vertical = Math.random() < 0.5;
+                const gapAt = Math.floor(rnd(2, (vertical ? COLS : ROWS) - 2));
+                const len = vertical ? COLS : ROWS;
+                for (let i = 0; i < len; i += 2) {
+                    if (Math.abs(i - gapAt) <= 2) continue;
+                    if (vertical) bullets.push({ x: i, y: -1, dx: 0, dy: spd, homing: false, color: '#00e5ff', grazed: false });
+                    else bullets.push({ x: -1, y: i, dx: spd, dy: 0, homing: false, color: '#00e5ff', grazed: false });
+                }
+            }
+        }
+        
+        function stepPattern(p) {
+            p.t++;
+            if (p.t <= p.warn) return true;
+            return !p.run(p);
+        }
+        
+        // ---- patron ----
+        function spawnBoss() {
+            const hp = 8 + state.wave;
+            boss = { x: COLS / 2, y: 2.5, hp, max: hp, t: 0, hit: 0 };
+            bullets = [];
+            patterns = [];
+            showBanner('PATRON! Yemleri ye, canını azalt');
+            playSound('start');
+        }
+        
+        function tickBoss() {
+            boss.t++;
+            if (boss.hit > 0) boss.hit--;
+            boss.x = COLS / 2 + Math.sin(boss.t * 0.04) * (COLS / 3);
+            const spd = Math.min(0.28, 0.17 + state.wave * 0.006);
+            const rage = boss.hp <= boss.max / 2;
+            
+            if (boss.t % 44 === 0) {
+                const count = rage ? 22 : 16;
+                for (let i = 0; i < count; i++) fire(boss.x, boss.y, (i / count) * Math.PI * 2 + boss.t * 0.01, spd * 0.9, '#ffd400');
+            }
+            if (rage && boss.t % 5 === 0) fire(boss.x, boss.y, boss.t * 0.35, spd, '#ff3df0');
+            if (boss.t % 100 === 50) {
+                const h = snake[0];
+                const a = Math.atan2(h.y - boss.y, h.x - boss.x);
+                for (const d of [-0.3, -0.15, 0, 0.15, 0.3]) fire(boss.x, boss.y, a + d, spd + 0.05, '#ff7a00');
+            }
+            if (boss.t % 120 === 90) {
+                const h = snake[0];
+                lasers.push({ horizontal: false, idx: Math.max(0, Math.min(COLS - 1, Math.round(h.x))), t: 0, warn: 12, live: 5 });
+            }
+            
+            if (boss.t > 700) {
+                boss = null;
+                bullets = [];
+                showBanner('PATRON KAÇTI');
+            }
+        }
+        
+        function hurtBoss(dmg) {
+            boss.hp -= dmg;
+            boss.hit = 6;
+            if (boss.hp <= 0) {
+                boss = null;
+                bullets = [];
+                patterns = [];
+                lasers = [];
+                state.score += 25;
+                updateHUD();
+                activatePower('shield');
+                flashCanvas('#ffd400');
+                showBanner('PATRON YENİLDİ +25');
+                playSound('complete');
+            }
         }
         
         function checkBulletHit() {
             if (powers.invincible) return;
             
             const head = snake[0];
+            for (const l of lasers) {
+                if (l.t < l.warn) continue;
+                if (l.horizontal ? head.y === l.idx : head.x === l.idx) {
+                    damage();
+                    return;
+                }
+            }
             for (const b of bullets) {
                 if (Math.hypot(head.x - b.x, head.y - b.y) < 1.05) {
                     damage();
@@ -1424,7 +1606,65 @@
             }
         }
         
-        // ======================== POWERUPS ========================
+        // ---- çizim ----
+        function drawBulletLayer() {
+            const CELL = CONFIG.CELL;
+            const now = performance.now();
+            
+            // taret uyarıları
+            patterns.forEach(p => {
+                if (p.t > p.warn) return;
+                const r = 8 + Math.abs(Math.sin(now / 90)) * 6;
+                ctx.strokeStyle = '#ff3355';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(p.x * CELL + CELL / 2, p.y * CELL + CELL / 2, r, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+            
+            // lazerler
+            lasers.forEach(l => {
+                const live = l.t >= l.warn;
+                ctx.fillStyle = live ? 'rgba(255,40,80,0.85)' : 'rgba(255,40,80,' + (0.12 + 0.12 * Math.abs(Math.sin(now / 70))) + ')';
+                ctx.shadowColor = '#ff2850';
+                ctx.shadowBlur = live ? 18 : 0;
+                if (l.horizontal) ctx.fillRect(0, l.idx * CELL + (live ? 2 : 8), CONFIG.WIDTH, live ? CELL - 4 : 4);
+                else ctx.fillRect(l.idx * CELL + (live ? 2 : 8), 0, live ? CELL - 4 : 4, CONFIG.HEIGHT);
+                ctx.shadowBlur = 0;
+            });
+            
+            // patron
+            if (boss) {
+                const bx = boss.x * CELL - CELL, by = boss.y * CELL - CELL;
+                ctx.shadowColor = '#ff3df0';
+                ctx.shadowBlur = 16;
+                ctx.fillStyle = boss.hit > 0 ? '#ffffff' : '#a020c0';
+                ctx.fillRect(bx, by, CELL * 3, CELL * 3);
+                ctx.fillStyle = '#ff3df0';
+                ctx.fillRect(bx + 6, by + 14, 10, 10);
+                ctx.fillRect(bx + CELL * 3 - 16, by + 14, 10, 10);
+                ctx.shadowBlur = 0;
+                // can çubuğu
+                ctx.fillStyle = '#222';
+                ctx.fillRect(40, CONFIG.HEIGHT - 12, CONFIG.WIDTH - 80, 6);
+                ctx.fillStyle = '#ff3df0';
+                ctx.fillRect(40, CONFIG.HEIGHT - 12, (CONFIG.WIDTH - 80) * Math.max(0, boss.hp) / boss.max, 6);
+            }
+        }
+        
+        function drawBanner() {
+            if (performance.now() > banner.until) return;
+            ctx.save();
+            ctx.font = '18px "Press Start 2P", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#fff';
+            ctx.shadowColor = '#00ff66';
+            ctx.shadowBlur = 14;
+            ctx.fillText(banner.text, CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2 - 90);
+            ctx.restore();
+        }
+
+                // ======================== POWERUPS ========================
         function spawnPowerup() {
             const types = ['shield', 'speed', 'invincible', 'clear'];
             const type = types[Math.floor(Math.random() * types.length)];
@@ -1685,6 +1925,9 @@
             // Food
             drawFood();
             
+            // Lasers, warnings, boss
+            if (state.mode === 'bullet') drawBulletLayer();
+            
             // Bullets
             bullets.forEach(b => drawBullet(b));
             
@@ -1697,6 +1940,8 @@
             // Auras
             if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
             if (powers.shield) drawAura(snake[0], '#00ccff', 22);
+            
+            if (state.mode === 'bullet') drawBanner();
         }
         
         function drawBlock(x, y, color, highlight) {
@@ -1812,10 +2057,11 @@
             const py = b.y * CONFIG.CELL;
             const s = CONFIG.CELL;
             
-            ctx.shadowColor = b.homing ? CONFIG.COLORS.bulletHoming : CONFIG.COLORS.bullet;
+            const bc = b.color || (b.homing ? CONFIG.COLORS.bulletHoming : CONFIG.COLORS.bullet);
+            ctx.shadowColor = bc;
             ctx.shadowBlur = 12;
             
-            ctx.fillStyle = b.homing ? CONFIG.COLORS.bulletHoming : CONFIG.COLORS.bullet;
+            ctx.fillStyle = bc;
             ctx.beginPath();
             ctx.arc(px + s / 2, py + s / 2, 6, 0, Math.PI * 2);
             ctx.fill();
@@ -1932,7 +2178,8 @@
             restart,
             nextLevel,
             input,
-            togglePause
+            togglePause,
+            _debug: { tick, get: () => ({ state, snake, bullets, lasers, boss, patterns }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, godMode: () => { powers.invincible = true; } }
         };
     })();
     
