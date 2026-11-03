@@ -23,5 +23,11 @@ Tekrarlanabilir derleme için `npm ci`, sonra `npm run dist`. `npm audit --omit=
 ## Kurulum notu (kod imzası yok)
 Kurulum dosyası kod imzalı değil, bu yüzden Windows SmartScreen "Windows bilgisayarınızı korudu" uyarısı gösterebilir. Dosyayı kendiniz derlediyseniz veya SHA256 değeri `BUILD-NOTU.md` ile aynıysa: **Ek bilgi** → **Yine de çalıştır**. Kişisel kullanım için ayrı bir sertifika alınmadı.
 
+## Ayarlar, müzik ve başarımlar
+- Menüdeki **Ayarlar** paneli: oyun hızı, efekt yoğunluğu, ses seviyesi, hareket azaltma, ekran sarsıntısı, müzik. Ayarlar tarayıcıda saklanır.
+- Müzik prosedüreldir (Web Audio), `B` tuşuyla açılıp kapanır.
+- 14 başarım; menüdeki **Başarımlar** düğmesinden görülür. Oyun sonunda mod başına ilk 5 skor listelenir.
+- Varlık kaynakları: `CREDITS.md`.
+
 ## Ses
 Menüdeki düğmeyle veya oyunda `N` tuşuyla ses açılıp kapanır; tercih kaydedilir.
