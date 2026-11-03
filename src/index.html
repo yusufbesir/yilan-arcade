@@ -774,6 +774,72 @@
                 grid-template-rows: repeat(3, 48px);
             }
         }
+        /* ===== Nors cam arayüz (menü/HUD) ===== */
+        :root {
+            --nors-kart: rgba(18, 28, 44, 0.72);
+            --nors-cizgi: rgba(160, 205, 235, 0.22);
+            --nors-altin: #e8c46a;
+            --nors-buz: #a9d6f0;
+            --nors-sure: 240ms;
+            --nors-yay: cubic-bezier(.2, .9, .25, 1.05);
+        }
+        body {
+            background:
+                radial-gradient(900px 500px at 15% 8%, rgba(70, 110, 160, 0.28), transparent 60%),
+                radial-gradient(900px 500px at 85% 92%, rgba(40, 120, 100, 0.22), transparent 60%),
+                #0a1220;
+        }
+        body::before { opacity: 0.35; }
+        .grid-bg { background-image:
+            linear-gradient(rgba(169, 214, 240, 0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(169, 214, 240, 0.035) 1px, transparent 1px); }
+        .arcade-cabinet {
+            background: var(--nors-kart);
+            border: 1px solid var(--nors-cizgi);
+            border-radius: 22px;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(232, 196, 106, 0.08);
+        }
+        .main-title {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-style: italic;
+            font-weight: 400;
+            letter-spacing: 1px;
+            line-height: 1.15;
+            color: var(--nors-altin);
+            text-shadow: 0 0 18px rgba(232, 196, 106, 0.45), 0 2px 0 #3a2c0c;
+            animation: none;
+        }
+        .subtitle { color: var(--nors-buz); opacity: 0.7; }
+        .mode-card {
+            background: rgba(255, 255, 255, 0.045);
+            border-radius: 16px;
+            border-width: 1px;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+            transition: transform var(--nors-sure) var(--nors-yay), box-shadow var(--nors-sure) var(--nors-yay), background var(--nors-sure);
+            opacity: 0;
+            animation: norsGir var(--nors-sure) var(--nors-yay) forwards;
+        }
+        .mode-card:nth-child(1) { animation-delay: 0ms; }
+        .mode-card:nth-child(2) { animation-delay: 40ms; }
+        .mode-card:nth-child(3) { animation-delay: 80ms; }
+        .mode-card:nth-child(4) { animation-delay: 120ms; }
+        .mode-card:nth-child(5) { animation-delay: 160ms; }
+        .mode-card:nth-child(n+6) { animation-delay: 200ms; }
+        .mode-card:hover { transform: translateY(-5px) scale(1.02); background: rgba(255, 255, 255, 0.08); }
+        .mode-badge { border-radius: 999px; }
+        .hud-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--nors-cizgi);
+            border-radius: 12px;
+        }
+        @keyframes norsGir { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        @media (prefers-reduced-motion: reduce) {
+            .mode-card { animation: none; opacity: 1; transition: none; }
+            .mode-card:hover { transform: none; }
+            .grid-bg { animation: none; }
+        }
     </style>
 </head>
 <body>
