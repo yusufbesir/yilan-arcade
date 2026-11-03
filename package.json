@@ -1,0 +1,42 @@
+{
+  "name": "yilan-arcade",
+  "version": "0.1.0",
+  "description": "Pixel Yılan Arcade",
+  "main": "main.js",
+  "author": "Yusuf",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis",
+    "test": "node test/bullet-mode.test.js && node test/tailgun-mode.test.js && node test/survivor-mode.test.js && node test/font-csp.test.js"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8",
+    "playwright": "1.49.1"
+  },
+  "build": {
+    "appId": "com.yusuf.yilanarcade",
+    "productName": "Yılan Arcade",
+    "files": [
+      "main.js",
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "Yılan Arcade",
+      "artifactName": "Yilan-Arcade-Kurulum-${version}.exe"
+    }
+  }
+}
