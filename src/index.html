@@ -220,6 +220,12 @@
         }
         
         .mode-card.classic .mode-text h3 { color: #00ff66; }
+        .mode-card.tailgun { border-color: #00e5ff; }
+        .mode-card.tailgun:hover {
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.4), inset 0 0 40px rgba(0, 229, 255, 0.05);
+            transform: translateY(-3px);
+        }
+        .mode-card.tailgun .mode-text h3 { color: #00e5ff; }
         .mode-card.bullet .mode-text h3 { color: #ff0066; }
         .mode-card.campaign .mode-text h3 { color: #00ccff; }
         
@@ -667,6 +673,7 @@
         }
         .dpad-btn.center:active { background: #ffcc00; }
         .dpad-btn.right { grid-column: 3; grid-row: 2; }
+        .dpad-btn.fire { grid-column: 3; grid-row: 3; border-color: #00e5ff; }
         .dpad-btn.down { grid-column: 2; grid-row: 3; }
         
         /* Responsive */
@@ -770,6 +777,20 @@
                         <div class="mode-stats">
                             <span class="high-score">🏆 REKOR: <span id="menuBulletHigh">0</span></span>
                             <span class="mode-badge">💀 SURVIVOR</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mode-card tailgun" onclick="SnakeGame.startTailgun()">
+                        <div class="mode-header">
+                            <span class="mode-icon">🔫</span>
+                            <div class="mode-text">
+                                <h3>KUYRUK SİLAHI</h3>
+                                <p>Kuyruğunu mermi yap, düşman sürüsünü vur!</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">🏆 REKOR: <span id="menuTailHigh">0</span></span>
+                            <span class="mode-badge">🎯 NİŞAN</span>
                         </div>
                     </div>
                     
@@ -887,6 +908,7 @@
                         <button class="dpad-btn up" ontouchstart="SnakeGame.input(0,-1)" onclick="SnakeGame.input(0,-1)">▲</button>
                         <button class="dpad-btn left" ontouchstart="SnakeGame.input(-1,0)" onclick="SnakeGame.input(-1,0)">◀</button>
                         <button class="dpad-btn center" onclick="SnakeGame.togglePause()">| |</button>
+                        <button class="dpad-btn fire" ontouchstart="SnakeGame.fire()" onclick="SnakeGame.fire()">🔫</button>
                         <button class="dpad-btn right" ontouchstart="SnakeGame.input(1,0)" onclick="SnakeGame.input(1,0)">▶</button>
                         <button class="dpad-btn down" ontouchstart="SnakeGame.input(0,1)" onclick="SnakeGame.input(0,1)">▼</button>
                     </div>
@@ -956,6 +978,9 @@
         let lasers = [];
         let boss = null;
         let waveTick = 0;
+        let playerShots = [];
+        let enemies = [];
+        let shotCooldown = 0;
         let banner = { text: '', until: 0 };
         
         let powers = { shield: false, speed: false, invincible: false };
@@ -965,7 +990,7 @@
         let frameRequest = null;
         
         // Saved Data
-        let records = { classic: 0, bullet: 0 };
+        let records = { classic: 0, bullet: 0, tailgun: 0 };
         let progress = { unlocked: 1, stars: {} };
         
         // Audio
@@ -1017,6 +1042,7 @@
         function refreshMenuStats() {
             document.getElementById('menuClassicHigh').textContent = records.classic;
             document.getElementById('menuBulletHigh').textContent = records.bullet;
+            document.getElementById('menuTailHigh').textContent = records.tailgun;
             document.getElementById('menuProgress').textContent = Math.max(0, progress.unlocked - 1);
         }
         
@@ -1099,6 +1125,26 @@
             playSound('start');
         }
         
+        function startTailgun() {
+            state.mode = 'tailgun';
+            state.lives = 3;
+            state.speed = 115;
+            
+            document.getElementById('hudHighBox').style.display = '';
+            document.getElementById('hudLevelBox').style.display = '';
+            document.getElementById('hudLevelLabel').textContent = 'DALGA';
+            document.getElementById('hudTargetBox').style.display = 'none';
+            document.getElementById('hudLivesBox').style.display = '';
+            document.getElementById('hudHigh').textContent = records.tailgun;
+            
+            initGameState();
+            document.getElementById('hudLevel').textContent = state.wave;
+            showBanner('BOŞLUK TUŞU: KUYRUKTAN ATEŞ');
+            showGame();
+            beginLoop();
+            playSound('start');
+        }
+        
         function startCampaign(level) {
             state.mode = 'campaign';
             state.level = level;
@@ -1146,6 +1192,9 @@
             lasers = [];
             boss = null;
             waveTick = 0;
+            playerShots = [];
+            enemies = [];
+            shotCooldown = 0;
             state.wave = 1;
             banner = { text: '', until: 0 };
             
@@ -1256,6 +1305,8 @@
                 tickPowerups();
                 checkBulletHit();
             }
+            
+            if (state.mode === 'tailgun') tickTailgun();
             
             if (state.mode === 'campaign') {
                 tickMovingObs();
@@ -1664,7 +1715,106 @@
             ctx.restore();
         }
 
-                // ======================== POWERUPS ========================
+                // ======================== KUYRUK SİLAHI ========================
+        function fire() {
+            if (state.mode !== 'tailgun' || state.paused || state.over || state.complete) return;
+            if (snake.length <= 3 || shotCooldown > 0) return;
+            const tail = snake.pop();
+            const h = snake[0];
+            playerShots.push({ x: h.x, y: h.y, dx: dir.x, dy: dir.y, from: tail });
+            shotCooldown = 3;
+            playSound('shield');
+        }
+        
+        function spawnEnemy() {
+            const side = Math.floor(Math.random() * 4);
+            const e = { x: 0, y: 0, hp: state.wave >= 4 && Math.random() < 0.25 ? 2 : 1 };
+            if (side === 0) { e.x = Math.random() * COLS; e.y = -1; }
+            else if (side === 1) { e.x = Math.random() * COLS; e.y = ROWS; }
+            else if (side === 2) { e.x = -1; e.y = Math.random() * ROWS; }
+            else { e.x = COLS; e.y = Math.random() * ROWS; }
+            enemies.push(e);
+        }
+        
+        function tickTailgun() {
+            waveTick++;
+            if (shotCooldown > 0) shotCooldown--;
+            if (waveTick % 200 === 0) {
+                state.wave++;
+                document.getElementById('hudLevel').textContent = state.wave;
+                showBanner('DALGA ' + state.wave);
+            }
+            
+            const gap = Math.max(14, 42 - state.wave * 3);
+            if (waveTick % gap === 0) spawnEnemy();
+            
+            const head = snake[0];
+            const espd = Math.min(0.2, 0.09 + state.wave * 0.008);
+            
+            // mermiler: 3 alt adımda ilerle, çarpışmayı her adımda bak
+            playerShots = playerShots.filter(s => {
+                for (let i = 0; i < 3; i++) {
+                    s.x += s.dx * 0.5;
+                    s.y += s.dy * 0.5;
+                    for (const e of enemies) {
+                        if (e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < 0.9) {
+                            e.hp--;
+                            if (e.hp <= 0) {
+                                state.score += 2;
+                                updateHUD();
+                                playSound('eat');
+                            }
+                            return false;
+                        }
+                    }
+                }
+                return s.x > -2 && s.x < COLS + 2 && s.y > -2 && s.y < ROWS + 2;
+            });
+            enemies = enemies.filter(e => e.hp > 0);
+            
+            enemies.forEach(e => {
+                const a = Math.atan2(head.y - e.y, head.x - e.x);
+                e.x += Math.cos(a) * espd;
+                e.y += Math.sin(a) * espd;
+            });
+            
+            if (!powers.invincible) {
+                for (let i = 0; i < enemies.length; i++) {
+                    if (Math.hypot(head.x - enemies[i].x, head.y - enemies[i].y) < 1.0) {
+                        enemies.splice(i, 1);
+                        damage();
+                        return;
+                    }
+                }
+            }
+            
+            if (Math.random() < 0.004) spawnPowerup();
+            tickPowerups();
+        }
+        
+        function drawTailgunLayer() {
+            const CELL = CONFIG.CELL;
+            playerShots.forEach(s => {
+                ctx.shadowColor = '#00e5ff';
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#00e5ff';
+                ctx.fillRect(s.x * CELL + 6, s.y * CELL + 6, 8, 8);
+                ctx.shadowBlur = 0;
+            });
+            enemies.forEach(e => {
+                const px = e.x * CELL, py = e.y * CELL;
+                ctx.shadowColor = '#ff3355';
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = e.hp > 1 ? '#ff7a00' : '#ff3355';
+                ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(px + 5, py + 6, 3, 3);
+                ctx.fillRect(px + 12, py + 6, 3, 3);
+                ctx.shadowBlur = 0;
+            });
+        }
+        
+        // ======================== POWERUPS ========================
         function spawnPowerup() {
             const types = ['shield', 'speed', 'invincible', 'clear'];
             const type = types[Math.floor(Math.random() * types.length)];
@@ -1727,6 +1877,7 @@
                     
                 case 'clear':
                     bullets = [];
+                    enemies = [];
                     flashCanvas('#00ff66');
                     return;
             }
@@ -1770,6 +1921,9 @@
             } else if (state.mode === 'bullet' && state.score > records.bullet) {
                 records.bullet = state.score;
                 isRecord = true;
+            } else if (state.mode === 'tailgun' && state.score > records.tailgun) {
+                records.tailgun = state.score;
+                isRecord = true;
             }
             
             if (isRecord) saveData();
@@ -1808,6 +1962,7 @@
             closeOverlays();
             if (state.mode === 'classic') startClassic();
             else if (state.mode === 'bullet') startBullet();
+            else if (state.mode === 'tailgun') startTailgun();
             else startCampaign(state.level);
         }
         
@@ -1837,6 +1992,12 @@
             }
             
             if (state.paused || state.over || state.complete) return;
+            
+            if (key === ' ') {
+                fire();
+                e.preventDefault();
+                return;
+            }
             
             switch (key) {
                 case 'arrowup': case 'w':
@@ -1927,6 +2088,7 @@
             
             // Lasers, warnings, boss
             if (state.mode === 'bullet') drawBulletLayer();
+            if (state.mode === 'tailgun') drawTailgunLayer();
             
             // Bullets
             bullets.forEach(b => drawBullet(b));
@@ -1941,7 +2103,7 @@
             if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
             if (powers.shield) drawAura(snake[0], '#00ccff', 22);
             
-            if (state.mode === 'bullet') drawBanner();
+            if (state.mode === 'bullet' || state.mode === 'tailgun') drawBanner();
         }
         
         function drawBlock(x, y, color, highlight) {
@@ -2161,7 +2323,7 @@
             try {
                 const data = JSON.parse(localStorage.getItem('pixelSnakeArcade'));
                 if (data) {
-                    records = data.records || records;
+                    records = Object.assign(records, data.records || {});
                     progress = data.progress || progress;
                 }
             } catch (e) {}
@@ -2174,12 +2336,14 @@
             showLevels,
             startClassic,
             startBullet,
+            startTailgun,
+            fire,
             startCampaign,
             restart,
             nextLevel,
             input,
             togglePause,
-            _debug: { tick, get: () => ({ state, snake, bullets, lasers, boss, patterns }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, godMode: () => { powers.invincible = true; } }
+            _debug: { tick, get: () => ({ state, snake, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; } }
         };
     })();
     
