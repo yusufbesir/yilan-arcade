@@ -1,7 +1,7 @@
 {
   "name": "yilan-arcade",
   "version": "0.2.0",
-  "description": "Sampo - Yılan Arcade",
+  "description": "Ragnarök - Yılan Arcade",
   "main": "main.js",
   "author": "Yusuf",
   "license": "UNLICENSED",
@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "com.yusuf.yilanarcade",
-    "productName": "Sampo",
+    "productName": "Ragnarök",
     "files": [
       "main.js",
       "src/**/*",
@@ -35,8 +35,8 @@
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "deleteAppDataOnUninstall": false,
-      "shortcutName": "Sampo",
-      "artifactName": "Sampo-Kurulum-${version}.exe"
+      "shortcutName": "Ragnarök",
+      "artifactName": "Ragnarok-Kurulum-${version}.exe"
     }
   }
 }
