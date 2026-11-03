@@ -2681,8 +2681,7 @@
             startFx();
             
             let isRecord = false;
-            if (state.mode === 'daily' && state.dailyKey && state.dailyKey !== todayKey() && records.dailyDate !== state.dailyKey) { /* gece yarısı geçti, eski güne yazma */ }
-            else if (typeof records[state.mode] === 'number' && state.score > records[state.mode]) {
+            if (typeof records[state.mode] === 'number' && state.score > records[state.mode]) {
                 records[state.mode] = state.score;
                 if (state.mode === 'daily') records.dailyDate = state.dailyKey || todayKey();
                 isRecord = true;
