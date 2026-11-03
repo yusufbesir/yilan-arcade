@@ -220,6 +220,12 @@
         }
         
         .mode-card.classic .mode-text h3 { color: #00ff66; }
+        .mode-card.survivor { border-color: #7CFF6B; }
+        .mode-card.survivor:hover {
+            box-shadow: 0 0 40px rgba(124, 255, 107, 0.4), inset 0 0 40px rgba(124, 255, 107, 0.05);
+            transform: translateY(-3px);
+        }
+        .mode-card.survivor .mode-text h3 { color: #7CFF6B; }
         .mode-card.tailgun { border-color: #00e5ff; }
         .mode-card.tailgun:hover {
             box-shadow: 0 0 40px rgba(0, 229, 255, 0.4), inset 0 0 40px rgba(0, 229, 255, 0.05);
@@ -794,6 +800,20 @@
                         </div>
                     </div>
                     
+                    <div class="mode-card survivor" onclick="SnakeGame.startSurvivor()">
+                        <div class="mode-header">
+                            <span class="mode-icon">🧟</span>
+                            <div class="mode-text">
+                                <h3>SURVIVOR</h3>
+                                <p>Otomatik ateş, XP topla, seviye atla, güçlen!</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">🏆 REKOR: <span id="menuSurvHigh">0</span></span>
+                            <span class="mode-badge">⬆ YÜKSELT</span>
+                        </div>
+                    </div>
+                    
                     <div class="mode-card campaign" onclick="SnakeGame.showLevels()">
                         <div class="mode-header">
                             <span class="mode-icon">🏆</span>
@@ -847,7 +867,7 @@
                                 <div class="hud-value level" id="hudLevel">1</div>
                             </div>
                             <div class="hud-item" id="hudTargetBox" style="display:none;">
-                                <div class="hud-label">HEDEF</div>
+                                <div class="hud-label" id="hudTargetLabel">HEDEF</div>
                                 <div class="hud-value target" id="hudTarget">0/10</div>
                             </div>
                             <div class="hud-item" id="hudLivesBox" style="display:none;">
@@ -981,6 +1001,8 @@
         let playerShots = [];
         let enemies = [];
         let shotCooldown = 0;
+        let gems = [];
+        let sv = { level: 1, xp: 0, need: 5, dmg: 1, cd: 10, multi: 1, magnet: 2.5, timer: 0, choosing: false, choices: [] };
         let banner = { text: '', until: 0 };
         
         let powers = { shield: false, speed: false, invincible: false };
@@ -990,7 +1012,7 @@
         let frameRequest = null;
         
         // Saved Data
-        let records = { classic: 0, bullet: 0, tailgun: 0 };
+        let records = { classic: 0, bullet: 0, tailgun: 0, survivor: 0 };
         let progress = { unlocked: 1, stars: {} };
         
         // Audio
@@ -1006,6 +1028,7 @@
             
             document.addEventListener('keydown', onKey);
             canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+            canvas.addEventListener('click', onCanvasClick);
         }
         
         // ======================== SCREEN NAVIGATION ========================
@@ -1043,6 +1066,7 @@
             document.getElementById('menuClassicHigh').textContent = records.classic;
             document.getElementById('menuBulletHigh').textContent = records.bullet;
             document.getElementById('menuTailHigh').textContent = records.tailgun;
+            document.getElementById('menuSurvHigh').textContent = records.survivor;
             document.getElementById('menuProgress').textContent = Math.max(0, progress.unlocked - 1);
         }
         
@@ -1156,6 +1180,7 @@
             document.getElementById('hudLevelBox').style.display = '';
             document.getElementById('hudLevelLabel').textContent = 'BÖLÜM';
             document.getElementById('hudTargetBox').style.display = '';
+            document.getElementById('hudTargetLabel').textContent = 'HEDEF';
             document.getElementById('hudLivesBox').style.display = '';
             document.getElementById('hudLevel').textContent = level;
             
@@ -1256,6 +1281,7 @@
         
         function tick() {
             if (state.paused || state.over || state.complete) return;
+            if (state.mode === 'survivor' && sv.choosing) return;
             
             dir = { ...nextDir };
             
@@ -1307,6 +1333,7 @@
             }
             
             if (state.mode === 'tailgun') tickTailgun();
+            if (state.mode === 'survivor') tickSurvivor();
             
             if (state.mode === 'campaign') {
                 tickMovingObs();
@@ -1736,6 +1763,25 @@
             enemies.push(e);
         }
         
+        // oyuncu mermileri: 3 alt adımda ilerler, her adımda çarpışma bakar
+        function moveShots(onKill) {
+            playerShots = playerShots.filter(s => {
+                for (let i = 0; i < 3; i++) {
+                    s.x += s.dx * 0.5;
+                    s.y += s.dy * 0.5;
+                    for (const e of enemies) {
+                        if (e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < 0.9) {
+                            e.hp -= s.dmg || 1;
+                            if (e.hp <= 0) onKill(e);
+                            return false;
+                        }
+                    }
+                }
+                return s.x > -2 && s.x < COLS + 2 && s.y > -2 && s.y < ROWS + 2;
+            });
+            enemies = enemies.filter(e => e.hp > 0);
+        }
+        
         function tickTailgun() {
             waveTick++;
             if (shotCooldown > 0) shotCooldown--;
@@ -1751,24 +1797,10 @@
             const head = snake[0];
             const espd = Math.min(0.2, 0.09 + state.wave * 0.008);
             
-            // mermiler: 3 alt adımda ilerle, çarpışmayı her adımda bak
-            playerShots = playerShots.filter(s => {
-                for (let i = 0; i < 3; i++) {
-                    s.x += s.dx * 0.5;
-                    s.y += s.dy * 0.5;
-                    for (const e of enemies) {
-                        if (e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < 0.9) {
-                            e.hp--;
-                            if (e.hp <= 0) {
-                                state.score += 2;
-                                updateHUD();
-                                playSound('eat');
-                            }
-                            return false;
-                        }
-                    }
-                }
-                return s.x > -2 && s.x < COLS + 2 && s.y > -2 && s.y < ROWS + 2;
+            moveShots(() => {
+                state.score += 2;
+                updateHUD();
+                playSound('eat');
             });
             enemies = enemies.filter(e => e.hp > 0);
             
@@ -1812,6 +1844,175 @@
                 ctx.fillRect(px + 12, py + 6, 3, 3);
                 ctx.shadowBlur = 0;
             });
+        }
+        
+        // ======================== SURVIVOR ========================
+        const UPGRADES = [
+            { id: 'dmg', text: 'HASAR +1' },
+            { id: 'rate', text: 'ATEŞ HIZI +25%' },
+            { id: 'multi', text: 'ÇOKLU ATIŞ +1' },
+            { id: 'magnet', text: 'MIKNATIS +1.5' },
+            { id: 'life', text: 'CANI DOLDUR' }
+        ];
+        
+        function startSurvivor() {
+            state.mode = 'survivor';
+            state.lives = 3;
+            state.speed = 115;
+            
+            document.getElementById('hudHighBox').style.display = '';
+            document.getElementById('hudLevelBox').style.display = '';
+            document.getElementById('hudLevelLabel').textContent = 'SEVİYE';
+            document.getElementById('hudTargetBox').style.display = '';
+            document.getElementById('hudTargetLabel').textContent = 'XP';
+            document.getElementById('hudLivesBox').style.display = '';
+            document.getElementById('hudHigh').textContent = records.survivor;
+            
+            initGameState();
+            sv = { level: 1, xp: 0, need: 5, dmg: 1, cd: 10, multi: 1, magnet: 2.5, timer: 0, choosing: false, choices: [] };
+            gems = [];
+            document.getElementById('hudLevel').textContent = sv.level;
+            document.getElementById('hudTarget').textContent = '0/' + sv.need;
+            showBanner('OTOMATİK ATEŞ! XP TOPLA');
+            showGame();
+            beginLoop();
+            playSound('start');
+        }
+        
+        function nearestEnemy(h) {
+            let best = null, bd = 1e9;
+            for (const e of enemies) {
+                const d = Math.hypot(e.x - h.x, e.y - h.y);
+                if (d < bd) { bd = d; best = e; }
+            }
+            return bd <= 11 ? best : null;
+        }
+        
+        function tickSurvivor() {
+            if (sv.choosing) return;
+            waveTick++;
+            if (waveTick % 200 === 0) {
+                state.wave++;
+                showBanner('DÜŞMANLAR GÜÇLENİYOR');
+            }
+            
+            const gap = Math.max(6, 22 - state.wave * 2);
+            if (waveTick % gap === 0) {
+                spawnEnemy();
+                if (state.wave >= 3 && Math.random() < 0.3) enemies[enemies.length - 1].hp = 1 + Math.floor(state.wave / 3);
+            }
+            
+            const head = snake[0];
+            const espd = Math.min(0.17, 0.08 + state.wave * 0.006);
+            
+            sv.timer++;
+            if (sv.timer >= sv.cd) {
+                const t = nearestEnemy(head);
+                if (t) {
+                    sv.timer = 0;
+                    const a = Math.atan2(t.y - head.y, t.x - head.x);
+                    for (let i = 0; i < sv.multi; i++) {
+                        const off = (i - (sv.multi - 1) / 2) * 0.25;
+                        playerShots.push({ x: head.x, y: head.y, dx: Math.cos(a + off), dy: Math.sin(a + off), dmg: sv.dmg });
+                    }
+                }
+            }
+            
+            moveShots(enemy => {
+                state.score += 2;
+                updateHUD();
+                gems.push({ x: enemy.x, y: enemy.y });
+            });
+            
+            enemies.forEach(e => {
+                const a = Math.atan2(head.y - e.y, head.x - e.x);
+                e.x += Math.cos(a) * espd;
+                e.y += Math.sin(a) * espd;
+            });
+            
+            gems = gems.filter(g => {
+                const d = Math.hypot(head.x - g.x, head.y - g.y);
+                if (d < sv.magnet) {
+                    sv.xp++;
+                    if (sv.xp >= sv.need) levelUp();
+                    document.getElementById('hudTarget').textContent = sv.xp + '/' + sv.need;
+                    return false;
+                }
+                return true;
+            });
+            
+            if (!powers.invincible) {
+                for (let i = 0; i < enemies.length; i++) {
+                    if (Math.hypot(head.x - enemies[i].x, head.y - enemies[i].y) < 1.0) {
+                        enemies.splice(i, 1);
+                        damage();
+                        return;
+                    }
+                }
+            }
+        }
+        
+        function levelUp() {
+            sv.level++;
+            sv.xp = 0;
+            sv.need = 5 + sv.level * 3;
+            document.getElementById('hudLevel').textContent = sv.level;
+            const pool = UPGRADES.slice().sort(() => Math.random() - 0.5);
+            sv.choices = pool.slice(0, 3);
+            sv.choosing = true;
+            playSound('powerup');
+        }
+        
+        function pickUpgrade(i) {
+            if (state.mode !== 'survivor' || !sv.choosing || !sv.choices[i]) return;
+            switch (sv.choices[i].id) {
+                case 'dmg': sv.dmg += 1; break;
+                case 'rate': sv.cd = Math.max(3, Math.round(sv.cd * 0.8)); break;
+                case 'multi': sv.multi = Math.min(5, sv.multi + 1); break;
+                case 'magnet': sv.magnet += 1.5; break;
+                case 'life': state.lives = 3; updateHUD(); break;
+            }
+            sv.choosing = false;
+            document.getElementById('hudTarget').textContent = sv.xp + '/' + sv.need;
+        }
+        
+        function onCanvasClick(e) {
+            if (state.mode !== 'survivor' || !sv.choosing) return;
+            const r = canvas.getBoundingClientRect();
+            pickUpgrade(Math.min(2, Math.floor(((e.clientX - r.left) / r.width) * 3)));
+        }
+        
+        function drawSurvivorLayer() {
+            const CELL = CONFIG.CELL;
+            gems.forEach(g => {
+                ctx.shadowColor = '#7CFF6B';
+                ctx.shadowBlur = 8;
+                ctx.fillStyle = '#7CFF6B';
+                ctx.fillRect(g.x * CELL + 7, g.y * CELL + 7, 6, 6);
+                ctx.shadowBlur = 0;
+            });
+            drawTailgunLayer();
+            
+            if (sv.choosing) {
+                ctx.fillStyle = 'rgba(0,0,0,0.75)';
+                ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+                ctx.textAlign = 'center';
+                ctx.font = '14px "Press Start 2P", monospace';
+                ctx.fillStyle = '#ffd400';
+                ctx.fillText('SEVİYE ATLADIN! 1-2-3 YA DA DOKUN', CONFIG.WIDTH / 2, 70);
+                const w = CONFIG.WIDTH / 3;
+                sv.choices.forEach((c, i) => {
+                    ctx.strokeStyle = '#00e5ff';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(i * w + 14, 110, w - 28, 240);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '22px "Press Start 2P", monospace';
+                    ctx.fillText(String(i + 1), i * w + w / 2, 160);
+                    ctx.font = '10px "Press Start 2P", monospace';
+                    const words = c.text.split(' ');
+                    words.forEach((word, k) => ctx.fillText(word, i * w + w / 2, 230 + k * 20));
+                });
+            }
         }
         
         // ======================== POWERUPS ========================
@@ -1921,6 +2122,9 @@
             } else if (state.mode === 'bullet' && state.score > records.bullet) {
                 records.bullet = state.score;
                 isRecord = true;
+            } else if (state.mode === 'survivor' && state.score > records.survivor) {
+                records.survivor = state.score;
+                isRecord = true;
             } else if (state.mode === 'tailgun' && state.score > records.tailgun) {
                 records.tailgun = state.score;
                 isRecord = true;
@@ -1963,6 +2167,7 @@
             if (state.mode === 'classic') startClassic();
             else if (state.mode === 'bullet') startBullet();
             else if (state.mode === 'tailgun') startTailgun();
+            else if (state.mode === 'survivor') startSurvivor();
             else startCampaign(state.level);
         }
         
@@ -1992,6 +2197,11 @@
             }
             
             if (state.paused || state.over || state.complete) return;
+            
+            if (state.mode === 'survivor' && sv.choosing && ['1', '2', '3'].includes(key)) {
+                pickUpgrade(Number(key) - 1);
+                return;
+            }
             
             if (key === ' ') {
                 fire();
@@ -2089,6 +2299,7 @@
             // Lasers, warnings, boss
             if (state.mode === 'bullet') drawBulletLayer();
             if (state.mode === 'tailgun') drawTailgunLayer();
+            if (state.mode === 'survivor') drawSurvivorLayer();
             
             // Bullets
             bullets.forEach(b => drawBullet(b));
@@ -2103,7 +2314,7 @@
             if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
             if (powers.shield) drawAura(snake[0], '#00ccff', 22);
             
-            if (state.mode === 'bullet' || state.mode === 'tailgun') drawBanner();
+            if (state.mode === 'bullet' || state.mode === 'tailgun' || state.mode === 'survivor') drawBanner();
         }
         
         function drawBlock(x, y, color, highlight) {
@@ -2337,13 +2548,15 @@
             startClassic,
             startBullet,
             startTailgun,
+            startSurvivor,
             fire,
+            pickUpgrade,
             startCampaign,
             restart,
             nextLevel,
             input,
             togglePause,
-            _debug: { tick, get: () => ({ state, snake, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; } }
+            _debug: { tick, get: () => ({ sv, gems, state, snake, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; } }
         };
     })();
     
