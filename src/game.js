@@ -2849,7 +2849,11 @@ const SnakeGame = (() => {
     const TronCore = window.YilanCore.tron;
     function tronBlocked(x, y) { return TronCore.tronBlocked(x, y, COLS, ROWS, snake, tron.ai, null); }
     function aiChooseDir() {
-        return TronCore.aiChooseDir({ COLS, ROWS, snake, ai: tron.ai, aiDir: tron.aiDir, nextDir, wins: state.score, rand: Math.random });
+        const args = { COLS, ROWS, snake, ai: tron.ai, aiDir: tron.aiDir, nextDir, wins: state.score };
+        // Rust/wasm çekirdeği hazırsa onu kullan; yüklenmediyse ya da girdi geçersizse JS yedeği.
+        const W = window.YilanCore.wasm;
+        if (W) { const d = W.aiChooseDir(args, Math.random(), Math.random()); if (d) return d; }
+        return TronCore.aiChooseDir({ ...args, rand: Math.random });
     }
 
     function tronWin() {
