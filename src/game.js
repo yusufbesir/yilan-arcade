@@ -2041,7 +2041,10 @@ const SnakeGame = (() => {
         const prog = state.paused || state.over ? 1 : Math.max(0, Math.min(1, (nowT - lastTickAt) / Math.max(40, state.speed)));
         const total = snake.length;
         renderPos = snake.map((c, i) => lerpPos(prevSnake[i], c, prog));
+        // Gövde: gfx25 varsa tek parça şerit (hayalet kuralında gövde gizli); yoksa parça parça
+        const seritli = !!(G25() && G25().drawSnakeRibbon && chaos.rule !== 'ghost' && total > 1 && G25().drawSnakeRibbon(ctx, renderPos, dir, nowT / 1000, gfxOpts()));
         for (let i = total - 1; i >= 0; i--) {
+            if (seritli && i > 0) continue;
             if (chaos.rule === 'ghost' && i > 0) continue;
             const pos = renderPos[i];
             if (i === 0) {

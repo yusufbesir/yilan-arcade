@@ -459,6 +459,14 @@ const Gfx25 = (() => {
         return { q, hi: 'hsl(' + h + ',' + (s - 8) + '%,' + Math.min(88, l + 30) + '%)', mid: 'hsl(' + h + ',' + s + '%,' + l + '%)', lo: 'hsl(' + (h + 6) + ',' + s + '%,' + Math.max(6, l - 26) + '%)' };
     }
 
+    // Tek şerit gövde için: baş sprite'ının sönük zümrüt tonuna daha yakın, biraz daha koyu
+    function ribbonPalette(k, cb, pal) {
+        if (cb) return bodyPalette(k, cb, pal);
+        const q = Math.round(k * 12) / 12;
+        const h = 163 - 20 * q, s = 62 - 10 * q, l = 43 - 17 * q;
+        return { q, hi: 'hsl(' + h + ',' + (s + 6) + '%,' + Math.min(80, l + 30) + '%)', mid: 'hsl(' + h + ',' + s + '%,' + l + '%)', lo: 'hsl(' + (h + 6) + ',' + s + '%,' + Math.max(5, l - 25) + '%)' };
+    }
+
     function sphereSprite(r, k, cb, pal, gem) {
         const pk = bodyPalette(k, cb, pal);
         const rq = Math.round(r * 4) / 4;
@@ -581,6 +589,269 @@ const Gfx25 = (() => {
         blit(ctx, sphereSprite(r, k, o.cb, o.pal, idx % 3 === 1), cx, cy);
     }
 
+    // ====================================================================
+    // (c2) TEK PARÇA YILAN GÖVDESİ
+    // renderPos noktalarından sabit yarıçaplı köşe yuvarlamalı bir eğri çıkarılır;
+    // gövde baştan kuyruğa incelen TEK şerit olarak, üst üste ofsetli katmanlarla
+    // (koyu kenar, yansıma, orta ton, ışık, spekülar) gölgelenir; pul kafesi ve
+    // sırt boyunca altın baklavalar yay uzunluğuna bağlıdır (gövdeyle birlikte akar).
+    // ====================================================================
+    const RB = { x: [], y: [], s: [], nx: [], ny: [], w: [], brk: [], n: 0, L: 0 };
+    let travel = 0, lastHead = null;
+    const LIGHT = [-0.55, -0.83];
+    // katmanlar: [yarı genişlik oranı, ışığa doğru kayma]
+    const LAYERS_BASE = [[1.0, 0], [0.93, 0], [0.84, 0.12], [0.66, 0.30]];
+    const LAYERS_TOP = [[0.46, 0.50, 0.62], [0.17, 0.72, 0.42]];
+    const chunkBuf = [];
+    const rowBuf = [];
+
+    function buildRibbon(pts, S, lift) {
+        const R = RB;
+        R.n = 0; R.L = 0;
+        const rad = S * 0.5;
+        const ax = [], ay = [], brk = [];
+        // yinelenen noktaları ele (büyüme sırasında kuyruk kopyalanır)
+        for (let i = 0; i < pts.length; i++) {
+            const x = pts[i].x * S + S / 2, y = pts[i].y * S + S / 2 - lift;
+            const m = ax.length;
+            if (m) {
+                const dx = x - ax[m - 1], dy = y - ay[m - 1];
+                if (dx * dx + dy * dy < 0.04) continue;
+                brk.push(Math.abs(pts[i].x - pts[i - 1].x) + Math.abs(pts[i].y - pts[i - 1].y) > 1.5);
+            } else brk.push(false);
+            ax.push(x); ay.push(y);
+        }
+        const m = ax.length;
+        if (m < 2) return false;
+        const push = (x, y, b) => { const k = R.n++; R.x[k] = x; R.y[k] = y; R.brk[k] = b; };
+        // boyun, baş sprite'ının altına girer: ilk noktadan ileri doğru kısa bir uzantı
+        {
+            const hx = ax[0] - ax[1], hy = ay[0] - ay[1], hl = Math.hypot(hx, hy) || 1;
+            if (!brk[1]) push(ax[0] + hx / hl * 6, ay[0] + hy / hl * 6, false);
+        }
+        push(ax[0], ay[0], false);
+        for (let i = 1; i < m; i++) {
+            if (brk[i]) { push(ax[i], ay[i], true); continue; }
+            const x0 = R.x[R.n - 1], y0 = R.y[R.n - 1];
+            let ex = ax[i], ey = ay[i], round = false, p2x = 0, p2y = 0;
+            if (i < m - 1 && !brk[i + 1]) {
+                const d1x = ax[i - 1] - ax[i], d1y = ay[i - 1] - ay[i];
+                const d2x = ax[i + 1] - ax[i], d2y = ay[i + 1] - ay[i];
+                const l1 = Math.hypot(d1x, d1y), l2 = Math.hypot(d2x, d2y);
+                const cr = (d1x * d2y - d1y * d2x) / (l1 * l2);
+                if (Math.abs(cr) > 0.02) {
+                    const t = Math.min(rad, l1 / 2, l2 / 2);
+                    ex = ax[i] + d1x / l1 * t; ey = ay[i] + d1y / l1 * t;
+                    p2x = ax[i] + d2x / l2 * t; p2y = ay[i] + d2y / l2 * t;
+                    round = true;
+                }
+            }
+            const ns = Math.ceil(Math.hypot(ex - x0, ey - y0) / 7);
+            for (let j = 1; j <= ns; j++) push(x0 + (ex - x0) * j / ns, y0 + (ey - y0) * j / ns, false);
+            if (round) {
+                for (let j = 1; j <= 5; j++) {
+                    const u = j / 6, v = 1 - u;
+                    push(v * v * ex + 2 * u * v * ax[i] + u * u * p2x, v * v * ey + 2 * u * v * ay[i] + u * u * p2y, false);
+                }
+                push(p2x, p2y, false);
+            }
+        }
+        const n = R.n;
+        if (n < 2) return false;
+        R.s[0] = 0;
+        for (let i = 1; i < n; i++) R.s[i] = R.s[i - 1] + (R.brk[i] ? 0 : Math.hypot(R.x[i] - R.x[i - 1], R.y[i] - R.y[i - 1]));
+        R.L = R.s[n - 1];
+        for (let i = 0; i < n; i++) {
+            const a = (i > 0 && !R.brk[i]) ? i - 1 : i, b = (i < n - 1 && !R.brk[i + 1]) ? i + 1 : i;
+            let tx = R.x[b] - R.x[a], ty = R.y[b] - R.y[a];
+            const l = Math.hypot(tx, ty) || 1;
+            tx /= l; ty /= l;
+            R.nx[i] = -ty; R.ny[i] = tx;
+            // incelen profil: boyun -> kuyruk, uçta yumuşak sivrilme
+            const f = R.L > 0 ? R.s[i] / R.L : 0;
+            const toEnd = R.L - R.s[i];
+            // boyun baş genişliğine yakın başlar, omuza doğru hafif kalınlaşır, sonra incelir
+            let w = 7.5 - 3.4 * Math.pow(f, 0.85);
+            if (R.s[i] < 26) w *= 0.84 + 0.16 * (R.s[i] / 26);
+            if (toEnd < 14) w *= 0.38 + 0.62 * Math.sqrt(Math.max(0, toEnd) / 14);
+            R.w[i] = w;
+        }
+        return true;
+    }
+
+    // yay uzunluğu s'deki çerçeve (konum, normal, genişlik); imleç tek yönlü ilerler
+    const FR = { x: 0, y: 0, nx: 0, ny: 0, w: 0, ok: false };
+    function frameAt(s, k) {
+        const R = RB;
+        while (k < R.n - 2 && R.s[k + 1] < s) k++;
+        const k1 = k + 1;
+        FR.ok = !R.brk[k1] && R.s[k1] > R.s[k];
+        const u = FR.ok ? (s - R.s[k]) / (R.s[k1] - R.s[k]) : 0;
+        FR.x = R.x[k] + (R.x[k1] - R.x[k]) * u; FR.y = R.y[k] + (R.y[k1] - R.y[k]) * u;
+        const nx = R.nx[k] + (R.nx[k1] - R.nx[k]) * u, ny = R.ny[k] + (R.ny[k1] - R.ny[k]) * u;
+        const l = Math.hypot(nx, ny) || 1;
+        FR.nx = nx / l; FR.ny = ny / l;
+        FR.w = R.w[k] + (R.w[k1] - R.w[k]) * u;
+        return k;
+    }
+
+    function ribbonPoly(ctx, a, b, f, m) {
+        const R = RB;
+        ctx.beginPath();
+        for (let i = a; i <= b; i++) {
+            const h = R.w[i] * f, sh = R.w[i] * m;
+            const x = R.x[i] + R.nx[i] * h + LIGHT[0] * sh, y = R.y[i] + R.ny[i] * h + LIGHT[1] * sh;
+            if (i === a) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        for (let i = b; i >= a; i--) {
+            const h = R.w[i] * f, sh = R.w[i] * m;
+            ctx.lineTo(R.x[i] - R.nx[i] * h + LIGHT[0] * sh, R.y[i] - R.ny[i] * h + LIGHT[1] * sh);
+        }
+        ctx.closePath();
+    }
+
+    // renk adımı (12 kademe) değiştiğinde ya da kesik (portal) noktasında parçalara böl: [a,b,q]...
+    function ribbonChunks(out) {
+        const R = RB;
+        out.length = 0;
+        let a = 0, qa = Math.round((R.L > 0 ? R.s[0] / R.L : 0) * 12);
+        for (let i = 1; i < R.n; i++) {
+            if (R.brk[i]) {
+                if (i - 1 > a) out.push(a, i - 1, qa);
+                a = i; qa = Math.round((R.s[i] / R.L) * 12);
+                continue;
+            }
+            const q = Math.round((R.s[i] / R.L) * 12);
+            if (q !== qa) {
+                out.push(a, i, qa);
+                a = i; qa = q;
+            }
+        }
+        if (R.n - 1 > a) out.push(a, R.n - 1, qa);
+    }
+
+    function drawSnakeRibbon(ctx, pts, dir, t, o) {
+        const S = o.CELL;
+        setDpr(ctx);
+        const R = RB;
+        if (!pts.length || !buildRibbon(pts, S, 4)) return false;
+        const n = R.n;
+        // gövde deseninin uzayda sabit kalması için baş hareketiyle kat edilen yol
+        const h0 = pts[0];
+        if (lastHead && Math.abs(h0.x - lastHead.x) + Math.abs(h0.y - lastHead.y) <= 1.5) {
+            travel += Math.hypot(h0.x - lastHead.x, h0.y - lastHead.y) * S;
+        }
+        lastHead = { x: h0.x, y: h0.y };
+        ribbonChunks(chunkBuf);
+        const cb = o.cb, pal = o.pal;
+
+        ctx.save();
+        // yerde uzun yumuşak gölge: tek yol, üç geçiş
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        const sh = [[19, 0.09], [13, 0.14], [8, 0.2]];
+        for (let p = 0; p < sh.length; p++) {
+            ctx.strokeStyle = 'rgba(0,0,0,' + sh[p][1] + ')';
+            ctx.lineWidth = sh[p][0];
+            ctx.beginPath();
+            for (let i = 0; i < n; i++) {
+                const x = R.x[i] + 2.4, y = R.y[i] + 6.4;
+                if (i === 0 || R.brk[i]) { ctx.moveTo(x, y); if (i === n - 1 || R.brk[i + 1]) ctx.lineTo(x + 0.01, y); } else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+        shadowsDone = true;
+
+        // 1) taban katmanları (kuyruktan başa)
+        for (let c = chunkBuf.length - 3; c >= 0; c -= 3) {
+            const a = chunkBuf[c], b = chunkBuf[c + 1], pk = ribbonPalette(chunkBuf[c + 2] / 12, cb, pal);
+            for (let l = 0; l < LAYERS_BASE.length; l++) {
+                const L = LAYERS_BASE[l];
+                ctx.fillStyle = l === 0 ? pk.lo : l === 1 ? (cb ? pal.ton(pal.yilan, 0.2) : 'rgb(46,170,128)') : pk.mid;
+                ribbonPoly(ctx, a, b, L[0], L[1]);
+                ctx.fill();
+                if (l === 3) { ctx.globalAlpha = 0.5; ctx.fillStyle = pk.hi; ctx.fill(); ctx.globalAlpha = 1; }
+            }
+        }
+
+        // 2) pul kafesi: yay uzunluğuna bağlı elmas ağı
+        const D = R.L > 1500 ? 7 : 5.5;
+        const ph = ((travel % D) + D) % D;
+        rowBuf.length = 0;
+        {
+            let k = 0;
+            for (let s = ph - D * 4; s <= R.L; s += D) {
+                if (s < 0) { rowBuf.push(0, 0, 0, 0, 0, 0); continue; }
+                k = frameAt(s, k);
+                rowBuf.push(FR.x, FR.y, FR.nx, FR.ny, FR.w, FR.ok ? 1 : 0);
+            }
+        }
+        const rows = rowBuf, nr = rows.length / 6;
+        const lattice = (ox, oy) => {
+            ctx.beginPath();
+            for (let j = 0; j + 4 < nr; j++) {
+                const r0 = j * 6, r2 = (j + 2) * 6, r4 = (j + 4) * 6;
+                if (!rows[r0 + 5] || !rows[r2 + 5] || !rows[r4 + 5]) continue;
+                for (let fam = -1; fam <= 1; fam += 2) {
+                    const a0 = rows[r0 + 4] * 0.78 * fam, a4 = -rows[r4 + 4] * 0.78 * fam;
+                    ctx.moveTo(rows[r0] + rows[r0 + 2] * a0 + ox, rows[r0 + 1] + rows[r0 + 3] * a0 + oy);
+                    ctx.lineTo(rows[r2] + ox, rows[r2 + 1] + oy);
+                    ctx.lineTo(rows[r4] + rows[r4 + 2] * a4 + ox, rows[r4 + 1] + rows[r4 + 3] * a4 + oy);
+                }
+            }
+        };
+        ctx.lineWidth = 0.75;
+        ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
+        if (!o.reduced) {
+            lattice(0.55, 0.65);
+            ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+            ctx.stroke();
+        }
+        lattice(0, 0);
+        ctx.strokeStyle = 'rgba(0,28,22,0.34)';
+        ctx.stroke();
+
+        // 3) ışık ve spekülar katmanları
+        for (let c = chunkBuf.length - 3; c >= 0; c -= 3) {
+            const a = chunkBuf[c], b = chunkBuf[c + 1], pk = ribbonPalette(chunkBuf[c + 2] / 12, cb, pal);
+            for (let l = 0; l < LAYERS_TOP.length; l++) {
+                const L = LAYERS_TOP[l];
+                ctx.globalAlpha = L[2];
+                ctx.fillStyle = l === 0 ? pk.hi : '#ffffff';
+                ribbonPoly(ctx, a, b, L[0], L[1]);
+                ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+
+        // 4) sırt boyunca altın baklava deseni
+        {
+            const GD = 17;
+            const gph = ((travel % GD) + GD) % GD;
+            ctx.beginPath();
+            let k = 0;
+            for (let s = gph + 4; s < R.L - 12; s += GD) {
+                k = frameAt(s, k);
+                if (!FR.ok) continue;
+                const w = FR.w;
+                const tx = FR.ny, ty = -FR.nx;
+                const cx = FR.x + LIGHT[0] * w * 0.24, cy = FR.y + LIGHT[1] * w * 0.24;
+                const hl = w * 0.7, hw = w * 0.34;
+                ctx.moveTo(cx + tx * hl, cy + ty * hl);
+                ctx.lineTo(cx + FR.nx * hw, cy + FR.ny * hw);
+                ctx.lineTo(cx - tx * hl, cy - ty * hl);
+                ctx.lineTo(cx - FR.nx * hw, cy - FR.ny * hw);
+                ctx.closePath();
+            }
+            ctx.fillStyle = 'rgba(255,208,92,0.86)';
+            ctx.fill();
+            ctx.lineWidth = 0.8;
+            ctx.strokeStyle = 'rgba(120,70,0,0.55)';
+            ctx.stroke();
+        }
+        ctx.restore();
+        return true;
+    }
+
     function drawSnakeHead(ctx, pos, dir, t, o) {
         const S = o.CELL;
         setDpr(ctx);
@@ -589,7 +860,7 @@ const Gfx25 = (() => {
         const hn = o.cb ? 'head_cb' : 'head';
         if (SP(hn)) {
             const tongue = (t * 2.2) % 1 < 0.35 ? 1 : 0;
-            Sprites.draw(ctx, hn, dirIx(dir.x, dir.y) * 2 + tongue, pos.x * S + S / 2, pos.y * S + S / 2, 1.2);
+            Sprites.draw(ctx, hn, dirIx(dir.x, dir.y) * 2 + tongue, pos.x * S + S / 2, pos.y * S + S / 2, 1.4);
             return;
         }
         const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2 - LIFT;
@@ -926,6 +1197,6 @@ const Gfx25 = (() => {
         });
     }
 
-    return { dirIx, drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H };
+    return { dirIx, drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawSnakeRibbon, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H };
 })();
 if (typeof window !== 'undefined') window.Gfx25 = Gfx25;
