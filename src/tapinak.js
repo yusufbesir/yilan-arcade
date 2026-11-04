@@ -705,6 +705,94 @@ const Tapinak = (() => {
     const SP = n => (typeof Sprites !== 'undefined' && Sprites.has(n) ? Sprites : null);
     const SPR_AD = { kovalayan: 'hortlak', atici: 'cadi', zirhli: 'muhafiz' };
     const yonHafiza = new WeakMap();   // yalnız çizim: düşmanın baktığı yön (mantığa dokunmaz)
+    // Yalnız çizim durumu (mantık nesnelerine alan yazılmaz): ölüm animasyonları, son görülen düşmanlar,
+    // boss faz geçişi zamanı. Hepsi oda/düşman nesnesine bağlı WeakMap'lerde tutulur.
+    const olumler = new WeakMap();      // oda -> [{ spn, x, y, sol, s, t0, sure, boss, fr }]
+    const sonGorulen = new WeakMap();   // oda -> { d: [düşmanlar], b: boss }
+    const bossHafiza = new WeakMap();   // boss -> { faz, t0 }
+    const bas = { x: -99, y: -99 };     // yılan başı (hücre merkezi), ciz() her karede günceller
+    const OLUM_SURE = 0.6, BOSS_OLUM_SURE = 1.6, OLUM_KARE = 12;
+    // Adlandırılmış kare aralığından kare (pişmiş harita anim içermiyorsa düz döngü)
+    function kare(spn, ad, i) {
+        const a = Sprites.anim && Sprites.anim(spn, ad);
+        if (!a) return ad === 'bekle' ? Math.floor(i) : 0;
+        return a[0] + ((Math.floor(i) % a[1]) + a[1]) % a[1];
+    }
+    function sprOlcek(tur) { return tur === 'zirhli' ? 1.55 : 1.5; }
+    // Kaybolan düşman/boss hp<=0 ise ölüm animasyonu başlat (mantık ölüyü listeden hemen siler)
+    function olumTakip(oda, t) {
+        const son = sonGorulen.get(oda);
+        let liste = olumler.get(oda);
+        if (!liste) { liste = []; olumler.set(oda, liste); }
+        if (son) {
+            for (const e of son.d) {
+                if (e.hp > 0 || oda.dusmanlar.includes(e)) continue;
+                const yh = yonHafiza.get(e);
+                liste.push({ spn: SPR_AD[e.tur], tur: e.tur, x: e.x, y: e.y, sol: yh ? yh.sol : false, s: sprOlcek(e.tur), t0: t, sure: OLUM_SURE, boss: false, fr: yh && yh.fr != null ? yh.fr : 0 });
+            }
+            if (son.b && son.b !== oda.boss && son.b.hp <= 0) {
+                const b = son.b, R = b.r * C * 1.3;
+                liste.push({ spn: 'jarl', x: b.x, y: b.y, sol: false, s: R / 27, oy: R * 0.8, R, t0: t, sure: BOSS_OLUM_SURE, boss: true, fr: kare('jarl', 'saldiri', 2) });
+            }
+        }
+        sonGorulen.set(oda, { d: oda.dusmanlar.slice(), b: oda.boss });
+        for (let i = liste.length - 1; i >= 0; i--) if (t - liste[i].t0 > liste[i].sure || t < liste[i].t0) liste.splice(i, 1);
+        return liste;
+    }
+    // Ölüm: 12 adım; sprite yatay dilimlere ayrılıp savrulur, küçülür, solar; beyaz/renkli parlama + ruh kıvılcımları
+    function olumCiz(c, d, t, reduced) {
+        if (!SP(d.spn)) return;
+        const p = Math.min(1, (t - d.t0) / d.sure);
+        const k = Math.min(OLUM_KARE - 1, Math.floor(p * OLUM_KARE)), q = k / (OLUM_KARE - 1);
+        const px = d.x * C, py = d.y * C + (d.boss ? d.oy : 8);
+        const renk = d.boss ? '#ffb347' : d.tur === 'atici' ? '#ff8ae0' : d.tur === 'zirhli' ? '#ffb36b' : '#9ff6ff';
+        c.save();
+        // yerde yanık/ruh halkası
+        c.globalCompositeOperation = 'lighter';
+        c.globalAlpha = (1 - q) * 0.6;
+        c.strokeStyle = renk; c.lineWidth = d.boss ? 4 : 2;
+        const rr = (d.boss ? 30 : 8) + q * (d.boss ? 70 : 22);
+        c.beginPath(); c.ellipse(px, py - 2, rr, rr * 0.4, 0, 0, 7); c.stroke();
+        c.globalCompositeOperation = 'source-over';
+        if (reduced) {
+            c.globalAlpha = 1 - q;
+            Sprites.draw(c, d.spn, d.fr, px, py, d.s, d.sol);
+        } else {
+            // 3 dilim: üst yukarı-dışa, orta yana, alt yere çöker
+            const sc = d.s * (1 - 0.18 * q);
+            const H = d.boss ? 150 : 46, top = py - H;
+            const dil = [[-1, -1.2, -0.6], [1, 0.3, 0.2], [-0.4, 0.8, 0.7]];
+            for (let j = 0; j < 3; j++) {
+                const [ox, oy, rot] = dil[j];
+                const y0 = top + j * H / 3 - (j === 0 ? 60 : 0), y1 = top + (j + 1) * H / 3 + (j === 2 ? 30 : 0);
+                c.save();
+                c.beginPath(); c.rect(px - 200, y0, 400, y1 - y0); c.clip();
+                const m = q * q * (d.boss ? 26 : 9);
+                c.translate(px + ox * m, py + oy * m); c.rotate(rot * q * 0.5);
+                c.globalAlpha = Math.max(0, 1 - q * 1.1);
+                Sprites.draw(c, d.spn, d.fr, 0, 0, sc, d.sol);
+                Sprites.drawTint(c, d.spn, d.fr, 0, 0, sc, d.sol, k < 3 ? '#ffffff' : renk, (1 - q) * (k < 3 ? 0.9 : 0.5));
+                c.restore();
+            }
+            // ruh/kor kıvılcımları
+            c.globalCompositeOperation = 'lighter';
+            const n = d.boss ? 26 : 9;
+            for (let i = 0; i < n; i++) {
+                const a = i * 2.39996 + (d.boss ? 0 : d.x), sp = (0.4 + (i * 37 % 10) / 10) * (d.boss ? 70 : 20);
+                const x = px + Math.cos(a) * sp * q, y = py - (d.boss ? 70 : 14) + Math.sin(a) * sp * q * 0.6 - q * (d.boss ? 50 : 18);
+                c.globalAlpha = (1 - q) * 0.9;
+                c.fillStyle = i % 3 ? renk : '#ffffff';
+                const r = (d.boss ? 3 : 1.6) * (1 - q * 0.5);
+                c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+            }
+            if (d.boss && k < 6) {
+                const g = c.createRadialGradient(px, py - 80, 4, px, py - 80, 160);
+                g.addColorStop(0, `rgba(255,220,160,${0.7 * (1 - k / 6)})`); g.addColorStop(1, 'rgba(255,120,40,0)');
+                c.globalAlpha = 1; c.fillStyle = g; c.fillRect(px - 160, py - 240, 320, 320);
+            }
+        }
+        c.restore();
+    }
 
     function blok(c, x, y, hgt, renk, onYuz) {
         const px = x * C, py = y * C;
@@ -1097,22 +1185,34 @@ const Tapinak = (() => {
         const cb = o.cb ? (o.dusmanRenk || '#CC79A7') : null;
         const spn = SPR_AD[e.tur];
         if (SP(spn)) {
-            // bakış yönü: son yatay harekete göre (sprite sağa dönük pişirildi)
+            // bakış yönü: son yatay harekete göre (sprite sağa dönük pişirildi); hızdan hafif eğim
             let yh = yonHafiza.get(e);
-            if (!yh) { yh = { x: e.x, sol: false }; yonHafiza.set(e, yh); }
+            if (!yh) { yh = { x: e.x, sol: false, lx: e.x, v: 0, fr: 0 }; yonHafiza.set(e, yh); }
             if (Math.abs(e.x - yh.x) > 0.01) { yh.sol = e.x < yh.x; yh.x = e.x; }
+            yh.v = yh.v * 0.85 + (e.x - (yh.lx == null ? e.x : yh.lx)) * 0.15; yh.lx = e.x;
+            const egim = o.reduced ? 0 : Math.max(-0.12, Math.min(0.12, yh.v * 2.5));
             if (cb) { c.save(); c.strokeStyle = cb; c.lineWidth = 2.5; c.beginPath(); c.ellipse(px, py + 7, 12, 5, 0, 0, 7); c.stroke(); c.restore(); }
-            const fr = o.reduced ? 0 : Math.floor(t * 5 + e.faz);
-            Sprites.draw(c, spn, fr, px, py + 8, e.tur === 'zirhli' ? 1.4 : 1.35, yh.sol);
+            // kare: zamana ve duruma göre (şarj / yakın saldırı / bekleme-yürüme döngüsü)
+            const yakin = Math.hypot(bas.x - e.x, bas.y - e.y);
+            let fr;
+            if (o.reduced) fr = e.tur === 'atici' && e.sarj > 0 ? kare(spn, 'saldiri', 3) : 0;
+            else if (e.tur === 'atici' && e.sarj > 0) fr = kare(spn, 'saldiri', Math.min(3, Math.floor((16 - e.sarj) / 16 * 4)));
+            else if (e.tur !== 'atici' && yakin < (e.tur === 'zirhli' ? 2.4 : 2.2)) fr = kare(spn, 'saldiri', t * (e.tur === 'zirhli' ? 6 : 8) + e.faz);
+            else fr = kare(spn, 'bekle', t * (e.tur === 'zirhli' ? 7 : e.tur === 'atici' ? 7 : 9) + e.faz * 1.3);
+            yh.fr = fr;
+            const s = sprOlcek(e.tur);
+            golge(c, px + 1, py + 8, e.tur === 'zirhli' ? 12 : 9, 3.2, 0.3);   // yere temas
+            c.save();
+            c.translate(px, py + 8); if (egim) c.rotate(egim);
+            Sprites.draw(c, spn, fr, 0, 0, s, yh.sol);
+            // şarj: sprite pembe parıldar; vuruş: beyaz flaş (alfa maskesi 'lighter' ile)
+            if (e.tur === 'atici' && e.sarj > 0) Sprites.drawTint(c, spn, fr, 0, 0, s, yh.sol, '#ff5ed1', (16 - e.sarj) / 16 * 0.35);
+            if (e.flash > 0) Sprites.drawTint(c, spn, fr, 0, 0, s, yh.sol, '#ffffff', Math.min(1, e.flash / 5) * 0.85);
+            c.restore();
             if (e.tur === 'atici' && e.sarj > 0) {
-                const sr = 3 + (16 - e.sarj) / 16 * 4, ox = yh.sol ? -9 : 9;
-                c.save(); c.globalCompositeOperation = 'lighter';
-                c.shadowColor = '#ff5ed1'; c.shadowBlur = 18; c.fillStyle = '#ffd0f4';
-                c.beginPath(); c.arc(px + ox * 1.35, py - 28, sr, 0, 7); c.fill();
-                c.restore();
                 c.strokeStyle = 'rgba(255,94,209,0.6)'; c.lineWidth = 1; c.beginPath(); c.arc(px, py, 6 + e.sarj, 0, 7); c.stroke();
             }
-            if (e.tur === 'zirhli') for (let i = 0; i < e.max; i++) { c.fillStyle = i < Math.ceil(e.hp) ? '#ffcf7a' : 'rgba(255,255,255,0.15)'; c.fillRect(px - 11 + i * 4, py - 38, 3, 3); }
+            if (e.tur === 'zirhli') for (let i = 0; i < e.max; i++) { c.fillStyle = i < Math.ceil(e.hp) ? '#ffcf7a' : 'rgba(255,255,255,0.15)'; c.fillRect(px - 11 + i * 4, py - 44, 3, 3); }
         } else {
         golge(c, px + 3, py + 9, e.tur === 'zirhli' ? 15 : 11, 5, 0.45);
         c.save();
@@ -1160,10 +1260,10 @@ const Tapinak = (() => {
         c.restore();
         }
         if (e.tur !== 'zirhli' && e.hp < e.max) {
-            c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(px - 9, py - 34, 18, 3);
-            c.fillStyle = '#ff6b5e'; c.fillRect(px - 9, py - 34, 18 * Math.max(0, e.hp) / e.max, 3);
+            c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(px - 9, py - 42, 18, 3);
+            c.fillStyle = '#ff6b5e'; c.fillRect(px - 9, py - 42, 18 * Math.max(0, e.hp) / e.max, 3);
         }
-        if (e.flash > 0) { c.save(); c.globalAlpha = 0.55; c.fillStyle = '#fff'; c.beginPath(); c.arc(px, py - 4, 14, 0, 7); c.fill(); c.restore(); }
+        if (e.flash > 0 && !SP(spn)) { c.save(); c.globalAlpha = 0.55; c.fillStyle = '#fff'; c.beginPath(); c.arc(px, py - 4, 14, 0, 7); c.fill(); c.restore(); }
         if (e.zehirT > 0 && !o.reduced) { c.fillStyle = 'rgba(124,255,107,0.8)'; for (let i = 0; i < 3; i++) { const a = t * 3 + i * 2.1; c.beginPath(); c.arc(px + Math.cos(a) * 7, py - 6 - ((t * 12 + i * 5) % 12), 1.6, 0, 7); c.fill(); } }
     }
 
@@ -1181,14 +1281,30 @@ const Tapinak = (() => {
             c.globalCompositeOperation = 'source-over';
         }
         if (SP('jarl')) {
-            Sprites.draw(c, 'jarl', o.reduced ? 0 : Math.floor(t * 4), px, py + R * 0.8, R / 27);
-            // faz rengi: göğüs çekirdeği nabzı
+            // kare: bekleme döngüsü (nefes) | kükreme: uyanış, faz geçişi (1.2 sn), şarj ve hamle
+            let bh = bossHafiza.get(b);
+            if (!bh) { bh = { faz: b.faz, t0: -99 }; bossHafiza.set(b, bh); }
+            if (bh.faz !== b.faz) { bh.faz = b.faz; bh.t0 = t; }
+            const gecis = t - bh.t0 >= 0 && t - bh.t0 < 1.2;
+            let fr, kuk = 0;
+            if (o.reduced) fr = 0;
+            else if (b.hamle > 0) { fr = kare('jarl', 'saldiri', 2); kuk = 1; }
+            else if (b.sarj > 0) { fr = kare('jarl', 'saldiri', Math.min(3, Math.floor((20 - b.sarj) / 20 * 3))); kuk = 0.7; }
+            else if (gecis) { const k = Math.floor((t - bh.t0) / 0.24); fr = kare('jarl', 'saldiri', Math.min(3, k > 3 ? 2 + (k % 2) : k)); kuk = 1 - (t - bh.t0) / 1.2; }
+            else if (b.uyan > 0) { fr = kare('jarl', 'saldiri', Math.min(3, Math.floor((40 - b.uyan) / 10))); kuk = 0.6; }
+            else fr = kare('jarl', 'bekle', t * 6);
+            const s = R / 27;
+            golge(c, px + 2, py + R * 0.8, R * 0.85, R * 0.28, 0.32);
+            Sprites.draw(c, 'jarl', fr, px, py + R * 0.8, s);
+            // faz rengi: göğüs çekirdeği nabzı + kükremede faz renginde parıltı
             const p = 0.75 + 0.25 * Math.sin(t * (2 + b.faz));
-            c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha *= 0.55 * p;
-            const cg = c.createRadialGradient(px, py + R * 0.05, 1, px, py + R * 0.05, R * 0.6);
+            c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha *= 0.45 * p + 0.4 * kuk;
+            const cg = c.createRadialGradient(px, py + R * 0.05, 1, px, py + R * 0.05, R * (0.6 + 0.4 * kuk));
             cg.addColorStop(0, b.faz === 3 ? '#ff6a8a' : '#ffb347'); cg.addColorStop(1, 'rgba(60,10,0,0)');
-            c.fillStyle = cg; c.beginPath(); c.arc(px, py + R * 0.05, R * 0.6, 0, 7); c.fill();
+            c.fillStyle = cg; c.beginPath(); c.arc(px, py + R * 0.05, R, 0, 7); c.fill();
             c.restore();
+            if (kuk > 0) Sprites.drawTint(c, 'jarl', fr, px, py + R * 0.8, s, false, renk, 0.35 * kuk);
+            if (b.flash > 0) Sprites.drawTint(c, 'jarl', fr, px, py + R * 0.8, s, false, '#ffffff', Math.min(1, b.flash / 4) * 0.8);
         } else {
         // pelerin
         c.fillStyle = '#17141a';
@@ -1233,7 +1349,7 @@ const Tapinak = (() => {
             c.strokeStyle = `rgba(255,40,80,${0.4 + 0.4 * Math.sin(t * 20)})`; c.lineWidth = 3; c.setLineDash([10, 8]);
             c.beginPath(); c.moveTo(px, py); c.lineTo(px + b.hx * 30 * C, py + b.hy * 30 * C); c.stroke(); c.setLineDash([]);
         }
-        if (b.flash > 0) { c.globalAlpha = 0.5; c.fillStyle = '#fff'; c.beginPath(); c.arc(px, py, R, 0, 7); c.fill(); }
+        if (b.flash > 0 && !SP('jarl')) { c.globalAlpha = 0.5; c.fillStyle = '#fff'; c.beginPath(); c.arc(px, py, R, 0, 7); c.fill(); }
         c.restore();
     }
 
@@ -1282,8 +1398,12 @@ const Tapinak = (() => {
             c.beginPath(); c.moveTo(d.x * C - 5, d.y * C); c.lineTo(d.x * C + 5, d.y * C); c.moveTo(d.x * C, d.y * C - 5); c.lineTo(d.x * C, d.y * C + 5); c.stroke();
             c.restore();
         });
-        // düşmanlar + boss: y'ye göre ressam sırası
+        // düşmanlar + boss: y'ye göre ressam sırası (ölüm animasyonları dahil)
+        const h0 = run.snake && run.snake[0];
+        bas.x = h0 ? h0.x + 0.5 : -99; bas.y = h0 ? h0.y + 0.5 : -99;
+        const ol = olumTakip(oda, t);
         const hep = oda.dusmanlar.map(e => ({ y: e.y, f: () => dusmanCiz(c, e, o) }));
+        ol.forEach(d => hep.push({ y: d.y, f: () => olumCiz(c, d, t, o.reduced) }));
         if (oda.boss) hep.push({ y: oda.boss.y, f: () => bossCiz(c, oda.boss, o) });
         hep.sort((a, b) => a.y - b.y).forEach(h => h.f());
         // atılım izi
@@ -1418,6 +1538,8 @@ const Tapinak = (() => {
         W, H, HUCRE: { ZEMIN, DUVAR, SUTUN, UCURUM, CATLAK, KILIT, KAPI }, ARMAGANLAR, YETENEKLER, DUSMANLAR, HARITA, BAGLAR, ANAHTAR,
         yeniKosu, adim, ates, atil, sec, hasar, yukle, kaydet, hucre, kapiHucreleri, duzen, ozet, mulberry,
         olaylariAl: run => run.ev.splice(0),
-        ciz, cizUst, ikon
+        ciz, cizUst, ikon,
+        // test/inceleme: odadaki süren ölüm animasyonu sayısı (yalnız çizim durumu)
+        _olumSayisi: oda => (olumler.get(oda) || []).length
     };
 })();
