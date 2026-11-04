@@ -6,12 +6,12 @@
   let depo;
   try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); depo = localStorage; } catch (e) { const d = {}; depo = { getItem: k => d[k] || null, setItem: (k, v) => { d[k] = v; } }; }
   const meta = TK.mirasYukle(depo);
-  let s = null, ekran = 'menu', onceki = 0, birikim = 0;
+  let fon = null, s = null, ekran = 'menu', onceki = 0, birikim = 0;
   const tus = {}, girdiOlay = { savur: false, koz: false, atilim: false };
   let fare = { x: 480, y: 300, hareket: 0 };
   const test = /[?&]test=1/.test(location.search);
 
-  const goster = id => { for (const k of ['menu', 'miras', 'secim', 'son', 'duraklat']) $(k).classList.toggle('ac', k === id); ekran = id || 'oyun'; };
+  const goster = id => { for (const k of ['menu', 'miras', 'nasil', 'secim', 'son', 'duraklat']) $(k).classList.toggle('ac', k === id); ekran = id || 'oyun'; };
   function menuYenile() {
     $('menuKul').textContent = 'Kül: ' + meta.kul + ' · Koşu: ' + meta.kosu + ' · Zafer: ' + meta.zafer + ' · En derin oda: ' + meta.enIyi;
     const y = []; for (const k in meta.yetenek) if (meta.yetenek[k]) y.push(TK.YETENEKLER[k].ad);
@@ -56,6 +56,10 @@
   }
   function sec(i) { if (s && s.secim && TK.secimYap(s, i)) goster(null); }
 
+  const sesYaz = () => { $('bSes').textContent = 'Ses: ' + (Ses.sessizMi() ? 'Kapalı' : 'Açık'); };
+  $('bNasil').onclick = () => goster('nasil'); $('bNGeri').onclick = () => goster('menu');
+  $('bSes').onclick = () => { Ses.baslat(); Ses.sessiz(!Ses.sessizMi()); sesYaz(); };
+  $('bCik').onclick = () => { window.close(); };
   $('bBasla').onclick = basla; $('bTekrar').onclick = basla;
   $('bMiras').onclick = () => { mirasYenile(); goster('miras'); };
   $('bGeri').onclick = () => { menuYenile(); goster('menu'); };
@@ -68,7 +72,7 @@
     const k = e.key.toLowerCase();
     tus[k] = true;
     if (ekran === 'secim' && '123'.includes(k)) sec(+k - 1);
-    if (k === 'm') Ses.sessiz(!Ses.sessizMi());
+    if (k === 'm') { Ses.sessiz(!Ses.sessizMi()); sesYaz(); }
     if (ekran !== 'oyun') return;
     if (k === ' ' || k === 'j') { girdiOlay.savur = true; e.preventDefault(); }
     if (k === 'e' || k === 'k') girdiOlay.koz = true;
@@ -120,7 +124,10 @@
       }
       Ses.isle(s.olaylar);
       Ciz.ciz(c, s);
-    } else { c.fillStyle = '#05030a'; c.fillRect(0, 0, 960, 620); }
+    } else {
+      if (!fon) { fon = TK.yeniKosu(20261104, TK.mirasBos()); fon.p.x = 11; fon.p.y = 8; fon.menuFon = true; }
+      fon.zaman += dt; fon.p.dir = Math.sin(fon.zaman * 0.6) * 3; Ciz.guncelle(dt); Ciz.ciz(c, fon);
+    }
     requestAnimationFrame(dongu);
   }
   menuYenile();

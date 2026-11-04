@@ -314,7 +314,7 @@ const Ciz = (() => {
     c.globalAlpha = 1; c.textAlign = 'left';
     isikCiz(c, s, th);
     c.restore();
-    hud(c, s);
+    if (!s.menuFon) hud(c, s);
   }
   return { ciz, guncelle, dunya, CW, CH, ARM: null };
 })();
