@@ -1329,34 +1329,15 @@ const SnakeGame = (() => {
         playSound('shield');
     }
     
-    function spawnEnemy() {
-        if (enemies.length >= 60) return;
-        const side = Math.floor(Math.random() * 4);
-        const e = { x: 0, y: 0, hp: state.wave >= 4 && Math.random() < 0.25 ? 2 : 1 };
-        if (side === 0) { e.x = Math.random() * COLS; e.y = -1; }
-        else if (side === 1) { e.x = Math.random() * COLS; e.y = ROWS; }
-        else if (side === 2) { e.x = -1; e.y = Math.random() * ROWS; }
-        else { e.x = COLS; e.y = Math.random() * ROWS; }
-        enemies.push(e);
-    }
+    // Saf Survivor/düşman mantığı src/core/survivor.js içinde (window.YilanCore.survivor)
+    const SvCore = window.YilanCore.survivor;
+    function spawnEnemy() { SvCore.spawnEnemy(enemies, state.wave, COLS, ROWS, Math.random); }
     
     // oyuncu mermileri: 3 alt adımda ilerler, her adımda çarpışma bakar
     function moveShots(onKill) {
-        playerShots = playerShots.filter(s => {
-            for (let i = 0; i < 3; i++) {
-                s.x += s.dx * 0.5;
-                s.y += s.dy * 0.5;
-                for (const e of enemies) {
-                    if (e.hp > 0 && Math.hypot(e.x - s.x, e.y - s.y) < 0.9) {
-                        e.hp -= s.dmg || 1;
-                        if (e.hp <= 0) onKill(e);
-                        return false;
-                    }
-                }
-            }
-            return s.x > -2 && s.x < COLS + 2 && s.y > -2 && s.y < ROWS + 2;
-        });
-        enemies = enemies.filter(e => e.hp > 0);
+        const r = SvCore.moveShots(playerShots, enemies, COLS, ROWS, onKill);
+        playerShots = r.shots;
+        enemies = r.enemies;
     }
     
     function tickTailgun() {
@@ -1427,13 +1408,7 @@ const SnakeGame = (() => {
     }
     
     // ======================== SURVIVOR ========================
-    const UPGRADES = [
-        { id: 'dmg', text: 'HASAR +1' },
-        { id: 'rate', text: 'ATEŞ HIZI +25%' },
-        { id: 'multi', text: 'ÇOKLU ATIŞ +1' },
-        { id: 'magnet', text: 'MIKNATIS +1.5' },
-        { id: 'life', text: 'CANI DOLDUR' }
-    ];
+    const UPGRADES = SvCore.UPGRADES;
     
     function startSurvivor() {
         document.getElementById('fireBtn').style.display = 'none';
@@ -1450,7 +1425,7 @@ const SnakeGame = (() => {
         document.getElementById('hudHigh').textContent = records.survivor;
         
         initGameState();
-        sv = { level: 1, xp: 0, need: 5, dmg: 1, cd: 10, multi: 1, magnet: 2.5, timer: 0, choosing: false, choices: [] };
+        sv = SvCore.newSv();
         gems = [];
         document.getElementById('hudLevel').textContent = sv.level;
         document.getElementById('hudTarget').textContent = '0/' + sv.need;
@@ -1460,96 +1435,47 @@ const SnakeGame = (() => {
         playSound('start');
     }
     
-    function nearestEnemy(h) {
-        let best = null, bd = 1e9;
-        for (const e of enemies) {
-            const d = Math.hypot(e.x - h.x, e.y - h.y);
-            if (d < bd) { bd = d; best = e; }
-        }
-        return bd <= 11 ? best : null;
-    }
-    
     function tickSurvivor() {
         if (sv.choosing) return;
         waveTick++;
-        if (waveTick % 200 === 0) {
+        if (SvCore.waveAdvances(waveTick)) {
             state.wave++;
             showBanner('DÜŞMANLAR GÜÇLENİYOR');
         }
-        
-        // Denge: dalga 10'dan sonra da zorluk artar (eskiden gap/hız tavanı yüzünden bot hiç ölmüyordu)
-        const gap = Math.max(3, 22 - state.wave * 2);
-        if (waveTick % gap === 0) {
-            const grup = state.wave >= 12 ? 1 + Math.floor((state.wave - 12) / 8) : 0;
-            for (let k = 0; k <= Math.min(grup, 3); k++) {
-                const n0 = enemies.length;
-                spawnEnemy();
-                if (enemies.length === n0) break;
-                const ne = enemies[enemies.length - 1];
-                if (state.wave >= 3 && Math.random() < 0.3) ne.hp = 1 + Math.floor(state.wave / 3);
-                if (state.wave >= 10) ne.hp = Math.max(ne.hp, 1 + Math.floor((state.wave - 6) / 3));
-            }
-        }
-        
+
+        // Denge sayıları (üretim aralığı, grup, HP ölçeği, hız tavanı) core/survivor.js içinde
+        if (waveTick % SvCore.spawnGap(state.wave) === 0) SvCore.spawnWaveStep(enemies, state.wave, COLS, ROWS, Math.random);
+
         const head = snake[0];
-        const espd = Math.min(0.36, 0.08 + state.wave * 0.006);
-        
-        sv.timer++;
-        if (sv.timer >= sv.cd) {
-            const t = nearestEnemy(head);
-            if (t) {
-                sv.timer = 0;
-                const a = Math.atan2(t.y - head.y, t.x - head.x);
-                for (let i = 0; i < sv.multi; i++) {
-                    const off = (i - (sv.multi - 1) / 2) * 0.25;
-                    playerShots.push({ x: head.x, y: head.y, dx: Math.cos(a + off), dy: Math.sin(a + off), dmg: sv.dmg });
-                }
-            }
-        }
-        
+        const espd = SvCore.enemySpeed(state.wave);
+
+        SvCore.autoFire(sv, head, enemies, playerShots);
+
         moveShots(enemy => {
             state.score += 2;
             updateHUD();
-            gems.push({ x: enemy.x, y: enemy.y, v: 1 });
-            if (gems.length > 80) { const o = gems.shift(); gems[0].v = (gems[0].v || 1) + (o.v || 1); } // eski elmas XP'siyle birleşir, silinmez
+            SvCore.addGem(gems, enemy.x, enemy.y); // 80 üstünde eski elmas XP'siyle birleşir, silinmez
         });
-        
-        enemies.forEach(e => {
-            const a = Math.atan2(head.y - e.y, head.x - e.x);
-            e.x += Math.cos(a) * espd;
-            e.y += Math.sin(a) * espd;
+
+        SvCore.moveEnemies(enemies, head, espd);
+
+        gems = SvCore.collectGems(gems, head, sv, levelUp, () => {
+            document.getElementById('hudTarget').textContent = sv.xp + '/' + sv.need;
         });
-        
-        gems = gems.filter(g => {
-            const d = Math.hypot(head.x - g.x, head.y - g.y);
-            if (d < sv.magnet) {
-                sv.xp += g.v || 1;
-                if (sv.xp >= sv.need) { const artan = sv.xp - sv.need; levelUp(); sv.xp = artan; }
-                document.getElementById('hudTarget').textContent = sv.xp + '/' + sv.need;
-                return false;
-            }
-            return true;
-        });
-        
+
         if (!powers.invincible) {
-            for (let i = 0; i < enemies.length; i++) {
-                if (Math.hypot(head.x - enemies[i].x, head.y - enemies[i].y) < 1.0) {
-                    enemies.splice(i, 1);
-                    damage();
-                    return;
-                }
+            const i = SvCore.headHit(enemies, head);
+            if (i >= 0) {
+                enemies.splice(i, 1);
+                damage();
+                return;
             }
         }
     }
     
     function levelUp() {
-        sv.level++;
-        sv.xp = 0;
-        sv.need = 5 + sv.level * 3;
+        SvCore.levelUpStats(sv, Math.random);
         document.getElementById('hudLevel').textContent = sv.level;
-        const pool = UPGRADES.slice().sort(() => Math.random() - 0.5);
-        sv.choices = pool.slice(0, 3);
-        sv.choosing = true;
         if (sv.level >= 5) unlockAch('sv5');
         if (sv.level >= 10) unlockAch('sv10');
         pausePowerTimers();
@@ -1558,13 +1484,7 @@ const SnakeGame = (() => {
     
     function pickUpgrade(i) {
         if (state.mode !== 'survivor' || !sv.choosing || !sv.choices[i]) return;
-        switch (sv.choices[i].id) {
-            case 'dmg': sv.dmg += 1; break;
-            case 'rate': sv.cd = Math.max(3, Math.round(sv.cd * 0.8)); break;
-            case 'multi': sv.multi = Math.min(5, sv.multi + 1); break;
-            case 'magnet': sv.magnet = Math.min(8, sv.magnet + 1.5); break;
-            case 'life': state.lives = 3; updateHUD(); break;
-        }
+        if (SvCore.applyUpgrade(sv, state, sv.choices[i].id)) updateHUD();
         sv.choosing = false;
         resumePowerTimers();
         document.getElementById('hudTarget').textContent = sv.xp + '/' + sv.need;
