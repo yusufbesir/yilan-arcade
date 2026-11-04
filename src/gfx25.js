@@ -450,7 +450,8 @@ const Gfx25 = (() => {
     // ====================================================================
     // (c) YILAN
     // ====================================================================
-    function bodyPalette(k, cb, pal) {
+    function bodyPalette(k, cb, pal, skin) {
+        if (skin) return skin.pal(k); // Market kostümü
         const q = Math.round(k * 12) / 12;
         if (cb) {
             return { q, hi: pal.ton(pal.yilan, 0.55 - 0.3 * q), mid: pal.ton(pal.yilan, -0.4 * q), lo: pal.ton(pal.yilan, -0.4 * q - 0.45) };
@@ -460,18 +461,19 @@ const Gfx25 = (() => {
     }
 
     // Tek şerit gövde için: baş sprite'ının sönük zümrüt tonuna daha yakın, biraz daha koyu
-    function ribbonPalette(k, cb, pal) {
+    function ribbonPalette(k, cb, pal, skin) {
+        if (skin) return skin.pal(k);
         if (cb) return bodyPalette(k, cb, pal);
         const q = Math.round(k * 12) / 12;
         const h = 163 - 20 * q, s = 62 - 10 * q, l = 43 - 17 * q;
         return { q, hi: 'hsl(' + h + ',' + (s + 6) + '%,' + Math.min(80, l + 30) + '%)', mid: 'hsl(' + h + ',' + s + '%,' + l + '%)', lo: 'hsl(' + (h + 6) + ',' + s + '%,' + Math.max(5, l - 25) + '%)' };
     }
 
-    function sphereSprite(r, k, cb, pal, gem) {
-        const pk = bodyPalette(k, cb, pal);
+    function sphereSprite(r, k, cb, pal, gem, skin) {
+        const pk = bodyPalette(k, cb, pal, skin);
         const rq = Math.round(r * 4) / 4;
         const R = rq + 3;
-        return sprite('sph|' + rq + '|' + pk.q + '|' + cb + '|' + gem, R * 2, R * 2, R, R, g => {
+        return sprite('sph|' + rq + '|' + pk.q + '|' + cb + '|' + gem + '|' + (skin ? skin.id : ''), R * 2, R * 2, R, R, g => {
             const gr = g.createRadialGradient(-rq * 0.35, -rq * 0.4, rq * 0.1, 0, 0, rq);
             gr.addColorStop(0, pk.hi);
             gr.addColorStop(0.45, pk.mid);
@@ -492,7 +494,7 @@ const Gfx25 = (() => {
             g.stroke();
             g.restore();
             if (gem) {
-                g.fillStyle = 'rgba(255,214,102,0.88)';
+                g.fillStyle = skin ? skin.desen : 'rgba(255,214,102,0.88)';
                 g.beginPath();
                 g.moveTo(0, -3.2); g.lineTo(2.6, 0); g.lineTo(0, 3.2); g.lineTo(-2.6, 0);
                 g.closePath(); g.fill();
@@ -540,9 +542,10 @@ const Gfx25 = (() => {
         const r = Math.max(5.2, 8.6 - k * 3.2);
         const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2 - LIFT;
         const prev = o.all && o.all[idx - 1];
-        const pk = bodyPalette(k, o.cb, o.pal);
+        const skin = o.skin || null;
+        const pk = bodyPalette(k, o.cb, o.pal, skin);
         const sfx = o.cb ? '_cb' : '';
-        if (SP('seg' + sfx) && SP('linkh' + sfx) && SP('linkv' + sfx)) {
+        if (!skin && SP('seg' + sfx) && SP('linkh' + sfx) && SP('linkv' + sfx)) {
             // 3B pişmiş gövde: önce bir öncekine giden pullu tüp, sonra küre (ya da kuyruk ucu)
             const tone = Math.min(3, Math.round(k * 3));
             const sc = r / SEG_PX;
@@ -586,7 +589,7 @@ const Gfx25 = (() => {
             ctx.beginPath(); ctx.moveTo(cx - r * 0.38, cy - r * 0.55); ctx.lineTo(px - r * 0.38, py - r * 0.55); ctx.stroke();
             ctx.globalAlpha = 1;
         }
-        blit(ctx, sphereSprite(r, k, o.cb, o.pal, idx % 3 === 1), cx, cy);
+        blit(ctx, sphereSprite(r, k, o.cb, o.pal, idx % 3 === 1, skin), cx, cy);
     }
 
     // ====================================================================
@@ -743,7 +746,7 @@ const Gfx25 = (() => {
         }
         lastHead = { x: h0.x, y: h0.y };
         ribbonChunks(chunkBuf);
-        const cb = o.cb, pal = o.pal;
+        const cb = o.cb, pal = o.pal, skin = o.skin || null;
 
         ctx.save();
         // yerde uzun yumuşak gölge: tek yol, üç geçiş
@@ -763,10 +766,10 @@ const Gfx25 = (() => {
 
         // 1) taban katmanları (kuyruktan başa)
         for (let c = chunkBuf.length - 3; c >= 0; c -= 3) {
-            const a = chunkBuf[c], b = chunkBuf[c + 1], pk = ribbonPalette(chunkBuf[c + 2] / 12, cb, pal);
+            const a = chunkBuf[c], b = chunkBuf[c + 1], pk = ribbonPalette(chunkBuf[c + 2] / 12, cb, pal, skin);
             for (let l = 0; l < LAYERS_BASE.length; l++) {
                 const L = LAYERS_BASE[l];
-                ctx.fillStyle = l === 0 ? pk.lo : l === 1 ? (cb ? pal.ton(pal.yilan, 0.2) : 'rgb(46,170,128)') : pk.mid;
+                ctx.fillStyle = l === 0 ? pk.lo : l === 1 ? (skin ? pk.alt : cb ? pal.ton(pal.yilan, 0.2) : 'rgb(46,170,128)') : pk.mid;
                 ribbonPoly(ctx, a, b, L[0], L[1]);
                 ctx.fill();
                 if (l === 3) { ctx.globalAlpha = 0.5; ctx.fillStyle = pk.hi; ctx.fill(); ctx.globalAlpha = 1; }
@@ -812,7 +815,7 @@ const Gfx25 = (() => {
 
         // 3) ışık ve spekülar katmanları
         for (let c = chunkBuf.length - 3; c >= 0; c -= 3) {
-            const a = chunkBuf[c], b = chunkBuf[c + 1], pk = ribbonPalette(chunkBuf[c + 2] / 12, cb, pal);
+            const a = chunkBuf[c], b = chunkBuf[c + 1], pk = ribbonPalette(chunkBuf[c + 2] / 12, cb, pal, skin);
             for (let l = 0; l < LAYERS_TOP.length; l++) {
                 const L = LAYERS_TOP[l];
                 ctx.globalAlpha = L[2];
@@ -842,7 +845,7 @@ const Gfx25 = (() => {
                 ctx.lineTo(cx - FR.nx * hw, cy - FR.ny * hw);
                 ctx.closePath();
             }
-            ctx.fillStyle = 'rgba(255,208,92,0.86)';
+            ctx.fillStyle = skin ? skin.desen : 'rgba(255,208,92,0.86)';
             ctx.fill();
             ctx.lineWidth = 0.8;
             ctx.strokeStyle = 'rgba(120,70,0,0.55)';
@@ -850,6 +853,25 @@ const Gfx25 = (() => {
         }
         ctx.restore();
         return true;
+    }
+
+    // Kostüm baş sprite'ı: pişmiş başın parlaklığı korunur, renk tonu kostümden gelir
+    function skinHeadSprite(skin, hn, fr) {
+        try {
+            const m = Sprites.MAP[hn];
+            if (!m || typeof document === 'undefined') return null;
+            const SC = m.sc || (window.SPRITE_MAP && window.SPRITE_MAP.scale) || 2, k = 1.4;
+            const w = m.w / SC * k, h = m.h / SC * k, ox = m.ax / SC * k, oy = m.ay / SC * k;
+            return sprite('skinhead|' + skin.id + '|' + fr, w, h, ox, oy, g => {
+                Sprites.draw(g, hn, fr, 0, 0, k);
+                g.globalCompositeOperation = 'color';
+                g.fillStyle = skin.bas;
+                g.fillRect(-ox, -oy, w, h);
+                g.globalCompositeOperation = 'destination-in';
+                Sprites.draw(g, hn, fr, 0, 0, k);
+                g.globalCompositeOperation = 'source-over';
+            });
+        } catch (e) { return null; }
     }
 
     function drawSnakeHead(ctx, pos, dir, t, o) {
@@ -860,6 +882,10 @@ const Gfx25 = (() => {
         const hn = o.cb ? 'head_cb' : 'head';
         if (SP(hn)) {
             const tongue = (t * 2.2) % 1 < 0.35 ? 1 : 0;
+            if (o.skin && !o.cb) {
+                const hs = skinHeadSprite(o.skin, hn, dirIx(dir.x, dir.y) * 2 + tongue);
+                if (hs) { blit(ctx, hs, pos.x * S + S / 2, pos.y * S + S / 2); return; }
+            }
             Sprites.draw(ctx, hn, dirIx(dir.x, dir.y) * 2 + tongue, pos.x * S + S / 2, pos.y * S + S / 2, 1.4);
             return;
         }
@@ -869,9 +895,10 @@ const Gfx25 = (() => {
         // ışık sabit (sol-üst): yerel eksene çevir
         const lx = cs * -0.4 + sn * -0.55, ly = -sn * -0.4 + cs * -0.55;
         const cb = o.cb, pal = o.pal;
-        const hi = cb ? pal.ton(pal.yilan, 0.4) : '#6ff0b0';
-        const mid = cb ? pal.yilan : '#13c27a';
-        const lo = cb ? pal.ton(pal.yilan, -0.55) : '#06623f';
+        const sk = o.skin && !cb ? o.skin : null, skp = sk ? sk.pal(0) : null;
+        const hi = sk ? skp.hi : cb ? pal.ton(pal.yilan, 0.4) : '#6ff0b0';
+        const mid = sk ? skp.mid : cb ? pal.yilan : '#13c27a';
+        const lo = sk ? skp.lo : cb ? pal.ton(pal.yilan, -0.55) : '#06623f';
 
         ctx.save();
         ctx.translate(cx, cy);
@@ -920,7 +947,7 @@ const Gfx25 = (() => {
             ctx.beginPath(); ctx.arc(-6 + i * 3.6, 0, 4.4 - i * 0.3, -Math.PI * 0.45, Math.PI * 0.45); ctx.stroke();
         }
         // altın yan şeritler
-        ctx.strokeStyle = 'rgba(255,214,102,0.8)';
+        ctx.strokeStyle = sk ? sk.desen : 'rgba(255,214,102,0.8)';
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(-7, -5.2); ctx.quadraticCurveTo(2, -7.2, 8.5, -3.2);
@@ -944,9 +971,9 @@ const Gfx25 = (() => {
             ctx.lineWidth = 1.4;
             ctx.beginPath(); ctx.arc(ex, ey, 3.6, side < 0 ? Math.PI * 0.95 : Math.PI * 0.05 - 0.0001, side < 0 ? Math.PI * 2.05 : Math.PI * 1.05, side < 0 ? false : true); ctx.stroke();
             const eg = ctx.createRadialGradient(ex - 0.6, ey - 0.8, 0.3, ex, ey, 3);
-            eg.addColorStop(0, '#fff2a0');
-            eg.addColorStop(0.6, '#ffc21a');
-            eg.addColorStop(1, '#a86a00');
+            eg.addColorStop(0, sk ? '#ffffff' : '#fff2a0');
+            eg.addColorStop(0.6, sk ? sk.goz : '#ffc21a');
+            eg.addColorStop(1, sk ? skp.lo : '#a86a00');
             ctx.fillStyle = eg;
             ctx.beginPath(); ctx.arc(ex, ey, 2.9, 0, TAU); ctx.fill();
             ctx.fillStyle = '#0c0d08';
