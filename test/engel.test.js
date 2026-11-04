@@ -24,7 +24,7 @@ const assert = require('assert');
   // 1) Tür kataloğu: tema başına özgü türler (Yusuf'un istediği: lav nehri, buz dağı, ağaç, nehir)
   const kat = await page.evaluate(() => ({ T: Engel.TURLER, AD: Engel.AD }));
   assert.deepStrictEqual(Object.keys(kat.T).sort(), ['bat', 'buz', 'kaya', 'lav', 'run', 'tas']);
-  assert.deepStrictEqual(kat.T.tas, ['sutun', 'yikik']);
+  assert.deepStrictEqual(kat.T.tas, ['sutun', 'yikik', 'devrik']);
   assert.deepStrictEqual(kat.T.kaya, ['stalagmit', 'yigin']);
   assert.deepStrictEqual(kat.T.buz, ['dag', 'kristal']);
   assert.deepStrictEqual(kat.T.lav, ['nehir', 'bazalt']);
@@ -36,7 +36,7 @@ const assert = require('assert');
 
   // 2) Üretim: tema x seviye x tohum. Boş haritada ulaşılamaz bölge yok, başlangıç şeridi/yılan/yem boş, tüm türler görülür
   const uretim = await page.evaluate(() => {
-    const COLS = 48, ROWS = 32, orta = 16, out = {};
+    const COLS = 48, ROWS = 32, orta = 16, out = {}, AKISK = ['nehir', 'su'];
     for (const tema of Object.keys(Engel.TURLER)) {
       const r = { turler: {}, enAz: 1e9, enCok: 0, ihlal: [], kapali: 0, cakisma: 0 };
       for (let seviye = 1; seviye <= 30; seviye += 3) for (let k = 0; k < 6; k++) {
@@ -57,6 +57,15 @@ const assert = require('assert');
           if (Math.abs(yem.x - o.x) <= 1 && Math.abs(yem.y - o.y) <= 1) r.ihlal.push('yem ' + key);
           if (!Engel.TURLER[tema].includes(o.tur)) r.ihlal.push('tur ' + o.tur);
         });
+        const gs = {};
+        list.forEach(o => { (gs[o.g] = gs[o.g] || []).push(o); });
+        Object.values(gs).forEach(a => {
+          r.grupMax = Math.max(r.grupMax || 0, a.length);
+          if (a[0].tur === 'dag' && a.length >= 6) r.dag6 = true;
+          if (a[0].tur === 'agac' && a.length >= 3) r.koru = true;
+          if (a[0].tur === 'dikilitas' && a.length >= 6) r.halka = true;
+          if (AKISK.includes(a[0].tur)) { const st = new Set(a.map(c => c.x + ',' + c.y)); if (a.some(c => st.has((c.x + 1) + ',' + c.y) && st.has(c.x + ',' + (c.y + 1)) && st.has((c.x + 1) + ',' + (c.y + 1)))) r.genis2 = true; }
+        });
         const grid = new Uint8Array(COLS * ROWS);
         list.forEach(o => { grid[o.x + o.y * COLS] = 1; });
         r.kapali += Engel._ulasilamaz(grid, COLS, ROWS, yilan[0].x, yilan[0].y);
@@ -70,9 +79,15 @@ const assert = require('assert');
     assert.strictEqual(r.ihlal.length, 0, t + ' ihlal: ' + r.ihlal.slice(0, 3));
     assert.strictEqual(r.kapali, 0, t + ': ulaşılamaz kapalı bölge');
     assert.strictEqual(r.cakisma, 0, t + ': çakışan hücre');
-    assert(r.enAz >= 6 && r.enCok <= 60, t + ' yoğunluk ' + r.enAz + '..' + r.enCok + ' (48x32 ızgara, makul)');
+    assert(r.enAz >= 6 && r.enCok <= 90, t + ' yoğunluk ' + r.enAz + '..' + r.enCok + ' (48x32 ızgara, makul)');
     kat.T[t].forEach(tur => assert(r.turler[tur] > 0, t + ': ' + tur + ' hiç üretilmedi'));
   });
+
+  assert(uretim.buz.dag6, 'buz dağı: 6+ hücreli kütle');
+  assert(uretim.bat.koru && uretim.bat.genis2, 'bataklık: ağaç korusu (3+) ve 2 hücre geniş nehir');
+  assert(uretim.lav.genis2, 'lav nehri 2 hücre geniş olabilir');
+  assert(uretim.run.halka, 'rün dikilitaşı halkası');
+  assert(uretim.kaya.grupMax >= 6, 'kaya kütlesi 6+ hücre');
 
   // 3) Determinizm: aynı tohum aynı yerleşim; farklı tohum farklı; mevcut engeller yerinde kalır
   const det = await page.evaluate(() => {
