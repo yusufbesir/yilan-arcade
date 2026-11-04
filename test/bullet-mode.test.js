@@ -7,7 +7,7 @@ const path = require('path');
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto('file://' + path.resolve(__dirname, '../src/index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
   const seen = { boss: false, laser: false, pattern: false, maxWave: 0, bullets: 0 };
   await page.evaluate(() => SnakeGame.startBullet());
   const res = await page.evaluate(() => {

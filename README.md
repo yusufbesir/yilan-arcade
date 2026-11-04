@@ -23,6 +23,10 @@ Tekrarlanabilir derleme için `npm ci`, sonra `npm run dist`. `npm audit --omit=
 ## Kurulum notu (kod imzası yok)
 Kurulum dosyası kod imzalı değil, bu yüzden Windows SmartScreen "Windows bilgisayarınızı korudu" uyarısı gösterebilir. Dosyayı kendiniz derlediyseniz veya SHA256 değeri `BUILD-NOTU.md` ile aynıysa: **Ek bilgi** → **Yine de çalıştır**. Kişisel kullanım için ayrı bir sertifika alınmadı.
 
+## Güvenlik
+
+Electron 45; pencere contextIsolation, sandbox, nodeIntegration kapalı, izin isteği reddi, webview engeli, yalnız kendi index.html'ine gezinme (URL ayrıştırmalı) ve CSP ile açılır; devTools yalnız paketsiz sürümde. Betik `src/game.js` dosyasındadır, satır içi betik ve `onclick` yoktur (CSP `script-src 'self'`); tıklamalar `data-act` ile tek dinleyiciden geçer. Ayarlar ve başarım kayıtları yüklenirken tip ve aralık denetiminden geçer; eski veri taşıması geçici klasöre kopyalayıp yeniden adlandırır, sembolik bağlantıları kopyalamaz. Test API'si (`SnakeGame._debug`, `_ach`) yalnız sayfa `?test=1` ile açıldığında vardır; paketli oyunda yoktur. `test/guvenlik.test.js` bunları doğrular.
+
 ## İki oyuncu, gamepad ve erişilebilirlik
 
 - Tron Düellosu kartındaki **2 OYUNCU** düğmesi açıkken rakip yapay zekâ yerine ikinci oyuncu geçer: P1 WASD, P2 ok tuşları; ilk 5 turu alan kazanır. Bu modda rekor ve başarım kaydedilmez.

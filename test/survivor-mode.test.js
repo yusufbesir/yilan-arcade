@@ -7,7 +7,7 @@ const path = require('path');
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto('file://' + path.resolve(__dirname, '../src/index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
   await page.evaluate(() => SnakeGame.startSurvivor());
   const res = await page.evaluate(() => {
     const D = SnakeGame._debug, out = { shots: false, gems: false, leveled: false, picked: false };

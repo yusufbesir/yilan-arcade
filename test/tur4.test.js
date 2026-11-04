@@ -9,7 +9,7 @@ const path = require('path');
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   // Sahte gamepad: önce boş, test içinde doldurulur
   await page.addInitScript(() => { window.__pads = []; navigator.getGamepads = () => window.__pads; });
-  await page.goto('file://' + path.resolve(__dirname, '../src/index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
   await page.waitForTimeout(300);
   const out = await page.evaluate(() => {
     const o = {};
