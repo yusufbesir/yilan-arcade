@@ -257,6 +257,8 @@
         .mode-card.chaos .mode-text h3 { color: #ff5ec4; }
         .mode-card.daily { border-color: #5ec4ff; }
         .mode-card.daily .mode-text h3 { color: #5ec4ff; }
+        .mode-card.tapinak { border-color: #e8c46a; }
+        .mode-card.tapinak .mode-text h3 { color: #e8c46a; }
         .mode-card.campaign .mode-text h3 { color: #00ccff; }
         
         .mode-text p {
@@ -1093,6 +1095,20 @@
                         </div>
                     </div>
                     
+                    <div class="mode-card tapinak" tabindex="0" role="button" data-act="startTapinak">
+                        <div class="mode-header">
+                            <span class="mode-icon">🏛️</span>
+                            <div class="mode-text">
+                                <h3>TAPINAK</h3>
+                                <p>Oda oda savaş, armağan seç, Kül Jarlı'nı yen. Yetenekler kalıcı!</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">🏆 REKOR: <span id="menuTapinakHigh">0</span></span>
+                            <span class="mode-badge">🗝 KEŞİF</span>
+                        </div>
+                    </div>
+                    
                     <div class="mode-card campaign" tabindex="0" role="button" data-act="showLevels">
                         <div class="mode-header">
                             <span class="mode-icon">🏆</span>
@@ -1117,6 +1133,7 @@
                     <div class="controls-help">
                         <span class="key-hint">← → ↑ ↓</span> veya <span class="key-hint">W A S D</span> Hareket<br>
                         <span class="key-hint">P</span> Duraklat &nbsp; <span class="key-hint">R</span> Yeniden Başlat &nbsp; <span class="key-hint">M</span> Menü &nbsp; <span class="key-hint">N</span> Ses &nbsp; <span class="key-hint">B</span> Müzik &nbsp; <span class="key-hint">Boşluk</span> Ateş &nbsp; <span class="key-hint">1-2-3</span> Yükseltme
+                        <span class="key-hint">SPACE</span> Kuyruktan ateş &nbsp; <span class="key-hint">SHIFT</span> Atılım (Tapınak)
                     </div>
                 </div>
             </div>
@@ -1262,6 +1279,7 @@
     
     <script src="miras.js"></script>
     <script src="gfx25.js"></script>
+    <script src="tapinak.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

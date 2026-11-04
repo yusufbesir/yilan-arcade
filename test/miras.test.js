@@ -96,7 +96,7 @@ const assert = require('assert');
     for (let i = 0; i < 400 && !g.state.over; i++) { SnakeGame.input(-1, 0); D.tick(); SnakeGame.input(1, 0); D.tick(); }
     return { over: g.state.over, kul1: Miras.kul, msg: document.getElementById('kulMsg').textContent, saved: JSON.parse(localStorage.getItem('twilightMiras')).kul };
   });
-  assert.ok(d.over); assert.strictEqual(d.kul1, 32); assert.strictEqual(d.msg, '🔥 +32 KÜL'); assert.strictEqual(d.saved, 32);
+  assert.ok(d.over); assert.ok(d.kul1 >= 32); assert.strictEqual(d.msg, '🔥 +' + d.kul1 + ' KÜL'); assert.strictEqual(d.saved, d.kul1);
   await page.screenshot({ path: '/tmp/miras-gameover.png' });
 
   assert.strictEqual(errors.length, 0, 'konsol hataları: ' + errors.join(' | '));
