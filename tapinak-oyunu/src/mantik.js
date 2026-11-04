@@ -387,7 +387,12 @@
   function sonrakiOda(s, kapi) {
     return odaUret(s.seed + 100 + (s.odaSayac + 1) * 7, s.oda.kapiTur[kapi] || 'savas', s.derinlik + 1, s.meta, s.gecmis);
   }
-  function onizle(s, kapi) { const o = sonrakiOda(s, kapi); return { tur: o.tur, odul: o.odul, biyom: o.biyom }; }
+  // Kapı önizlemesi her karede çağrılır: oda başına kapı başına bir kez üretilir (oda nesnesine bağlı önbellek).
+  function onizle(s, kapi) {
+    const oc = s.oda._onizle || (s.oda._onizle = {});
+    if (!oc[kapi]) { const o = sonrakiOda(s, kapi); oc[kapi] = { tur: o.tur, odul: o.odul, biyom: o.biyom }; }
+    return oc[kapi];
+  }
   function ilerle(s, kapi) {
     const oda = sonrakiOda(s, kapi);
     s.derinlik++; s.odaSayac++;
