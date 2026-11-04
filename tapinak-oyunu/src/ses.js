@@ -1,4 +1,4 @@
-// Köz Tapınağı: Web Audio ile prosedürel ses (dosya yok). Kullanıcı etkileşiminden sonra başlar.
+// Emberwake: Web Audio ile prosedürel ses (dosya yok). Kullanıcı etkileşiminden sonra başlar.
 const Ses = (() => {
   'use strict';
   let ac = null, ana = null, kapali = false, son = {};

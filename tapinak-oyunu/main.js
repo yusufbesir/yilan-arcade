@@ -3,7 +3,7 @@ const path = require('path');
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1100, height: 760, minWidth: 640, minHeight: 440, title: 'Köz Tapınağı', backgroundColor: '#05030a', autoHideMenuBar: true,
+    width: 1100, height: 760, minWidth: 640, minHeight: 440, title: 'Emberwake', backgroundColor: '#05030a', autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: !app.isPackaged }
   });
   Menu.setApplicationMenu(null);

@@ -1,4 +1,4 @@
-// Köz Tapınağı: girdi, döngü ve arayüz.
+// Emberwake: girdi, döngü ve arayüz.
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
@@ -15,6 +15,7 @@
   function menuYenile() {
     $('menuKul').textContent = 'Kül: ' + meta.kul + ' · Koşu: ' + meta.kosu + ' · Zafer: ' + meta.zafer + ' · En derin oda: ' + meta.enIyi;
     const y = []; for (const k in meta.yetenek) if (meta.yetenek[k]) y.push(TK.YETENEKLER[k].ad);
+    muhurYenile();
     $('menuYet').textContent = y.length ? 'Kalıcı yetenekler: ' + y.join(', ') : 'Kalıcı yetenek yok (boss ve gizli odalar yetenek verir)';
   }
   function mirasYenile() {
@@ -33,7 +34,19 @@
     const y = []; for (const k in TK.YETENEKLER) y.push((meta.yetenek[k] ? '✔ ' : '✖ ') + TK.YETENEKLER[k].ad + ': ' + TK.YETENEKLER[k].acik);
     $('mirasYet').innerHTML = ''; y.forEach(t => { const d = document.createElement('div'); d.textContent = t; $('mirasYet').append(d); });
   }
-  function basla() { Ses.baslat(); s = TK.yeniKosu((Date.now() ^ (Math.random() * 1e9)) >>> 0, meta); goster(null); }
+  const muhurSecili = {};
+  function muhurYenile() {
+    const kutu = $('muhurlar'); kutu.textContent = '';
+    $('muhurBaslik').style.display = meta.yetenek.kirik ? '' : 'none';
+    if (!meta.yetenek.kirik) return;
+    for (const id in TK.MUHURLER) {
+      const m = TK.MUHURLER[id], b = document.createElement('button');
+      b.className = 'chip' + (muhurSecili[id] ? ' on' : ''); b.textContent = m.ad; b.title = m.acik + ' (+%' + Math.round(m.bonus * 100) + ' Kül)';
+      b.addEventListener('click', () => { muhurSecili[id] = !muhurSecili[id]; muhurYenile(); });
+      kutu.append(b);
+    }
+  }
+  function basla() { Ses.baslat(); s = TK.yeniKosu((Date.now() ^ (Math.random() * 1e9)) >>> 0, meta, muhurSecili); goster(null); }
   function bitis() {
     TK.mirasKaydet(depo, meta);
     const z = s.bitti === 'zafer';
@@ -45,12 +58,14 @@
   }
   function secimGoster() {
     const l = $('secimListe'); l.textContent = '';
-    s.secim.secenekler.forEach((id, i) => {
-      const a = TK.ARMAGANLAR[id], k = document.createElement('div'); k.className = 'kart';
-      const b = document.createElement('b'); b.textContent = (i + 1) + ') ' + a.ad + (s.armagan[id] ? '  (seviye ' + (s.armagan[id] + 1) + ')' : ''); b.style.color = a.renk;
+    s.secim.secenekler.forEach((o, i) => {
+      const id = typeof o === 'string' ? o : o.id, nd = TK.NADIRLIK[typeof o === 'string' ? 0 : o.nadir];
+      const a = TK.ARMAGANLAR[id], k = document.createElement('div'); k.className = 'kart'; k.style.borderColor = nd.renk;
+      const b = document.createElement('b'); b.textContent = (i + 1) + ') ' + a.ad; b.style.color = a.renk;
+      const nl = document.createElement('div'); nl.textContent = nd.ad + (s.armagan[id] ? ' · sahip: x' + s.armagan[id].toFixed(1) : ''); nl.style.cssText = 'font-size:12px;color:' + nd.renk;
       const sm = document.createElement('small'); sm.textContent = a.acik;
       const bt = document.createElement('button'); bt.textContent = 'Seç'; bt.addEventListener('click', () => sec(i));
-      k.append(b, sm, bt); l.append(k);
+      k.append(b, nl, sm, bt); l.append(k);
     });
     goster('secim');
   }

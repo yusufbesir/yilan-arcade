@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
-<title>Köz Tapınağı</title>
+<title>Emberwake</title>
 <style>
   :root { --altin:#ffd86b; --mor:#2a1a3c; --koyu:#0b0714; --metin:#eadfc8; }
   * { box-sizing: border-box; }
@@ -25,17 +25,20 @@
   .kart button { min-width: 0; width: 100%; margin: 0; padding: 6px; font-size: 14px; }
   .yet { font-size: 14px; color: #8de3ff; margin: 4px 0; }
   .kul { color: var(--altin); font-size: 20px; margin-bottom: 8px; }
+  .chip { min-width: 0; padding: 4px 10px; font-size: 13px; margin: 2px; } .chip.on { background: linear-gradient(#7a2a9a,#4a1a6a); border-color: #e07bff; }
   .not { font-size: 12px; color: #8c80a3; margin-top: 12px; max-width: 640px; }
 </style>
 </head>
 <body>
 <div id="kap">
-  <canvas id="tuval" width="960" height="620" aria-label="Köz Tapınağı oyun alanı"></canvas>
+  <canvas id="tuval" width="960" height="620" aria-label="Emberwake oyun alanı"></canvas>
   <div class="kat ac" id="menu">
-    <h1>KÖZ TAPINAĞI</h1>
-    <p class="alt">Kül ve gölge dolu kalıntılarda, fenerin sönmeden yürü.</p>
+    <h1>EMBERWAKE</h1>
+    <p class="alt">Nors höyüklerinden Demir Dağ'a, Tamu köklerine: fenerin sönmeden yürü.</p>
     <div class="kul" id="menuKul"></div>
     <div class="yet" id="menuYet"></div>
+    <div class="yet" id="muhurBaslik" style="color:#e07bff;font-size:13px">Mühürler (zorluk ve Kül bonusu)</div>
+    <div id="muhurlar" style="margin-bottom:8px"></div>
     <button id="bBasla">Koşuya Başla</button>
     <button id="bMiras">Miras Sunağı</button>
     <button id="bNasil">Nasıl Oynanır</button>
@@ -54,7 +57,8 @@
     <h2>NASIL OYNANIR</h2>
     <div class="izgara">
       <div class="kart"><b>Hareket ve dövüş</b><small>WASD/oklar yürü, fare nişan, sol tık/Boşluk kılıç, sağ tık/E köz atışı, Shift atılım (atılırken hasar almazsın).</small></div>
-      <div class="kart"><b>Koşu</b><small>Her oda temizlenince iki kapı açılır; kapının üstündeki simge odayı gösterir (kılıç: savaş, yaprak: dinlenme, yıldız: Armağan, kuru kafa: boss).</small></div>
+      <div class="kart"><b>Koşu</b><small>3 diyar, her biri 4 bölüm: Gjallar Höyükleri, Demir Dağ Ocakları, Tamu Kökleri. Kapının simgesi odayı gösterir (çarpı: savaş, damla: dinlenme, çanta: pazar, boynuz: elit, yıldız: Armağan, kuru kafa: boss).</small></div>
+      <div class="kart"><b>Hayatta kalma</b><small>Açlık ve susuzluk yavaş akar: düşmanlardan, dinlenme odasından ve pazardan yiyecek bul. Tükenince yavaşlar ve can erir (ölmezsin).</small></div>
       <div class="kart"><b>Miras</b><small>Öldüğünde de Kül kazanırsın. Miras Sunağı'nda Kül ile kalıcı güç al.</small></div>
       <div class="kart"><b>Gizli yollar</b><small>Boss'u yenince Kırıcı Rün: çatlak duvarları kır, gizli sunakta Gölge Atılımı bul: uçurumları geç.</small></div>
     </div>

@@ -1,4 +1,4 @@
-# Köz Tapınağı: ayrı 2.5D aksiyon oyunu (plan)
+# Emberwake: ayrı 2.5D aksiyon oyunu (plan)
 
 Karakter yılan değil: **Köz**, yanan fener taşıyan kapüşonlu gezgin (kılıç + köz atışı + atılım).
 Yılan oyunundaki Tapınak modundan bağımsızdır; kod ve varlık paylaşmaz (tek bağımsız klasör, kendi testi).
