@@ -596,8 +596,10 @@ const SnakeGame = (() => {
         food = null;
         portals = [];
         tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0 };
-        chaos = { rule: null, left: 0, next: 120, saved: 0 };
+        chaos = { rule: null, left: 0, next: 120, saved: 0, pending: null, kisa: '' };
         state.timeLeft = 60;
+        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
+        document.getElementById('hudTarget').classList.remove('ragnarok');
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
         
         powers = { shield: false, speed: false, invincible: false };
@@ -702,6 +704,7 @@ const SnakeGame = (() => {
         }
     }
     
+    const RAGNAROK_SN = 10;
     function tick() {
         if (state.paused || state.over || state.complete) return;
         if (state.mode === 'survivor' && sv.choosing) return;
@@ -713,6 +716,7 @@ const SnakeGame = (() => {
         if (state.mode === 'timeattack') {
             state.timeLeft -= effSpeed() / 1000; // gerçek tik aralığı (hız ayarı/sakin dahil) = gerçek saniye
             if (state.timeLeft <= 0) { state.timeLeft = 0; updateHUD(); endGame(); return; }
+            if (!state.ragnarok && state.timeLeft <= RAGNAROK_SN) { state.ragnarok = true; showBanner('RAGNARÖK! SKOR x2', true); playSound('powerup'); } // son 10 sn: kalıcı (yemle süre uzasa da sönmez)
             updateHUD();
         }
         
@@ -815,6 +819,7 @@ const SnakeGame = (() => {
     // ======================== DAMAGE & COLLISION ========================
     function damage() {
         if (powers.invincible) return;
+        state.waveHit = true; // kusursuz dalga: kalkan emse de vuruş sayılır
         
         if (powers.shield) {
             powers.shield = false;
@@ -887,7 +892,7 @@ const SnakeGame = (() => {
         }
         let pts = food.type === 'super' ? 5 : 1;
         if (chaos.rule === 'triple') pts *= 3;
-        pts = Tema.yemPuan(pts) * Tema.carpan(); // Tema kuralları: Kaya +%50, Rün x2 (kural yoksa değişmez)
+        pts = Tema.yemPuan(pts) * Tema.carpan() * (state.ragnarok ? 2 : 1); // Ragnarök x2 ile çarpılır (Rün x2 ile x4); Tema kuralları: Kaya +%50, Rün x2 (kural yoksa değişmez)
         if (state.mode !== 'daily' && state.mode !== 'tron') { // Miras: Altın İştah (kesirler birikir)
             state.istahAcc = (state.istahAcc || 0) + pts * Miras.value('istah');
             const ek = Math.floor(state.istahAcc + 1e-9);
@@ -932,9 +937,9 @@ const SnakeGame = (() => {
     }
     
     // ======================== BULLETS ========================
-    function showBanner(text, onemli, ms) { // onemli: süresi dolana dek sıradan bir afiş (ör. 'HIZ 2') üstüne yazamaz
+    function showBanner(text, onemli, ms, stil) { // onemli: süresi dolana dek sıradan bir afiş (ör. 'HIZ 2') üstüne yazamaz
         if (!onemli && banner.onemli && performance.now() < banner.until) return;
-        banner = { text, until: performance.now() + (ms || 1600), onemli: !!onemli };
+        banner = { text, until: performance.now() + (ms || 1600), onemli: !!onemli, stil: stil || '' };
     }
 
     // ======================== TEMA KURALLARI (src/tema.js) ========================
@@ -1038,12 +1043,17 @@ const SnakeGame = (() => {
         waveTick++;
         
         if (!boss && waveTick % WAVE_TICKS === 0) {
-            state.wave++;
+            const biten = state.wave, kusursuz = !state.waveHit;
+            state.wave++; state.waveHit = false;
             document.getElementById('hudLevel').textContent = state.wave;
             if (state.wave % 5 === 0) {
                 spawnBoss();
             } else {
                 showBanner('DALGA ' + state.wave);
+            }
+            if (kusursuz) { // hasarsız dalga: dalga no x5 puan (sıyrılma +1 ayrıdır)
+                state.kusursuz++; state.score += biten * 5; updateHUD();
+                showBanner('KUSURSUZ! +' + biten * 5, true, 1800, 'altin'); playSound('ach');
             }
         }
         
@@ -1310,10 +1320,12 @@ const SnakeGame = (() => {
         ctx.save();
         ctx.font = '18px "Press Start 2P", monospace';
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#fff';
-        ctx.shadowColor = '#00ff66';
-        ctx.shadowBlur = 14;
-        ctx.fillText(banner.text, CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2 - 90, CONFIG.WIDTH - 40);
+        const soluk = banner.stil === 'soluk', altin = banner.stil === 'altin';
+        if (soluk) ctx.globalAlpha = 0.72; // ön uyarı/ipucu: soluk yazı
+        ctx.fillStyle = altin ? '#ffe27a' : '#fff';
+        ctx.shadowColor = altin ? (settings.cb ? PALET.yem : '#ffb300') : '#00ff66';
+        ctx.shadowBlur = soluk ? 0 : 14;
+        ctx.fillText((altin ? '★ ' : '') + banner.text + (altin ? ' ★' : ''), CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2 - 90, CONFIG.WIDTH - 40);
         ctx.restore();
     }
 
@@ -1695,7 +1707,16 @@ const SnakeGame = (() => {
         document.getElementById('newRecordMsg').style.display = isRecord ? 'flex' : 'none';
         mirasVer('kulMsg', !kayitYok, state.mode === 'tapinak' && !!(tp && tp.kazandi));
         if (state.mode === 'tapinak') { const gTitle = document.getElementById('gameoverTitle'); if (gTitle) gTitle.textContent = tp && tp.kazandi ? 'TAPINAKTAN ÇIKTIN' : 'KOŞU BİTTİ'; }
+        const kb = document.getElementById('copyBtn'); // Günlük: sonucu panoya kopyala (yalnız tıklamayla)
+        document.getElementById('copyHint').textContent = '';
+        kb.style.display = state.mode === 'daily' ? '' : 'none';
         document.getElementById('gameoverOverlay').classList.add('active');
+    }
+    function sonucMetni() { return 'Twilight of the Serpents · Günlük ' + (state.dailyKey || todayKey()) + ' · Skor ' + state.score; }
+    function kopyalaSonuc() {
+        const ipucu = t => { document.getElementById('copyHint').textContent = t; };
+        if (state.mode !== 'daily') return;
+        try { navigator.clipboard.writeText(sonucMetni()).then(() => ipucu('Kopyalandı'), () => ipucu('Kopyalanamadı')); } catch (e) { ipucu('Kopyalanamadı'); } // pano yok/izin yok: sessiz
     }
     
     // ======================== TAPINAK (mantık ve çizim: tapinak.js) ========================
@@ -2005,7 +2026,9 @@ const SnakeGame = (() => {
             document.getElementById('hudTarget').textContent = `${state.score}/${state.target}`;
         }
         if (state.mode === 'timeattack') {
-            document.getElementById('hudTarget').textContent = Math.max(0, Math.ceil(state.timeLeft)) + ' sn';
+            const ht = document.getElementById('hudTarget'), sn = Math.max(0, Math.ceil(state.timeLeft)) + ' sn';
+            ht.classList.toggle('ragnarok', !!state.ragnarok); // kırmızı + tarama deseni + alev ikonu + "x2" (renk körü: PALET.curuk)
+            if (state.ragnarok) ht.innerHTML = ikon('flame') + sn + ' <b>x2</b>'; else ht.textContent = sn;
         }
     }
     
@@ -2612,7 +2635,7 @@ const SnakeGame = (() => {
         const halo = ctx.createRadialGradient(cx, cy, 1, cx, cy, 12);
         halo.addColorStop(0, bc);
         halo.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.globalAlpha = 0.55;
+        ctx.globalAlpha = 0.72;
         ctx.fillStyle = halo;
         ctx.beginPath();
         ctx.arc(cx, cy, 12, 0, Math.PI * 2);
@@ -2838,11 +2861,19 @@ const SnakeGame = (() => {
         tron.ai.unshift(ah);
     }
     
+    const CHAOS_KURALLAR = [
+        ['reverse', 'TERS KONTROL!', 'TERS'],
+        ['fast', 'HIZLANDIN!', 'HIZLI'],
+        ['slow', 'YAVAŞLADIN', 'YAVAŞ'],
+        ['ghost', 'GÖVDE GÖRÜNMEZ', 'HAYALET'],
+        ['triple', 'YEMLER x3 SKOR', 'x3']
+    ];
     function tickChaos() {
         // Çürük yem tek yem olup oyunu kilitlemesin: 60 tik sonra normal yeme döner
         if (food && food.type === 'curuk' && ++food.age >= 60) food.type = 'normal';
         if (chaos.rule) {
             chaos.left--;
+            if (chaos.left === 10) showBanner(chaos.kisa + ' BİTİYOR', false, 1200, 'soluk'); // bitiş ipucu
             if (chaos.left <= 0) {
                 if (chaos.rule === 'fast' || chaos.rule === 'slow') setSpeed(chaos.saved);
                 chaos.rule = null;
@@ -2852,16 +2883,15 @@ const SnakeGame = (() => {
             return;
         }
         chaos.next--;
+        if (chaos.next === 15 && !chaos.pending) { // ön uyarı: kural şimdi seçilir (tek rastgele çağrı, yalnız erken), gelince aynısı uygulanır
+            chaos.pending = CHAOS_KURALLAR[Math.floor(Math.random() * CHAOS_KURALLAR.length)];
+            showBanner('YAKINDA: ' + chaos.pending[2], false, 1500, 'soluk');
+        }
         if (chaos.next > 0) return;
-        const rules = [
-            ['reverse', 'TERS KONTROL!', 'TERS'],
-            ['fast', 'HIZLANDIN!', 'HIZLI'],
-            ['slow', 'YAVAŞLADIN', 'YAVAŞ'],
-            ['ghost', 'GÖVDE GÖRÜNMEZ', 'HAYALET'],
-            ['triple', 'YEMLER x3 SKOR', 'x3']
-        ];
-        const [rule, label, kisa] = rules[Math.floor(Math.random() * rules.length)];
+        const [rule, label, kisa] = chaos.pending || CHAOS_KURALLAR[Math.floor(Math.random() * CHAOS_KURALLAR.length)];
+        chaos.pending = null;
         chaos.rule = rule;
+        chaos.kisa = kisa;
         chaos.left = 70;
         chaos.next = 140;
         chaos.saved = state.speed;
@@ -3002,6 +3032,7 @@ const SnakeGame = (() => {
         REDUCED = SYS_REDUCED || !!settings.reduced;
         document.documentElement.classList.toggle('reduced', REDUCED);
         document.documentElement.classList.toggle('buyuk-hud', !!settings.bigHud);
+        document.documentElement.classList.toggle('cb', !!settings.cb);
         const t2 = document.getElementById('tron2pBtn');
         if (t2) { t2.textContent = settings.tron2p ? '👥 2P: AÇIK' : '👤 2P: KAPALI'; t2.classList.toggle('on', !!settings.tron2p); }
         if (masterGain && audio) masterGain.gain.setTargetAtTime(settings.vol, audio.currentTime, 0.02);
@@ -3336,6 +3367,7 @@ const SnakeGame = (() => {
         restart,
         nextLevel,
         input,
+        kopyalaSonuc,
         togglePause,
         openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic, openMiras, closeMiras, openMarket, closeMarket, marketBuy, marketEquip, marketSekmeSec, temaBuy, temaSec,
         ...(TEST_MODE ? { _tapinak: { run: () => tp, meta: () => tpMeta, tick: () => tick(), atil: () => tapinakAtil(), sec: i => tapinakSec(i) } } : {}),
