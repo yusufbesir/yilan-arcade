@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>🐍 Twilight of the Serpents</title>
     <style>
@@ -1774,6 +1774,9 @@
     <script src="gfx25.js"></script>
     <script src="isik.js"></script>
     <script src="tapinak.js"></script>
+    <script src="core/tron.js"></script>
+    <script src="core/yilan_core.wasm.js"></script>
+    <script src="core/tron-wasm.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

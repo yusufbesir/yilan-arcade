@@ -2845,64 +2845,17 @@ const SnakeGame = (() => {
     }
     
     // ======================== TRON ========================
-    const DIRS4 = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-    
-    function tronBlocked(x, y) {
-        if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return true;
-        if (tronGrid) return tronGrid.has(x * 64 + y);
-        return snake.some(c => c.x === x && c.y === y) || tron.ai.some(c => c.x === x && c.y === y);
-    }
-    let tronGrid = null; // karar boyunca izler değişmez: O(1) arama, string anahtar yok
-    
-    function floodCount(sx, sy) {
-        const seen = new Set([sx * 64 + sy]);
-        const stack = [[sx, sy]];
-        let n = 0;
-        while (stack.length && n < COLS * ROWS) {
-            const [x, y] = stack.pop();
-            n++;
-            for (const d of DIRS4) {
-                const nx = x + d.x, ny = y + d.y, k = nx * 64 + ny;
-                if (seen.has(k) || tronBlocked(nx, ny)) continue;
-                seen.add(k);
-                stack.push([nx, ny]);
-            }
-        }
-        return n;
-    }
-    
+    // Saf Tron YZ mantığı src/core/tron.js içinde (window.YilanCore.tron)
+    const TronCore = window.YilanCore.tron;
+    function tronBlocked(x, y) { return TronCore.tronBlocked(x, y, COLS, ROWS, snake, tron.ai, null); }
     function aiChooseDir() {
-        const h = tron.ai[0];
-        const wins = state.score;
-        const opts = DIRS4.filter(d => !(d.x === -tron.aiDir.x && d.y === -tron.aiDir.y))
-            .map(d => ({ d, ok: !tronBlocked(h.x + d.x, h.y + d.y) }))
-            .filter(o => o.ok);
-        if (!opts.length) return tron.aiDir;
-        // Oyuncunun bir sonraki başı: kafa kafaya (berabere) hücresinden kaçın
-        const pn = { x: snake[0].x + nextDir.x, y: snake[0].y + nextDir.y };
-        const dumb = Math.max(0.02, 0.2 - wins * 0.03);
-        if (Math.random() < dumb) {
-            // "Dalgın" hamle: yine de boş ve kafa kafaya olmayan bir yön
-            const pool = opts.filter(o => !(h.x + o.d.x === pn.x && h.y + o.d.y === pn.y));
-            const src = pool.length ? pool : opts;
-            return src[Math.floor(Math.random() * src.length)].d;
-        }
-        let best = [], bestN = -Infinity;
-        tronGrid = new Set();
-        snake.forEach(c => tronGrid.add(c.x * 64 + c.y));
-        tron.ai.forEach(c => tronGrid.add(c.x * 64 + c.y));
-        opts.forEach(o => {
-            const nx = h.x + o.d.x, ny = h.y + o.d.y;
-            let n = floodCount(nx, ny);
-            if (o.d.x === tron.aiDir.x && o.d.y === tron.aiDir.y) n += 0.5;
-            if (nx === pn.x && ny === pn.y) n -= 1000;
-            if (n > bestN) { bestN = n; best = [o]; }
-            else if (n === bestN) best.push(o); // eşitlik: rastgele seç
-        });
-        tronGrid = null;
-        return best[Math.floor(Math.random() * best.length)].d;
+        const args = { COLS, ROWS, snake, ai: tron.ai, aiDir: tron.aiDir, nextDir, wins: state.score };
+        // Rust/wasm çekirdeği hazırsa onu kullan; yüklenmediyse ya da girdi geçersizse JS yedeği.
+        const W = window.YilanCore.wasm;
+        if (W) { const d = W.aiChooseDir(args, Math.random(), Math.random()); if (d) return d; }
+        return TronCore.aiChooseDir({ ...args, rand: Math.random });
     }
-    
+
     function tronWin() {
         state.score++;
         state.round = (state.round || 1) + 1;
