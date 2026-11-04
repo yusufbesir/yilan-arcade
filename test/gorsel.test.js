@@ -10,8 +10,8 @@ const fs = require('fs');
   page.on('console', m => { if (m.type() === 'error' && !/yok\.png|ERR_FILE_NOT_FOUND/.test(m.text() + m.location().url)) errors.push(m.text()); });
   const bad = [];
   page.on('requestfailed', r => { if (!r.url().endsWith('yok.png')) bad.push(r.url()); });
-  await page.goto('file://' + path.resolve(__dirname, '../src/index.html'));
-  await page.waitForTimeout(400);
+  await page.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
+  await page.waitForTimeout(900);
   const res = await page.evaluate(() => {
     const em = document.getElementById('emblem');
     const svg = em.nextElementSibling;

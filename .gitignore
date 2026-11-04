@@ -5,3 +5,6 @@ dist/
 *.png
 !src/img/*.png
 !build/icon.png
+
+# yerel yedekler
+*.bak

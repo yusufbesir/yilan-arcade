@@ -18,9 +18,15 @@ function createWindow() {
   });
   Menu.setApplicationMenu(null);
   win.webContents.session.setPermissionRequestHandler((wc, permission, cb) => cb(false));
-  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) e.preventDefault(); });
-  win.loadFile(path.join(__dirname, 'src', 'index.html'));
+  // Dış bağlantı: yalnız http/https (URL ayrıştırılarak), yeni pencere asla açılmaz
+  const disHttp = (url) => { try { const u = new URL(url); return u.protocol === 'https:' || u.protocol === 'http:'; } catch (e) { return false; } };
+  win.webContents.setWindowOpenHandler(({ url }) => { if (disHttp(url)) shell.openExternal(url); return { action: 'deny' }; });
+  // Gezinme: yalnız oyunun kendi index.html dosyasına (sorgu/çapa serbest), başka hiçbir yere
+  const indexPath = path.join(__dirname, 'src', 'index.html');
+  const kendiSayfasi = (url) => { try { const u = new URL(url); return u.protocol === 'file:' && path.resolve(decodeURIComponent(u.pathname.replace(/^\/([A-Za-z]:)/, '$1'))) === path.resolve(indexPath); } catch (e) { return false; } };
+  win.webContents.on('will-navigate', (e, url) => { if (!kendiSayfasi(url)) e.preventDefault(); });
+  win.webContents.on('will-attach-webview', (e) => e.preventDefault());
+  win.loadFile(indexPath);
 }
 
 app.whenReady().then(createWindow);

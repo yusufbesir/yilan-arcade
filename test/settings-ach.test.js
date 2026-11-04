@@ -7,7 +7,7 @@ const path = require('path');
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto('file://' + path.resolve(__dirname, '../src/index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
   const res = await page.evaluate(() => {
     const out = {};
     SnakeGame.openSettings();

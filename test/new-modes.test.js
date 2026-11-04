@@ -7,7 +7,7 @@ const path = require('path');
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto('file://' + path.resolve(__dirname, '../src/index.html'));
+  await page.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
   const res = await page.evaluate(() => {
     const D = SnakeGame._debug, out = {};
     const spin = (n, steer) => { for (let i = 0; i < n; i++) { D.godMode(); D.tick(); if (steer && i % 9 === 0) { const d = [[0,1],[-1,0],[0,-1],[1,0]][(i / 9 | 0) % 4]; SnakeGame.input(d[0], d[1]); } if (D.get().state.over) break; } };
