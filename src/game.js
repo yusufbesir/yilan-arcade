@@ -233,6 +233,13 @@ const SnakeGame = (() => {
         document.getElementById('menuProgress').textContent = Math.max(0, progress.unlocked - 1);
     }
     
+    // Arayüz ikonları: index.html'deki SVG sprite'ından (yazı tipine bağımlı değil)
+    function ikon(ad, sinif) { return '<svg class="ik ' + (sinif || '') + '" aria-hidden="true" focusable="false"><use href="#i-' + ad + '"/></svg>'; }
+    function yildizlar(n, toplam) {
+        let h = '';
+        for (let i = 0; i < toplam; i++) h += ikon('star', 'yildiz' + (i < n ? ' on' : ''));
+        return h;
+    }
     function buildLevelGrid() {
         const grid = document.getElementById('levelsGrid');
         grid.innerHTML = '';
@@ -242,16 +249,17 @@ const SnakeGame = (() => {
             btn.className = 'level-btn';
             
             if (i <= progress.unlocked) {
-                btn.innerHTML = `<span>${i}</span>`;
+                btn.innerHTML = `<span class="level-no">${i}</span>`;
+                const yn = progress.stars[i] || 0;
                 
-                if (progress.stars[i]) {
-                    const starsEl = document.createElement('div');
-                    starsEl.className = 'level-stars';
-                    starsEl.textContent = '⭐'.repeat(progress.stars[i]);
-                    btn.appendChild(starsEl);
-                }
+                const starsEl = document.createElement('div');
+                starsEl.className = 'level-stars';
+                starsEl.innerHTML = yildizlar(yn, 3);
+                btn.appendChild(starsEl);
+                btn.setAttribute('aria-label', 'Bölüm ' + i + (yn ? ', ' + yn + ' yıldız' : (i === progress.unlocked ? ', sıradaki' : '')));
                 
                 if (i < progress.unlocked) btn.classList.add('completed');
+                else btn.classList.add('current');
                 
                 // Difficulty indicator
                 const diffLevel = Math.ceil(i / 10);
@@ -266,8 +274,10 @@ const SnakeGame = (() => {
                 
                 btn.onclick = () => startCampaign(i);
             } else {
-                btn.innerHTML = '🔒';
+                btn.innerHTML = ikon('lock', 'kilit');
                 btn.classList.add('locked');
+                btn.setAttribute('aria-disabled', 'true');
+                btn.setAttribute('aria-label', 'Bölüm ' + i + ', kilitli');
             }
             
             grid.appendChild(btn);
@@ -1692,10 +1702,10 @@ const SnakeGame = (() => {
         
         document.getElementById('finalScore').textContent = kayitYok ? (state.score >= TRON_HEDEF ? 'P1' : 'P2') : state.score;
         document.getElementById('finalLabel').textContent = kayitYok ? 'KAZANAN:' : 'SKOR:';
-        document.getElementById('gameoverTitle').textContent = kayitYok ? '🏁 DÜELLO BİTTİ' : '💀 OYUN BİTTİ';
-        document.getElementById('newRecordMsg').style.display = isRecord ? 'block' : 'none';
+        document.getElementById('gameoverTitle').textContent = kayitYok ? 'DÜELLO BİTTİ' : 'OYUN BİTTİ';
+        document.getElementById('newRecordMsg').style.display = isRecord ? 'flex' : 'none';
         mirasVer('kulMsg', !kayitYok, state.mode === 'tapinak' && !!(tp && tp.kazandi));
-        if (state.mode === 'tapinak') { const gTitle = document.getElementById('gameoverTitle'); if (gTitle) gTitle.textContent = tp && tp.kazandi ? '🏛️ TAPINAKTAN ÇIKTIN' : '💀 KOŞU BİTTİ'; }
+        if (state.mode === 'tapinak') { const gTitle = document.getElementById('gameoverTitle'); if (gTitle) gTitle.textContent = tp && tp.kazandi ? 'TAPINAKTAN ÇIKTIN' : 'KOŞU BİTTİ'; }
         document.getElementById('gameoverOverlay').classList.add('active');
     }
     
@@ -1821,7 +1831,8 @@ const SnakeGame = (() => {
         saveData();
         stopMusic();
         
-        document.getElementById('starsDisplay').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
+        document.getElementById('starsDisplay').innerHTML = yildizlar(stars, 3);
+        document.getElementById('starsDisplay').setAttribute('aria-label', stars + ' yıldız');
         document.getElementById('levelEndScore').textContent = state.score;
         mirasVer('kulMsgWin', true, true);
         document.getElementById('completeOverlay').classList.add('active');
@@ -1990,9 +2001,9 @@ const SnakeGame = (() => {
         if (state.mode !== 'classic') {
             let hearts = '';
             for (let i = 0; i < Math.max(3, state.lives); i++) {
-                hearts += i < state.lives ? '❤️' : '🖤';
+                hearts += ikon('heart', 'kalp' + (i < state.lives ? '' : ' bos'));
             }
-            document.getElementById('hudLives').textContent = hearts;
+            document.getElementById('hudLives').innerHTML = hearts;
             document.getElementById('hudLives').setAttribute('aria-label', 'Can: ' + state.lives);
         }
         
@@ -2966,11 +2977,12 @@ const SnakeGame = (() => {
     function closeSettings() { document.getElementById('settingsPanel').classList.remove('active'); panelClosed(); }
     // Panel odak yönetimi: açılınca ilk düğmeye, kapanınca açan öğeye dön; Escape açık paneli kapatır
     let panelOpener = null;
-    function panelOpen(id) { panelOpener = document.activeElement; const b = document.querySelector('#' + id + ' button'); if (b) b.focus(); }
+    function panelOpen(id) { panelOpener = document.activeElement; const b = document.querySelector('#' + id + ' button:not(:disabled)'); if (b) b.focus(); }
     function panelClosed() { if (panelOpener && panelOpener.focus) panelOpener.focus(); panelOpener = null; }
     function closeOpenPanel() {
         if (document.getElementById('settingsPanel').classList.contains('active')) { closeSettings(); return true; }
         if (document.getElementById('achPanel').classList.contains('active')) { closeAchievements(); return true; }
+        if (document.getElementById('mirasPanel').classList.contains('active')) { closeMiras(); return true; }
         return false;
     }
     
@@ -3024,7 +3036,9 @@ const SnakeGame = (() => {
         toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
     }
     function openAchievements() {
-        document.getElementById('achList').innerHTML = ACH.map(a => `<div class="ach ${unlocked[a.id] ? 'on' : ''}"><span class="ic">${unlocked[a.id] ? a.ic : '🔒'}</span><div><b>${a.t}</b><span>${a.d}</span></div></div>`).join('');
+        const acik = ACH.filter(a => unlocked[a.id]).length;
+        document.getElementById('achSum').innerHTML = `<span><b>${acik}</b> / ${ACH.length} açıldı</span><div class="ach-bar" aria-hidden="true"><div style="width:${Math.round(acik / ACH.length * 100)}%"></div></div>`;
+        document.getElementById('achList').innerHTML = ACH.map(a => `<div class="ach ${unlocked[a.id] ? 'on' : ''}"><span class="ic">${unlocked[a.id] ? a.ic : ikon('lock', 'kilit')}</span><div><b>${a.t}</b><span>${a.d}</span></div></div>`).join('');
         document.getElementById('achPanel').classList.add('active');
         panelOpen('achPanel');
     }
@@ -3051,22 +3065,27 @@ const SnakeGame = (() => {
         $('mirasLevel').textContent = p.seviye;
         $('mirasKul').textContent = Miras.kul;
         $('mirasBar').style.width = Math.round(p.mevcut / p.gerek * 100) + '%';
+        $('mirasBarWrap').setAttribute('aria-valuenow', Math.round(p.mevcut / p.gerek * 100));
+        $('mirasBarWrap').setAttribute('aria-valuetext', p.mevcut + ' / ' + p.gerek);
         $('mirasBarTxt').textContent = p.mevcut + ' / ' + p.gerek;
         $('mirasList').innerHTML = Miras.YETENEK.map(t => {
             const k = Miras.tier(t.id), c = Miras.cost(t.id);
-            const pips = '●'.repeat(k) + '○'.repeat(Miras.MAX_TIER - k);
+            let pips = '';
+            for (let q = 0; q < Miras.MAX_TIER; q++) pips += '<i class="pip' + (q < k ? ' on' : '') + '"></i>';
             const sonraki = c === null ? 'TAM' : t.fmt(t.etki[k + 1]);
             const d = c === null ? 'disabled' : (Miras.kul < c ? 'disabled' : '');
-            return `<div class="miras-card ${k ? 'on' : ''}"><span class="ic">${t.ic}</span><div class="mi"><b>${t.ad} <i>${pips}</i></b><span>${t.acik}</span><span class="now">${k ? 'Şimdi: ' + t.fmt(t.etki[k]) : 'Alınmadı'}${c === null ? '' : ' → ' + sonraki}</span></div><button class="toggle" data-act="mirasBuy" data-id="${t.id}" ${d}>${c === null ? 'TAM' : c + ' KÜL'}</button></div>`;
+            return `<div class="miras-card ${k ? 'on' : ''}"><span class="ic" aria-hidden="true">${t.ic}</span><div class="mi"><b>${t.ad}<em class="pips" role="img" aria-label="Kademe ${k} / ${Miras.MAX_TIER}">${pips}</em></b><span>${t.acik}</span><span class="now">${k ? 'Şimdi: ' + t.fmt(t.etki[k]) : 'Alınmadı'}${c === null ? '' : ' → ' + sonraki}</span></div><button class="toggle buy${c === null ? ' tam' : (d ? '' : ' can')}" data-act="mirasBuy" data-id="${t.id}" ${d}>${c === null ? ikon('check') + 'TAM' : ikon('flame') + c + ' KÜL'}</button></div>`;
         }).join('');
     }
     function mirasBuy(id) {
         if (Miras.buy(id)) playSound('powerup');
         renderMiras();
         refreshMirasBtn();
+        const yb = document.querySelector('#mirasList [data-id="' + id + '"]:not(:disabled)') || document.querySelector('#mirasPanel .close');
+        if (yb) yb.focus();
     }
-    function openMiras() { renderMiras(); document.getElementById('mirasPanel').classList.add('active'); }
-    function closeMiras() { document.getElementById('mirasPanel').classList.remove('active'); }
+    function openMiras() { renderMiras(); document.getElementById('mirasPanel').classList.add('active'); panelOpen('mirasPanel'); }
+    function closeMiras() { document.getElementById('mirasPanel').classList.remove('active'); panelClosed(); }
     
     // ======================== PERSISTENCE ========================
     function saveData() {
