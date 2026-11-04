@@ -2799,8 +2799,35 @@ const SnakeGame = (() => {
                 }
             }
         }
+        // Kor çizgisi: gövde ortasında ince parlak sırt, başta yönlü göz ve çatal dil (oyuncu yılanıyla aynı dil)
+        if (tron.ai.length > 1) {
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = settings.cb ? PALET.ton(PALET.tron, 0.35) : 'rgba(255,225,150,0.55)';
+            ctx.beginPath();
+            for (let i = tron.ai.length - 1; i >= 0; i--) {
+                const c = tron.ai[i], px = c.x * S + S / 2, py = c.y * S + S / 2;
+                const p = tron.ai[i + 1];
+                if (i === tron.ai.length - 1 || Math.abs(p.x - c.x) + Math.abs(p.y - c.y) !== 1) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+        }
+        const h = tron.ai[0], d = tron.aiDir || { x: -1, y: 0 };
+        const hx = h.x * S + S / 2, hy = h.y * S + S / 2, sx = -d.y, sy = d.x; // yan eksen
+        ctx.fillStyle = '#1a0f05';
+        for (const s of [-1, 1]) {
+            ctx.beginPath();
+            ctx.arc(hx + d.x * 3 + sx * s * 4, hy + d.y * 3 + sy * s * 4, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.strokeStyle = '#ff5e5e'; ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(hx + d.x * 9, hy + d.y * 9);
+        ctx.lineTo(hx + d.x * 14, hy + d.y * 14);
+        ctx.moveTo(hx + d.x * 14, hy + d.y * 14); ctx.lineTo(hx + d.x * 17 + sx * 2.5, hy + d.y * 17 + sy * 2.5);
+        ctx.moveTo(hx + d.x * 14, hy + d.y * 14); ctx.lineTo(hx + d.x * 17 - sx * 2.5, hy + d.y * 17 - sy * 2.5);
+        ctx.stroke();
     }
-    
+
     // ======================== TRON ========================
     // Saf Tron YZ mantığı src/core/tron.js içinde (window.YilanCore.tron)
     const TronCore = window.YilanCore.tron;
