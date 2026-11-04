@@ -698,6 +698,9 @@ const Tapinak = (() => {
     const TAS = { ust1: '#80879f', ust2: '#4d536b', on1: '#3a4056', on2: '#15171f' };
     const SUTUN_TAS = { ust1: '#959ab2', ust2: '#585e78', on1: '#41475e', on2: '#181a24' };
     const DUVAR_H = 12, SUTUN_H = 20;
+    // Oda türüne göre doku teması (Doku hazır değilse prosedürel çizim yedek)
+    const ODA_TEMA = { baslangic: 'tas', savas: 'tas', boss: 'lav', gizli: 'kaya', hazine: 'buz' };
+    let TX = null; // { kind, dpr }: bloklar için kaya dokusu
 
     function blok(c, x, y, hgt, renk, onYuz) {
         const px = x * C, py = y * C;
@@ -706,6 +709,13 @@ const Tapinak = (() => {
             g.addColorStop(0, renk.on1); g.addColorStop(1, renk.on2);
             c.fillStyle = g;
             c.fillRect(px, py + C - hgt, C, hgt);
+            const wp = TX && Doku.pattern(c, TX.kind, TX.dpr);
+            if (wp) {
+                c.fillStyle = wp; c.fillRect(px, py + C - hgt, C, hgt);
+                const og = c.createLinearGradient(0, py + C - hgt, 0, py + C);
+                og.addColorStop(0, 'rgba(0,0,10,0.18)'); og.addColorStop(1, 'rgba(0,0,12,0.7)');
+                c.fillStyle = og; c.fillRect(px, py + C - hgt, C, hgt);
+            }
             c.fillStyle = 'rgba(0,0,0,0.35)';
             c.fillRect(px + ((x + y) % 2 ? 6 : 14), py + C - hgt, 1, hgt);
         }
@@ -713,6 +723,13 @@ const Tapinak = (() => {
         g2.addColorStop(0, renk.ust1); g2.addColorStop(1, renk.ust2);
         c.fillStyle = g2;
         c.fillRect(px, py - hgt, C, C);
+        const wt = TX && Doku.pattern(c, TX.kind, TX.dpr);
+        if (wt) {
+            c.fillStyle = wt; c.fillRect(px, py - hgt, C, C);
+            const tg = c.createLinearGradient(px, py - hgt, px + C, py - hgt + C);
+            tg.addColorStop(0, hgt > DUVAR_H ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)'); tg.addColorStop(1, 'rgba(0,0,12,0.2)');
+            c.fillStyle = tg; c.fillRect(px, py - hgt, C, C);
+        }
         c.fillStyle = 'rgba(255,255,255,0.14)';
         c.fillRect(px, py - hgt, C, 1.5);
         c.fillStyle = 'rgba(0,0,0,0.30)';
@@ -725,7 +742,10 @@ const Tapinak = (() => {
     }
 
     function statik(oda, dpr) {
-        if (oda._cv && oda._dpr === dpr) return oda._cv;
+        const th = ODA_TEMA[oda.tur] || 'tas';
+        const tex = typeof Doku !== 'undefined' && Doku.pump(th, dpr);
+        TX = tex ? { kind: 'wall.' + th, dpr } : null;
+        if (oda._cv && oda._dpr === dpr && oda._tex === tex) return oda._cv;
         const cv = document.createElement('canvas');
         cv.width = Math.round(W * C * dpr); cv.height = Math.round(H * C * dpr);
         const c = cv.getContext('2d');
@@ -733,6 +753,31 @@ const Tapinak = (() => {
         const s = oda.desen;
         c.fillStyle = '#07080d';
         c.fillRect(0, 0, W * C, H * C);
+        // gerçek doku zemini (PBR): taş / lav+kaya / yosunlu kaya / karo; meşale ışık havuzları, çatlak, yosun
+        if (tex) {
+            const fl = Doku.floor(th, W * C, H * C, C, dpr, {
+                seed: s, grid: false,
+                moss: oda.tur === 'gizli' ? 1 : oda.tur === 'savas' ? 0.45 : 0,
+                cracks: oda.tur === 'hazine' ? 4 : 12, lavaN: 11,
+                torches: [[1, 1], [W - 2, 1], [1, H - 2], [W - 2, H - 2]].map(([x, y]) => ({ x: x * C + C / 2, y: y * C + C / 2 })), torchR: 190
+            });
+            if (fl) c.drawImage(fl, 0, 0, W * C, H * C);
+            // kemikler (hazine odası hariç)
+            if (oda.tur !== 'hazine') {
+                for (let i = 0; i < 5; i++) {
+                    const bx = 2 + hash(i, 11, s) % (W - 4), by = 2 + hash(i, 13, s) % (H - 4);
+                    if (hucre(oda, bx, by) !== ZEMIN) continue;
+                    const px = bx * C + 3 + hash(i, 5, s) % 14, py = by * C + 3 + hash(i, 6, s) % 14, a = (hash(i, 9, s) % 628) / 100;
+                    c.save(); c.translate(px, py); c.rotate(a);
+                    c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(-5, 1.5, 11, 2);
+                    c.strokeStyle = 'rgba(214,206,182,0.55)'; c.lineWidth = 2; c.lineCap = 'round';
+                    c.beginPath(); c.moveTo(-5, 0); c.lineTo(5, 0); c.stroke();
+                    c.fillStyle = 'rgba(214,206,182,0.6)';
+                    [[-6, -1.2], [-6, 1.2], [6, -1.2], [6, 1.2]].forEach(k => { c.beginPath(); c.arc(k[0], k[1], 1.5, 0, 7); c.fill(); });
+                    c.restore();
+                }
+            }
+        }
         // zemin döşemeleri
         for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
             const t = hucre(oda, x, y);
@@ -744,6 +789,7 @@ const Tapinak = (() => {
                 c.fillStyle = gk; c.fillRect(px, py, C, C);
                 continue;
             }
+            if (tex) continue;
             const l = 27 + (n % 7);
             c.fillStyle = `rgb(${l},${l + 3},${l + 12})`;
             c.fillRect(px, py, C, C);
@@ -815,7 +861,7 @@ const Tapinak = (() => {
                 if (on && (x + y) % 2 === 0) { c.strokeStyle = 'rgba(120,220,255,0.45)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x * C + 10, y * C + 4); c.lineTo(x * C + 10, y * C + 17); c.moveTo(x * C + 10, y * C + 7); c.lineTo(x * C + 15, y * C + 11); c.stroke(); }
             }
         }
-        oda._cv = cv; oda._dpr = dpr;
+        oda._cv = cv; oda._dpr = dpr; oda._tex = tex;
         return cv;
     }
 

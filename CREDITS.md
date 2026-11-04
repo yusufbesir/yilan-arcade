@@ -17,3 +17,5 @@
 Canva ile üretilen iki görsel ve ambientCG (CC0 1.0, https://ambientcg.com) dokuları dışında harici araç varlığı yoktur. Yeni varlık eklenirse bu tabloya kaynak ve lisansıyla yazılır. Amblem yüklenemezse oyun kodla çizilen SVG logoya döner.
 
 Sürüm geçmişi `README.md` içindedir (0.4.0–0.7.1). Bu dosyadaki tablo yalnız varlık kaynaklarını tutar; silinen satır yoktur.
+
+Doku kullanımı: `src/doku.js` bu dokuları `src/img/tex/pack.js` (data: URI paketi, `node build/doku-pack.js` ile üretilir) üzerinden yükler; zemin, çerçeve duvar, engel blokları ve Tapınak odaları için NormalGL ile ışıklandırma ve Roughness ile parlaklık hesaplanır.

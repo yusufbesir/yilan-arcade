@@ -2095,7 +2095,7 @@ const SnakeGame = (() => {
     }
 
     function gfxOpts() {
-        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, all: renderPos };
+        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, all: renderPos, theme: (typeof Doku !== 'undefined') ? Doku.themeFor(state.mode, state.level) : 'tas' };
     }
     function drawBackground(now) {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;

@@ -13,6 +13,8 @@ const Gfx25 = (() => {
     const cache = new Map();
     let bgCache = { c: null, key: '' };
     let shadowsDone = false;
+    let curTheme = 'tas', curCb = false, curTex = false;
+    const DK = () => (typeof Doku !== 'undefined' ? Doku : null);
 
     // ---------- yardımcılar ----------
     function hexRgb(hex) {
@@ -90,7 +92,7 @@ const Gfx25 = (() => {
     // ====================================================================
     // (a) ZEMİN + ÇERÇEVE
     // ====================================================================
-    function buildFloor(o) {
+    function buildFloor(o, tex) {
         const W = o.W, H = o.H, S = o.CELL;
         const c = document.createElement('canvas');
         c.width = Math.round(W * dpr);
@@ -99,6 +101,10 @@ const Gfx25 = (() => {
         g.scale(dpr, dpr);
         const R = rng(20250);
 
+        // gerçek doku: PBR zemin (Doku) hazırsa kullan; değilse aşağıdaki prosedürel çizim yedek
+        const base = tex ? DK().floor(o.theme || 'tas', W, H, S, dpr, { seed: 20250, torches: [{ x: 34, y: 34 }, { x: W - 34, y: 34 }, { x: 34, y: H - 34 }, { x: W - 34, y: H - 34 }] }) : null;
+        if (base) g.drawImage(base, 0, 0, W, H);
+        if (!base) {
         const sky = g.createLinearGradient(0, 0, 0, H);
         sky.addColorStop(0, '#0d1730');
         sky.addColorStop(1, '#070b16');
@@ -169,6 +175,7 @@ const Gfx25 = (() => {
         vg.addColorStop(1, 'rgba(0,0,6,0.5)');
         g.fillStyle = vg;
         g.fillRect(0, 0, W, H);
+        }
 
         // Duvara temas gölgesi (AO)
         const ao = (x0, y0, x1, y1, rx, ry, rw, rh) => {
@@ -183,7 +190,7 @@ const Gfx25 = (() => {
         ao(W - 8, 0, W - 22, 0, W - 22, 0, 14, H); // sağ
         ao(0, H - 6, 0, H - 20, 0, H - 20, W, 14); // alt
 
-        drawFrame(g, o);
+        drawFrame(g, o, !!base);
         return c;
     }
 
@@ -200,14 +207,24 @@ const Gfx25 = (() => {
     }
 
     // Yükseltilmiş taş duvar: üst yüzey + ön (iç) yüz
-    function drawFrame(g, o) {
-        const W = o.W, H = o.H;
+    function drawFrame(g, o, tex) {
+        const W = o.W, H = o.H, th = o.theme || 'tas';
+        const wp = tex ? DK().pattern(g, 'wall.' + th, dpr) : null;
+        // kaya dokusu + yönlü gölgeleme (üst yüz aydınlık, ön yüz alta doğru karanlık)
+        const texRect = (x, y, w, h, stops, horiz) => {
+            if (!wp) return;
+            g.fillStyle = wp; g.fillRect(x, y, w, h);
+            const gr = horiz ? g.createLinearGradient(x, 0, x + w, 0) : g.createLinearGradient(0, y, 0, y + h);
+            stops.forEach(s => gr.addColorStop(s[0], s[1]));
+            g.fillStyle = gr; g.fillRect(x, y, w, h);
+        };
         const R = rng(777);
         const stone = '#5a6384', stoneDark = '#2d3350';
         const TOP = 4, FACE = 8, SIDE = 5, BOT = 5;
 
         // üst (uzak) duvar: ön yüz + üst yüzey
         stoneFace(g, 0, TOP, W, FACE, stoneDark, R);
+        texRect(0, TOP, W, FACE, [[0, 'rgba(0,0,10,0.05)'], [1, 'rgba(0,0,12,0.62)']]);
         g.strokeStyle = 'rgba(0,0,10,0.45)';
         g.lineWidth = 1;
         g.beginPath();
@@ -223,6 +240,7 @@ const Gfx25 = (() => {
         tg.addColorStop(1, tone(stone, 0.1));
         g.fillStyle = tg;
         g.fillRect(0, 0, W, TOP);
+        texRect(0, 0, W, TOP, [[0, 'rgba(255,255,255,0.2)'], [1, 'rgba(255,255,255,0.04)']]);
         g.fillStyle = 'rgba(255,255,255,0.28)';
         g.fillRect(0, 0, W, 1);
 
@@ -233,6 +251,7 @@ const Gfx25 = (() => {
             gr.addColorStop(inner ? 0 : 1, tone(stone, -0.05));
             g.fillStyle = gr;
             g.fillRect(x, TOP, SIDE, H - TOP - BOT);
+            texRect(x, TOP, SIDE, H - TOP - BOT, inner ? [[0, 'rgba(0,0,10,0.3)'], [1, 'rgba(255,255,255,0.12)']] : [[0, 'rgba(255,255,255,0.14)'], [1, 'rgba(0,0,10,0.25)']], true);
             g.fillStyle = 'rgba(0,0,10,0.4)';
             g.fillRect(inner ? x : x + SIDE - 1.5, TOP + FACE, 1.5, H - TOP - FACE - BOT);
         };
@@ -249,6 +268,7 @@ const Gfx25 = (() => {
         bg.addColorStop(1, tone(stone, -0.15));
         g.fillStyle = bg;
         g.fillRect(0, H - BOT, W, BOT);
+        texRect(0, H - BOT, W, BOT, [[0, 'rgba(255,255,255,0.14)'], [1, 'rgba(0,0,10,0.35)']]);
         g.fillStyle = 'rgba(255,255,255,0.22)';
         g.fillRect(0, H - BOT, W, 1);
 
@@ -262,6 +282,7 @@ const Gfx25 = (() => {
             pg.addColorStop(1, tone(stone, 0.05));
             g.fillStyle = pg;
             g.fillRect(x, y, w, w - hgt + 2);              // üst yüz
+            texRect(x, y, w, w - hgt + 2, [[0, 'rgba(255,255,255,0.28)'], [1, 'rgba(0,0,10,0.12)']]);
             g.strokeStyle = 'rgba(255,208,100,0.7)';
             g.lineWidth = 1.2;
             g.beginPath();
@@ -270,16 +291,24 @@ const Gfx25 = (() => {
         };
         pillar(8, 9); pillar(W - 8, 9); pillar(8, H - 8); pillar(W - 8, H - 8);
 
-        // altın iç çizgi
-        g.strokeStyle = 'rgba(255,208,100,0.22)';
+        // iç çizgi (temaya göre: altın / yosun / buz / köz)
+        const acc = { tas: 'rgba(255,208,100,0.22)', kaya: 'rgba(150,210,130,0.2)', buz: 'rgba(170,225,255,0.34)', lav: 'rgba(255,120,50,0.42)' }[th] || 'rgba(255,208,100,0.22)';
+        if (th === 'lav') { g.save(); g.shadowColor = 'rgba(255,90,20,0.8)'; g.shadowBlur = 6; }
+        g.strokeStyle = acc;
         g.lineWidth = 1;
         g.strokeRect(SIDE + 0.5, TOP + FACE + 0.5, W - SIDE * 2 - 1, H - TOP - FACE - BOT - 1);
+        if (th === 'lav') g.restore();
     }
 
     function drawBackground(ctx, now, o) {
         setDpr(ctx);
-        const key = dpr + ':' + o.W + 'x' + o.H;
-        if (!bgCache.c || bgCache.key !== key) { bgCache.c = buildFloor(o); bgCache.key = key; }
+        const th = o.theme || 'tas';
+        curTheme = th; curCb = !!o.cb;
+        const dk = DK();
+        const tex = !!(dk && dk.pump(th, dpr));   // her karede en fazla bir makro doku üretir (≤ ~40 ms)
+        curTex = tex;
+        const key = dpr + ':' + o.W + 'x' + o.H + ':' + th + ':' + (tex ? 1 : 0);
+        if (!bgCache.c || bgCache.key !== key) { bgCache.c = buildFloor(o, tex); bgCache.key = key; }
         ctx.drawImage(bgCache.c, 0, 0, o.W, o.H);
         if (!o.reduced) {
             // hareketli yumuşak ortam ışığı
@@ -307,10 +336,10 @@ const Gfx25 = (() => {
         else { g.moveTo(cx, cy - 4); g.lineTo(cx, cy + 4); g.moveTo(cx - 4, cy - 1); g.lineTo(cx, cy - 4); g.lineTo(cx + 4, cy - 1); }
     }
 
-    function blockSprite(color, ember, v, S) {
+    function blockSprite(color, ember, v, S, th, tex, cb) {
         const H = BLOCK_H, PAD = 8, SD = 3;
         const w = S + PAD * 2 + SD, h = S + H + PAD * 2;
-        return sprite('blk|' + color + '|' + ember + '|' + v, w, h, PAD, PAD + H, g => {
+        return sprite('blk|' + color + '|' + ember + '|' + v + '|' + th + '|' + (tex ? 1 : 0) + '|' + (cb ? 1 : 0), w, h, PAD, PAD + H, g => {
             // yere gölge (yumuşak, sağ-aşağı)
             g.save();
             g.shadowColor = 'rgba(0,0,6,0.42)';
@@ -327,6 +356,19 @@ const Gfx25 = (() => {
             fg.addColorStop(1, ember ? '#6a1d00' : tone(color, -0.7));
             g.fillStyle = fg;
             g.fillRect(0, S - H, tw, H);
+            // gerçek doku: taş/lav yüzeyi, alta doğru karanlık (extrude ön yüz)
+            const kn = ember ? 'block.ember' : 'block.' + th;
+            const bp = tex ? DK().pattern(g, kn, dpr, v * 41, v * 27) : null;
+            const texFill = (x, y, ww, hh, a0, a1, tintA) => {
+                if (!bp) return;
+                g.fillStyle = bp; g.fillRect(x, y, ww, hh);
+                const sg = g.createLinearGradient(x, y, x + ww * 0.6, y + hh);
+                sg.addColorStop(0, a0); sg.addColorStop(1, a1);
+                g.fillStyle = sg; g.fillRect(x, y, ww, hh);
+                if (tintA) { g.fillStyle = rgba(color, tintA); g.fillRect(x, y, ww, hh); }
+            };
+            const tA = ember ? 0 : (cb ? 0.5 : 0.1);
+            texFill(0, S - H, tw, H, 'rgba(0,0,10,0.28)', 'rgba(0,0,10,0.72)', tA);
             // harç/taş derzi
             g.strokeStyle = 'rgba(0,0,0,0.35)';
             g.lineWidth = 1;
@@ -343,12 +385,18 @@ const Gfx25 = (() => {
             g.fill();
             g.fillStyle = 'rgba(0,0,0,0.22)';
             g.fill();
+            if (bp) {
+                g.save(); g.clip();
+                texFill(tw, -H, SD + 1, S + H, 'rgba(0,0,10,0.5)', 'rgba(0,0,10,0.75)', tA);
+                g.restore();
+            }
             // üst yüz
             const tg = g.createLinearGradient(0, -H, tw, S - H);
             tg.addColorStop(0, ember ? '#ffc36a' : tone(color, 0.5));
             tg.addColorStop(1, ember ? '#e0600a' : tone(color, 0.08));
             g.fillStyle = tg;
             g.fillRect(0, -H, tw, S);
+            texFill(0, -H, tw, S, 'rgba(255,255,255,0.2)', 'rgba(0,0,12,0.2)', tA);
             // ışık kenarları
             g.fillStyle = 'rgba(255,255,255,0.4)';
             g.fillRect(0, -H, tw, 1.5);
@@ -372,7 +420,7 @@ const Gfx25 = (() => {
 
     function drawBlock(ctx, x, y, color, ember, t, S) {
         const v = ((x * 7 + y * 13) % 4 + 4) % 4;
-        const sp = blockSprite(color, !!ember, v, S);
+        const sp = blockSprite(color, !!ember, v, S, curTheme, curTex, curCb);
         blit(ctx, sp, x * S, y * S);
         if (ember) {
             const a = 0.28 + 0.12 * Math.sin(t * 5 + x);
