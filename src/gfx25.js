@@ -19,7 +19,7 @@ const Gfx25 = (() => {
     const dirIx = (dx, dy) => (Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 0 : 2) : (dy >= 0 ? 1 : 3));
     let bgCache = { c: null, key: '' };
     let shadowsDone = false;
-    let curTheme = 'tas', curCb = false, curTex = false;
+    let curTheme = 'tas', curCb = false, curTex = false, curW = 960, curH = 640, curReduced = false;
     const DK = () => (typeof Doku !== 'undefined' ? Doku : null);
 
     // ---------- yardımcılar ----------
@@ -311,7 +311,7 @@ const Gfx25 = (() => {
     function drawBackground(ctx, now, o) {
         setDpr(ctx);
         const th = o.theme || 'tas';
-        curTheme = th; curCb = !!o.cb;
+        curTheme = th; curCb = !!o.cb; curW = o.W; curH = o.H; curReduced = !!o.reduced;
         const dk = DK();
         const tex = !!(dk && dk.pump(th, dpr));   // her karede en fazla bir makro doku üretir (≤ ~40 ms)
         curTex = tex;
@@ -441,7 +441,9 @@ const Gfx25 = (() => {
     function drawBlocks(ctx, list, color, ember, t, S, floorXY, cb) {
         setDpr(ctx);
         sortBuf.length = 0;
-        for (let i = 0; i < list.length; i++) sortBuf.push(list[i]);
+        let turlu = false; // tür alanlı engeller (src/engel.js) Engel.ciz'e gider; türsüzler eski çizimle
+        for (let i = 0; i < list.length; i++) { if (list[i].tur && typeof Engel !== 'undefined') turlu = true; else sortBuf.push(list[i]); }
+        if (turlu) Engel.ciz(ctx, list, { S, W: curW, H: curH, t, cb: curCb, color, reduced: curReduced, tema: curTheme, tex: curTex });
         sortBuf.sort((a, b) => (floorXY ? Math.floor(a.y) - Math.floor(b.y) : a.y - b.y));
         for (let i = 0; i < sortBuf.length; i++) {
             const o = sortBuf[i];

@@ -477,6 +477,7 @@ const SnakeGame = (() => {
             }
         }
         if (isOccupied(food.x, food.y) && obstacles.some(o => o.x === food.x && o.y === food.y)) spawnFood();
+        engelCesit();
         showGame();
         beginLoop();
         playSound('start');
@@ -515,6 +516,7 @@ const SnakeGame = (() => {
                 obstacles.push({ x: wx, y });
             }
         });
+        engelCesit();
         placePortals();
         spawnFood();
         showBanner('PORTALLARDAN GEÇ!');
@@ -647,6 +649,13 @@ const SnakeGame = (() => {
                 }
             }
         }
+        engelCesit(); // biyom engel çeşitleri (kendi tohumu; rand/Math.random tüketmez)
+    }
+
+    // Tema engel çeşitleri (src/engel.js): yalnız görsel/şekil; Bölüm'de ek küme/şerit, Günlük/Portal'da yalnız mevcut engeller etiketlenir
+    function engelCesit() {
+        if (typeof Engel === 'undefined') return;
+        Engel.uret(obstacles, { tema: Tema.etkin(state.mode, state.level), COLS, ROWS, yilan: snake, yem: food, hareketli: movingObs, seviye: state.level, ek: state.mode === 'campaign', tohum: state.mode === 'daily' ? state.dailyKey : null });
     }
     
     // ======================== GAME LOOP ========================
