@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>Köz Tapınağı</title>
+<style>
+  :root { --altin:#ffd86b; --mor:#2a1a3c; --koyu:#0b0714; --metin:#eadfc8; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #05030a; color: var(--metin); font-family: Georgia, 'Times New Roman', serif; }
+  #kap { position: relative; width: min(100vw, 155vh * 0.9667); aspect-ratio: 960 / 620; margin: 0 auto; top: 50%; transform: translateY(-50%); max-height: 100vh; }
+  canvas { width: 100%; height: 100%; display: block; background: #000; cursor: crosshair; }
+  .kat { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: radial-gradient(ellipse at center, rgba(25,12,40,.78), rgba(4,2,8,.94)); text-align: center; padding: 16px; }
+  .kat.ac { display: flex; }
+  h1 { font-size: clamp(30px, 6vw, 62px); margin: 0 0 4px; letter-spacing: .12em; color: var(--altin); text-shadow: 0 0 24px #ff9a3c, 0 3px 0 #5a2a10; font-weight: 700; }
+  h2 { margin: 0 0 8px; color: var(--altin); letter-spacing: .08em; }
+  p.alt { margin: 0 0 22px; color: #bcaed4; font-style: italic; }
+  button { font: inherit; color: var(--metin); background: linear-gradient(#3b2a55, #241636); border: 1px solid #ffd86b66; padding: 10px 22px; margin: 5px; border-radius: 4px; cursor: pointer; min-width: 220px; font-size: 17px; letter-spacing: .05em; }
+  button:hover, button:focus-visible { border-color: var(--altin); box-shadow: 0 0 14px #ffb35a88; outline: none; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .izgara { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; max-width: 760px; width: 100%; margin: 6px 0 12px; }
+  .kart { text-align: left; background: rgba(32,18,50,.9); border: 1px solid #ffd86b44; border-radius: 6px; padding: 10px 12px; }
+  .kart b { color: var(--altin); display: block; } .kart small { color: #cbbfe0; display: block; margin: 3px 0 7px; }
+  .kart button { min-width: 0; width: 100%; margin: 0; padding: 6px; font-size: 14px; }
+  .yet { font-size: 14px; color: #8de3ff; margin: 4px 0; }
+  .kul { color: var(--altin); font-size: 20px; margin-bottom: 8px; }
+  .not { font-size: 12px; color: #8c80a3; margin-top: 12px; max-width: 640px; }
+</style>
+</head>
+<body>
+<div id="kap">
+  <canvas id="tuval" width="960" height="620" aria-label="Köz Tapınağı oyun alanı"></canvas>
+  <div class="kat ac" id="menu">
+    <h1>KÖZ TAPINAĞI</h1>
+    <p class="alt">Kül ve gölge dolu kalıntılarda, fenerin sönmeden yürü.</p>
+    <div class="kul" id="menuKul"></div>
+    <div class="yet" id="menuYet"></div>
+    <button id="bBasla">Koşuya Başla</button>
+    <button id="bMiras">Miras Sunağı</button>
+    <div class="not">WASD/Oklar: hareket · Fare: nişan · Sol tık / Boşluk: savur · Sağ tık / E: köz at · Shift: atılım · Esc: duraklat</div>
+  </div>
+  <div class="kat" id="miras">
+    <h2>MİRAS SUNAĞI</h2>
+    <div class="kul" id="mirasKul"></div>
+    <div class="izgara" id="mirasListe"></div>
+    <div class="yet" id="mirasYet"></div>
+    <button id="bGeri">Geri</button>
+  </div>
+  <div class="kat" id="secim">
+    <h2>BİR ARMAĞAN SEÇ</h2>
+    <div class="izgara" id="secimListe"></div>
+  </div>
+  <div class="kat" id="son">
+    <h1 id="sonBaslik"></h1>
+    <p class="alt" id="sonAlt"></p>
+    <div class="kul" id="sonKul"></div>
+    <div class="yet" id="sonYet"></div>
+    <button id="bTekrar">Yeni Koşu</button>
+    <button id="bMenu">Menü</button>
+  </div>
+  <div class="kat" id="duraklat"><h2>DURAKLATILDI</h2><button id="bDevam">Devam</button><button id="bPMenu">Menüye dön</button></div>
+</div>
+<script src="src/mantik.js"></script>
+<script src="src/ciz.js"></script>
+<script src="src/oyun.js"></script>
+</body>
+</html>
