@@ -21,7 +21,7 @@ const path = require('path');
       if (g.sv.choosing) {
         out.leveled = true;
         const lvl = g.sv.level;
-        document.getElementById('gameCanvas').dispatchEvent(new PointerEvent('pointerdown', { clientX: document.getElementById('gameCanvas').getBoundingClientRect().left + 10, clientY: document.getElementById('gameCanvas').getBoundingClientRect().top + document.getElementById('gameCanvas').getBoundingClientRect().height * 0.5, bubbles: true }));
+        document.getElementById('gameCanvas').dispatchEvent(new PointerEvent('pointerdown', { clientX: document.getElementById('gameCanvas').getBoundingClientRect().left + document.getElementById('gameCanvas').getBoundingClientRect().width / 6, clientY: document.getElementById('gameCanvas').getBoundingClientRect().top + document.getElementById('gameCanvas').getBoundingClientRect().height * 0.5, bubbles: true }));
         if (!D.get().sv.choosing) out.picked = true;
       }
       if (g.state.over) break;
