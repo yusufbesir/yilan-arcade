@@ -113,8 +113,12 @@ const SnakeGame = (() => {
         ['soguyan', 'SOĞUYAN PORTAL', 'Portal: kullanılan çift 8 tik uyur (solar), art arda sıçrama olmaz'],
         ['par', 'SÜRE YILDIZI', 'Bölüm: hedefi hızlı bitirirsen yıldız +1 (en çok 3)'],
         ['elit', 'ELİT SANDIK', 'Hayatta Kalma: her 20. öldürmede tam seviyelik altın elmas düşer'],
+        ['guc', 'GÜÇ HALKASI', 'Aktif güçlendirmenin kalan süresi yılanın başında ince halka olarak görünür'],
+        ['rtekrar', 'R İLE YENİDEN DENE', 'Oyun sırasında R tuşu menüye dönmeden oyunu baştan başlatır'],
+        ['rozet', 'ROZETLER', 'Başarımlar panelinde 10 sessiz rozet gösterir (oyun içinde görünmez)', false],
     ];
-    const ek = id => settings.ek[id] !== false;
+    const EK_KAPALI = new Set(EK_LISTE.filter(x => x[3] === false).map(x => x[0]));
+    const ek = id => EK_KAPALI.has(id) ? settings.ek[id] === true : settings.ek[id] !== false;
     let turnQ = [];
     let tmHiz = 1;      // Tema kuralı: Bataklık çamurunda tik aralığı çarpanı
     let tmBekle = null; // Tema başlangıç afişi (mod afişi bitince 2 sn gösterilir)
@@ -1016,6 +1020,22 @@ const SnakeGame = (() => {
         ctx.save(); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = e.tur === 'bonus' ? '#e8c46a' : '#b07cff';
         ctx.globalAlpha = k < 0.25 && Math.floor(t * 8) % 2 ? 0.35 : 0.9;
         ctx.beginPath(); ctx.arc(cx, cy, 15, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke(); ctx.restore();
+    }
+
+    // Güç halkası: aktif güçlendirmelerin kalan süresi (kalkan altın, hız mavi, yenilmezlik mor)
+    const GUC_SURE = { shield: 12000, speed: 6500, invincible: 5000 };
+    const GUC_RENK = { shield: '#e8c46a', speed: '#5ad2ff', invincible: '#c58bff' };
+    function drawGucHalka() {
+        if (!ek('guc') || !snake.length) return;
+        const S = CONFIG.CELL, h = snake[0], cx = h.x * S + S / 2, cy = h.y * S + S / 2;
+        let r = S * 0.95;
+        Object.keys(powerMeta).forEach(t => {
+            if (!GUC_SURE[t]) return;
+            const m = powerMeta[t], left = state.paused && m.left ? m.left : Math.max(0, m.end - Date.now()), k = Math.min(1, left / GUC_SURE[t]);
+            ctx.save(); ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = GUC_RENK[t]; ctx.globalAlpha = k < 0.2 && Math.floor(performance.now() / 120) % 2 ? 0.3 : 0.85;
+            ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke(); ctx.restore();
+            r += 4;
+        });
     }
 
     function findEmpty() {
@@ -2012,6 +2032,10 @@ const SnakeGame = (() => {
             restart();
             return;
         }
+        if (key === 'r' && ek('rtekrar') && (state.running || state.complete) && document.body.classList.contains('oyun-acik')) {
+            restart();
+            return;
+        }
         
         if (key === 'm') {
             showMenu();
@@ -2202,6 +2226,7 @@ const SnakeGame = (() => {
         
         // Food
         if (state.mode !== 'tron') { drawFood(); drawEkYem(); }
+        drawGucHalka();
         if (state.mode === 'tron') drawTronLayer();
         
         // Lasers, warnings, boss
@@ -3320,10 +3345,26 @@ const SnakeGame = (() => {
         clearTimeout(toastTimer);
         toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
     }
+    function rozetler() {
+        const r = records, bol = Math.max(0, progress.unlocked - 1), yil = Object.keys(progress.stars || {}).reduce((a, k) => a + (progress.stars[k] || 0), 0), moda = ['classic', 'bullet', 'tailgun', 'survivor', 'timeattack', 'portal', 'tron', 'chaos', 'daily', 'tapinak'].filter(k => (r[k] || 0) > 0).length;
+        return [
+            { ic: '🥉', t: 'Bronz Yılan', d: 'Klasik modda 25 skor.', on: (r.classic || 0) >= 25 },
+            { ic: '🥈', t: 'Gümüş Yılan', d: 'Klasik modda 75 skor.', on: (r.classic || 0) >= 75 },
+            { ic: '🥇', t: 'Altın Yılan', d: 'Klasik modda 150 skor.', on: (r.classic || 0) >= 150 },
+            { ic: '🧭', t: 'Gezgin', d: '5 farklı modda skor yap.', on: moda >= 5 },
+            { ic: '🌍', t: 'Dokuz Diyar', d: 'Tüm modlarda skor yap.', on: moda >= 10 },
+            { ic: '🏞️', t: 'Yol Arkadaşı', d: '5 bölüm bitir.', on: bol >= 5 },
+            { ic: '🗻', t: 'Dağ Aşan', d: '20 bölüm bitir.', on: bol >= 20 },
+            { ic: '✨', t: 'Yıldız Toplayıcı', d: 'Toplam 30 yıldız topla.', on: yil >= 30 },
+            { ic: '🏆', t: 'Koleksiyoncu', d: '10 başarım aç.', on: Object.keys(unlocked).length >= 10 },
+            { ic: '🔥', t: 'Ateşli', d: 'Mermi Manyağı veya Hayatta Kalma\'da 50 skor.', on: (r.bullet || 0) >= 50 || (r.survivor || 0) >= 50 }
+        ];
+    }
     function openAchievements() {
         const acik = ACH.filter(a => unlocked[a.id]).length;
         document.getElementById('achSum').innerHTML = `<span><b>${acik}</b> / ${ACH.length} açıldı</span><div class="ach-bar" aria-hidden="true"><div style="width:${Math.round(acik / ACH.length * 100)}%"></div></div>`;
         document.getElementById('achList').innerHTML = ACH.map(a => `<div class="ach ${unlocked[a.id] ? 'on' : ''}"><span class="ic">${unlocked[a.id] ? a.ic : ikon('lock', 'kilit')}</span><div><b>${a.t}</b><span>${a.d}</span></div></div>`).join('');
+        if (ek('rozet')) document.getElementById('achList').innerHTML += '<h3 class="rozet-bas">ROZETLER</h3>' + rozetler().map(r => `<div class="ach ${r.on ? 'on' : ''}"><span class="ic">${r.on ? r.ic : ikon('lock', 'kilit')}</span><div><b>${r.t}</b><span>${r.d}</span></div></div>`).join('');
         document.getElementById('achPanel').classList.add('active');
         panelOpen('achPanel');
     }

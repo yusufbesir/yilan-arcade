@@ -161,6 +161,32 @@ const assert = require('assert');
     T(); return document.getElementById('levelEndScore').textContent + '|' + document.getElementById('starsDisplay').getAttribute('aria-label');
   });
   assert.ok(/hızlı bitiriş/.test(r.par), 'hızlı bitiriş yok: ' + r.par);
+  // 12) Güç halkası: güç aktifken çizim hatasız, kapalıyken de
+  await baslat('startClassic');
+  r.guc = await page.evaluate(() => {
+    const d = SnakeGame._debug; d.power('shield'); d.draw();
+    SnakeGame.setSetting('ek', { guc: false }); d.draw(); SnakeGame.setSetting('ek', {});
+    return Object.keys(d.powers()).length > 0;
+  });
+  // 13) R ile yeniden dene: oyun sırasında skor sıfırlanır; kapalıyken değişmez
+  r.rtekrar = await page.evaluate(() => {
+    const d = SnakeGame._debug, st = d.get().state; st.score = 7;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+    return d.get().state.score;
+  });
+  assert.strictEqual(r.rtekrar, 0, 'R yeniden başlatmadı');
+  r.rtekrarKapali = await page.evaluate(() => {
+    SnakeGame.setSetting('ek', { rtekrar: false });
+    const d = SnakeGame._debug, st = d.get().state; st.score = 7;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+    const v = d.get().state.score; SnakeGame.setSetting('ek', {}); return v;
+  });
+  assert.strictEqual(r.rtekrarKapali, 7, 'kapalıyken R yeniden başlattı');
+  // 14) Rozetler: varsayılan kapalı, açılınca panelde görünür
+  r.rozet0 = await page.evaluate(() => { SnakeGame.openAchievements(); const n = document.querySelectorAll('#achList .rozet-bas').length; SnakeGame.closeAchievements(); return n; });
+  assert.strictEqual(r.rozet0, 0, 'rozetler varsayılan kapalı olmalı');
+  r.rozet1 = await page.evaluate(() => { SnakeGame.setSetting('ek', { rozet: true }); SnakeGame.openAchievements(); const n = document.querySelectorAll('#achList .rozet-bas').length + document.querySelectorAll('#achList .ach').length; SnakeGame.closeAchievements(); SnakeGame.setSetting('ek', {}); return n; });
+  assert.ok(r.rozet1 >= 25, 'rozetler görünmedi: ' + r.rozet1);
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
