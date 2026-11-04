@@ -2962,7 +2962,7 @@ const SnakeGame = (() => {
     
     function refreshSoundBtn() {
         const b = document.getElementById('soundBtn');
-        if (b) b.textContent = soundOn ? '🔊 SES: AÇIK' : '🔇 SES: KAPALI';
+        if (b) b.innerHTML = ikon(soundOn ? 'sound' : 'soundoff') + (soundOn ? 'Ses: açık' : 'Ses: kapalı');
         if (!soundOn) stopMusic(); else if (state.running) startMusic();
     }
     
@@ -3093,7 +3093,7 @@ const SnakeGame = (() => {
             $('setVol').value = settings.vol; $('valVol').textContent = Math.round(settings.vol * 100) + '%';
             const tg = (id, on) => { $(id).textContent = on ? 'AÇIK' : 'KAPALI'; $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on ? 'true' : 'false'); };
             tg('setReduced', !!settings.reduced); tg('setShake', !!settings.shake); tg('setMusic', !!settings.music); tg('setBigHud', !!settings.bigHud); tg('setCb', !!settings.cb);
-            const mb = $('musicBtn'); if (mb) mb.textContent = settings.music ? '🎵 MÜZİK: AÇIK' : '🎵 MÜZİK: KAPALI';
+            const mb = $('musicBtn'); if (mb) mb.innerHTML = ikon('music') + (settings.music ? 'Müzik: açık' : 'Müzik: kapalı');
         }
     }
     function setSetting(k, v) {
