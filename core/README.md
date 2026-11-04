@@ -1,6 +1,6 @@
 # yilan-core (Rust çekirdek)
 
-Bağımlılıksız Rust crate: tohumlu RNG (PCG32) ve Tron rakip YZ'si (`src/game.js` içindeki `tronBlocked` / `floodCount` / `aiChooseDir` mantığının saf hali). `game.js` henüz bu çekirdeği **çağırmıyor**; JS yedeği olduğu gibi duruyor.
+Bağımlılıksız Rust crate: tohumlu RNG (PCG32) ve Tron rakip YZ'si (`src/game.js` içindeki `tronBlocked` / `floodCount` / `aiChooseDir` mantığının saf hali). `game.js` Tron kararını (aiChooseDir) wasm üzerinden alır; wasm yüklenmezse ya da `?js=1` ile JS yedeği (`src/core/tron.js`) çalışır. Rust değişince: `cargo build --release --target wasm32-unknown-unknown` sonra `python3 -I tools/paketle/wasm_gom.py` (wasm base64 olarak `src/core/yilan_core.wasm.js`ye gömülür; `--kontrol` güncel mi bakar).
 
 ## Derleme ve test
 
