@@ -23,10 +23,12 @@ const path = require('path');
     o.hudHiz = document.getElementById('hudLevelLabel').textContent === 'HIZ' && document.getElementById('hudLevel').textContent === '1';
     D.tick(); o.lv1 = S().speedLv === 1 && S().speed === 140;
     S().score = 5; D.tick(); for (let i = 0; i < 30; i++) D.tick();
-    o.lv2 = S().speedLv === 2 && S().speed === 130 && document.getElementById('hudLevel').textContent === '2';
+    o.lv2 = S().speedLv === 2 && S().speed === 126 && document.getElementById('hudLevel').textContent === '2';
     SnakeGame.showMenu(); SnakeGame.startClassic();
-    S().score = 50; D.tick(); o.lv10 = S().speedLv === 10 && S().speed === 50;
-    S().score = 999; D.tick(); o.cap = S().speedLv === 10 && S().speed === 50;
+    S().score = 50; D.tick(); o.lv10 = S().speedLv === 10 && S().speed === 54;
+    S().score = 999; D.tick(); o.cap = S().speedLv === 10 && S().speed === 54;
+    // geometrik: kademeler arası oran 0.9 (±yuvarlama)
+    { const ms = []; for (let l = 1; l <= 10; l++) ms.push(Math.round(140 * Math.pow(0.9, l - 1))); o.geo = ms[2] === 113 && ms.every((v, i) => i === 0 || Math.abs(v / ms[i - 1] - 0.9) < 0.01); }
     // 5) Çürük yem yalnız Kaos'ta
     SnakeGame.showMenu(); SnakeGame.startClassic();
     SnakeGame.showMenu(); SnakeGame.startChaos();
@@ -42,6 +44,10 @@ const path = require('path');
     // Kaos'ta yeterince denemede çürük çıkar, Klasik'te çıkmaz
     let seen = 0; for (let i = 0; i < 400; i++) { const hh = D.get().snake[0]; const ff = X().food; ff.x = hh.x + 1; ff.y = hh.y; ff.type = 'normal'; D.tick(); if (X().food.type === 'curuk') seen++; if (S().over) break; }
     o.kaosCuruk = seen > 0;
+    // Çürük yem 60 tik sonra normal yeme döner (kilitlenme yok)
+    SnakeGame.showMenu(); SnakeGame.startChaos();
+    { const f0 = X().food; f0.type = 'curuk'; f0.age = 0; f0.x = 0; f0.y = 0; D.tick(); const a1 = X().food.type === 'curuk' && X().food.age === 1;
+      X().food.age = 59; D.tick(); o.curukZaman = a1 && !S().over && X().food.type === 'normal'; }
     // 8) Günlük: dünkü skor 7
     SnakeGame.showMenu(); SnakeGame.startDaily();
     o.dunHud = document.getElementById('hudTargetLabel').textContent === 'DÜN' && document.getElementById('hudTarget').textContent === '7' && X().records.dailyPrev && X().records.dailyPrev.s === 7;

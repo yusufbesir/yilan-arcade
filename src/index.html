@@ -291,7 +291,7 @@
             text-align: center;
             margin-top: 25px;
             font-size: 7px;
-            color: #555;
+            color: #7f93a6; /* eski: #555 (2.36:1) */
             line-height: 2.2;
         }
         
@@ -373,8 +373,8 @@
         }
         
         .level-btn.locked {
-            border-color: #333;
-            color: #333;
+            border-color: #55657a; /* eski: #333 */
+            color: #55657a; /* eski: #333 (1.57:1) */
             cursor: not-allowed;
             background: #0a0a0a;
         }
@@ -419,8 +419,8 @@
             margin: 0 auto;
             padding: 12px 35px;
             background: transparent;
-            border: 2px solid #666;
-            color: #666;
+            border: 2px solid #8da3b8; /* eski: #666 */
+            color: #8da3b8; /* eski: #666 (3.07:1) */
             font-family: 'Press Start 2P', monospace;
             font-size: 10px;
             cursor: pointer;
@@ -651,8 +651,8 @@
         
         .overlay-btn.secondary {
             background: transparent;
-            border-color: #666;
-            color: #666;
+            border-color: #8da3b8; /* eski: #666 */
+            color: #8da3b8; /* eski: #666 (3.29:1) */
         }
         
         .overlay-btn.secondary:hover {
@@ -925,6 +925,13 @@
             .mode-card:hover { transform: none; }
             .grid-bg { animation: none; }
         }
+        /* ===== Erişilebilirlik (Senato T4) ===== */
+        :focus-visible { outline: 3px solid var(--nors-altin); outline-offset: 3px; }
+        .mode-card:focus-visible { box-shadow: 0 0 0 3px var(--nors-altin), 0 14px 30px rgba(0,0,0,0.4); }
+        .tron-2p, .panel .toggle { min-height: 28px; }
+        html.reduced *, html.reduced *::before, html.reduced *::after { animation: none !important; transition: none !important; }
+        html.reduced .mode-card { opacity: 1; }
+        html.reduced .mode-card:hover { transform: none; }
     </style>
 </head>
 <body>
@@ -941,7 +948,7 @@
             <!-- ==================== MENU SCREEN ==================== -->
             <div class="screen active" id="menuScreen">
                 <div class="menu-container">
-                    <div class="mode-card classic" data-act="startClassic">
+                    <div class="mode-card classic" tabindex="0" role="button" data-act="startClassic">
                         <div class="mode-header">
                             <span class="mode-icon">🎮</span>
                             <div class="mode-text">
@@ -955,7 +962,7 @@
                         </div>
                     </div>
                     
-                    <div class="mode-card bullet" data-act="startBullet">
+                    <div class="mode-card bullet" tabindex="0" role="button" data-act="startBullet">
                         <div class="mode-header">
                             <span class="mode-icon">💥</span>
                             <div class="mode-text">
@@ -965,11 +972,11 @@
                         </div>
                         <div class="mode-stats">
                             <span class="high-score">🏆 REKOR: <span id="menuBulletHigh">0</span></span>
-                            <span class="mode-badge">💀 SURVIVOR</span>
+                            <!-- eski: 💀 SURVIVOR --><span class="mode-badge">💀 PATRON</span>
                         </div>
                     </div>
                     
-                    <div class="mode-card tailgun" data-act="startTailgun">
+                    <div class="mode-card tailgun" tabindex="0" role="button" data-act="startTailgun">
                         <div class="mode-header">
                             <span class="mode-icon">🔫</span>
                             <div class="mode-text">
@@ -983,11 +990,11 @@
                         </div>
                     </div>
                     
-                    <div class="mode-card survivor" data-act="startSurvivor">
+                    <div class="mode-card survivor" tabindex="0" role="button" data-act="startSurvivor">
                         <div class="mode-header">
                             <span class="mode-icon">🧟</span>
                             <div class="mode-text">
-                                <h3>SURVIVOR</h3>
+                                <!-- eski: SURVIVOR --><h3>HAYATTA KALMA</h3>
                                 <p>Otomatik ateş, XP topla, seviye atla, güçlen!</p>
                             </div>
                         </div>
@@ -997,7 +1004,7 @@
                         </div>
                     </div>
                     
-                    <div class="mode-card timeattack" data-act="startTimeAttack">
+                    <div class="mode-card timeattack" tabindex="0" role="button" data-act="startTimeAttack">
                         <div class="mode-header">
                             <span class="mode-icon">⏱️</span>
                             <div class="mode-text">
@@ -1011,7 +1018,7 @@
                         </div>
                     </div>
                     
-                    <div class="mode-card portal" data-act="startPortal">
+                    <div class="mode-card portal" tabindex="0" role="button" data-act="startPortal">
                         <div class="mode-header">
                             <span class="mode-icon">🌀</span>
                             <div class="mode-text">
@@ -1025,7 +1032,7 @@
                         </div>
                     </div>
                     
-                    <div class="mode-card tron" data-act="startTron">
+                    <div class="mode-card tron" tabindex="0" role="button" data-act="startTron">
                         <div class="mode-header">
                             <span class="mode-icon">🏍️</span>
                             <div class="mode-text">
@@ -1040,7 +1047,7 @@
                         </div>
                     </div>
                     
-                    <div class="mode-card chaos" data-act="startChaos">
+                    <div class="mode-card chaos" tabindex="0" role="button" data-act="startChaos">
                         <div class="mode-header">
                             <span class="mode-icon">🌪️</span>
                             <div class="mode-text">
@@ -1054,7 +1061,7 @@
                         </div>
                     </div>
                     
-                    <div class="mode-card daily" data-act="startDaily">
+                    <div class="mode-card daily" tabindex="0" role="button" data-act="startDaily">
                         <div class="mode-header">
                             <span class="mode-icon">📅</span>
                             <div class="mode-text">
@@ -1068,12 +1075,12 @@
                         </div>
                     </div>
                     
-                    <div class="mode-card campaign" data-act="showLevels">
+                    <div class="mode-card campaign" tabindex="0" role="button" data-act="showLevels">
                         <div class="mode-header">
                             <span class="mode-icon">🏆</span>
                             <div class="mode-text">
                                 <h3>BÖLÜM MODU</h3>
-                                <p>30 seviye, artan zorluk. Ustalaşabilir misin?</p>
+                                <p>30 bölüm, artan zorluk. Ustalaşabilir misin?</p>
                             </div>
                         </div>
                         <div class="mode-stats">
@@ -1090,7 +1097,7 @@
                     </div>
                     <div class="controls-help">
                         <span class="key-hint">← → ↑ ↓</span> veya <span class="key-hint">W A S D</span> Hareket<br>
-                        <span class="key-hint">P</span> Duraklat &nbsp; <span class="key-hint">R</span> Yeniden Başlat &nbsp; <span class="key-hint">M</span> Menü &nbsp; <span class="key-hint">N</span> Ses &nbsp; <span class="key-hint">B</span> Müzik
+                        <span class="key-hint">P</span> Duraklat &nbsp; <span class="key-hint">R</span> Yeniden Başlat &nbsp; <span class="key-hint">M</span> Menü &nbsp; <span class="key-hint">N</span> Ses &nbsp; <span class="key-hint">B</span> Müzik &nbsp; <span class="key-hint">Boşluk</span> Ateş &nbsp; <span class="key-hint">1-2-3</span> Yükseltme
                     </div>
                 </div>
             </div>
@@ -1099,7 +1106,7 @@
             <div class="screen" id="levelScreen">
                 <div class="level-header">
                     <h2>BÖLÜM SEÇ</h2>
-                    <p>Her seviye daha zor • 3 yıldız topla!</p>
+                    <p>Her bölüm daha zor • 3 yıldız topla!</p>
                 </div>
                 
                 <div class="levels-grid" id="levelsGrid"></div>
@@ -1132,27 +1139,27 @@
                             </div>
                             <div class="hud-item" id="hudLivesBox" style="display:none;">
                                 <div class="hud-label">CAN</div>
-                                <div class="hud-value lives" id="hudLives">❤️❤️❤️</div>
+                                <div class="hud-value lives" id="hudLives" aria-label="Can: 3">❤️❤️❤️</div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="canvas-container">
-                        <canvas id="gameCanvas" width="660" height="480"></canvas>
+                        <canvas id="gameCanvas" width="660" height="480" role="img" aria-label="Oyun alanı"></canvas>
                         
                         <!-- Pause Overlay -->
-                        <div class="game-overlay" id="pauseOverlay">
+                        <div class="game-overlay" id="pauseOverlay" role="dialog" aria-modal="true" aria-labelledby="pauseOverlayTitle">
                             <div class="overlay-box">
-                                <h2 class="overlay-title paused">⏸️ DURAKLATILDI</h2>
-                                <p class="overlay-message">Devam için P tuşuna bas</p>
+                                <h2 class="overlay-title paused" id="pauseOverlayTitle">⏸️ DURAKLATILDI</h2>
+                                <p class="overlay-message">Devam: P tuşu ya da ❚❚</p>
                             </div>
                         </div>
                         
                         <!-- Game Over Overlay -->
-                        <div class="game-overlay" id="gameoverOverlay">
+                        <div class="game-overlay" id="gameoverOverlay" role="dialog" aria-modal="true" aria-labelledby="gameoverTitle">
                             <div class="overlay-box">
-                                <h2 class="overlay-title gameover">💀 GAME OVER</h2>
-                                <div class="overlay-score">SKOR: <span id="finalScore">0</span></div>
+                                <!-- eski: 💀 GAME OVER --><h2 class="overlay-title gameover" id="gameoverTitle">💀 OYUN BİTTİ</h2>
+                                <div class="overlay-score"><span id="finalLabel">SKOR:</span> <span id="finalScore">0</span></div>
                                 <p class="overlay-message" id="newRecordMsg" style="display:none;">🎉 YENİ REKOR! 🎉</p>
                                 <ol class="top-list" id="topList"></ol>
                                 <div class="overlay-buttons">
@@ -1163,9 +1170,9 @@
                         </div>
                         
                         <!-- Level Complete Overlay -->
-                        <div class="game-overlay" id="completeOverlay">
+                        <div class="game-overlay" id="completeOverlay" role="dialog" aria-modal="true" aria-labelledby="completeOverlayTitle">
                             <div class="overlay-box">
-                                <h2 class="overlay-title complete">✨ TAMAMLANDI!</h2>
+                                <h2 class="overlay-title complete" id="completeOverlayTitle">✨ TAMAMLANDI!</h2>
                                 <div class="star-rating" id="starsDisplay">⭐⭐⭐</div>
                                 <div class="overlay-score">SKOR: <span id="levelEndScore">0</span></div>
                                 <div class="overlay-buttons">
@@ -1188,7 +1195,7 @@
                     <div class="dpad">
                         <button class="dpad-btn up" data-act="input" data-dx="0" data-dy="-1">▲</button>
                         <button class="dpad-btn left" data-act="input" data-dx="-1" data-dy="0">◀</button>
-                        <button class="dpad-btn center" data-act="togglePause">| |</button>
+                        <button class="dpad-btn center" data-act="togglePause">❚❚</button>
                         <button class="dpad-btn fire" id="fireBtn" style="display:none" data-press="fire">🔫</button>
                         <button class="dpad-btn right" data-act="input" data-dx="1" data-dy="0">▶</button>
                         <button class="dpad-btn down" data-act="input" data-dx="0" data-dy="1">▼</button>
@@ -1198,29 +1205,29 @@
         </div>
     </div>
 
-    <div class="panel-overlay" id="settingsPanel">
+    <div class="panel-overlay" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
         <div class="panel">
-            <h2>Ayarlar</h2>
+            <h2 id="settingsTitle">AYARLAR</h2>
             <div class="row"><label>OYUN HIZI<small>Tüm modlarda hız çarpanı</small></label><span class="val" id="valSpeed">1.0x</span><input type="range" id="setSpeed" min="0.7" max="1.5" step="0.05" value="1"></div>
             <div class="row"><label>EFEKT YOĞUNLUĞU<small>Parçacık ve kıvılcım miktarı</small></label><span class="val" id="valFx">100%</span><input type="range" id="setFx" min="0" max="1.5" step="0.1" value="1"></div>
             <div class="row"><label>SES SEVİYESİ<small>Efektler ve müzik</small></label><span class="val" id="valVol">60%</span><input type="range" id="setVol" min="0" max="1" step="0.05" value="0.6"></div>
             <div class="row"><label>HAREKET AZALTMA<small>Sarsıntı, kuzey ışıkları ve giriş animasyonları kapanır</small></label><button class="toggle" id="setReduced" data-act="toggle" data-key="reduced">KAPALI</button></div>
             <div class="row"><label>EKRAN SARSINTISI<small>Vuruş ve yem patlamalarında</small></label><button class="toggle on" id="setShake" data-act="toggle" data-key="shake">AÇIK</button></div>
-            <div class="row"><label>MÜZİK<small>Prosedürel Nors ezgisi</small></label><button class="toggle on" id="setMusic" data-act="toggleMusic">AÇIK</button></div>
-            <div class="row"><label>BÜYÜK HUD<small>Skor, rekor ve seviye yazıları daha büyük</small></label><button class="toggle" id="setBigHud" data-act="toggle" data-key="bigHud">KAPALI</button></div>
+            <div class="row"><label>MÜZİK<small>Kodla üretilen İskandinav ezgisi</small></label><button class="toggle on" id="setMusic" data-act="toggleMusic">AÇIK</button></div>
+            <div class="row"><label>BÜYÜK HUD<small>Skor, rekor ve bölüm yazıları daha büyük</small></label><button class="toggle" id="setBigHud" data-act="toggle" data-key="bigHud">KAPALI</button></div>
             <div class="row"><label>RENK KÖRÜ PALETİ<small>Yılan mavi, yem halkalı; kırmızı-yeşil ayrımına bağlı kalmaz</small></label><button class="toggle" id="setCb" data-act="toggle" data-key="cb">KAPALI</button></div>
             <div class="row"><label>GAMEPAD<small>Sol çubuk / yön tuşları hareket, A ateş, Start duraklat. 2 oyuncuda ikinci kol P2.</small></label><span class="val" id="padInfo">BAĞLI DEĞİL</span></div>
             <button class="menu-btn close" data-act="closeSettings">KAPAT</button>
         </div>
     </div>
-    <div class="panel-overlay" id="achPanel">
+    <div class="panel-overlay" id="achPanel" role="dialog" aria-modal="true" aria-labelledby="achTitle">
         <div class="panel">
-            <h2>Başarımlar</h2>
+            <h2 id="achTitle">BAŞARIMLAR</h2>
             <div class="ach-list" id="achList"></div>
             <button class="menu-btn close" data-act="closeAchievements">KAPAT</button>
         </div>
     </div>
-    <div class="toast" id="toast"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
     
     <script src="game.js"></script>
 </body>
