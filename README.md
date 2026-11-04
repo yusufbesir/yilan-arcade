@@ -23,6 +23,10 @@ Tekrarlanabilir derleme için `npm ci`, sonra `npm run dist`. `npm audit --omit=
 ## Kurulum notu (kod imzası yok)
 Kurulum dosyası kod imzalı değil, bu yüzden Windows SmartScreen "Windows bilgisayarınızı korudu" uyarısı gösterebilir. Dosyayı kendiniz derlediyseniz veya SHA256 değeri `BUILD-NOTU.md` ile aynıysa: **Ek bilgi** → **Yine de çalıştır**. Kişisel kullanım için ayrı bir sertifika alınmadı.
 
+## Görseller
+
+Menü arka planı (`src/img/menu-bg.jpg`) ve amblem (`src/img/emblem.png`) Canva ile üretildi; ayrıntı `CREDITS.md`. Amblem yüklenemezse kodla çizilen SVG logo görünür. Anahtar görsel menüde belirgin, oyun sırasında soluktur.
+
 ## Ayarlar, müzik ve başarımlar
 - Menüdeki **Ayarlar** paneli: oyun hızı, efekt yoğunluğu, ses seviyesi, hareket azaltma, ekran sarsıntısı, müzik. Ayarlar tarayıcıda saklanır.
 - Müzik prosedüreldir (Web Audio), `B` tuşuyla açılıp kapanır.
