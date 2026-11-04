@@ -1,6 +1,8 @@
 //! Emberwake çekirdeği. Aşama 1: JS `mulberry` ile birebir aynı RNG.
 
 /// mulberry32: `src/mantik.js` içindeki `mulberry(a)` ile aynı sayı dizisini üretir.
+pub mod oda;
+
 pub struct Rng {
     a: u32,
 }
