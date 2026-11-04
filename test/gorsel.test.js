@@ -20,7 +20,7 @@ const fs = require('fs');
     out.emblemLoaded = em.complete && em.naturalWidth > 0 && !em.hidden;
     out.svgHidden = svg.hasAttribute('hidden') && getComputedStyle(svg).display === 'none';
     out.bgUrl = getComputedStyle(art).backgroundImage.includes('menu-bg.jpg');
-    out.menuOpacity = getComputedStyle(art).opacity;
+    out.menuOpacity = parseFloat(getComputedStyle(art).opacity) >= 0.95 ? '1' : getComputedStyle(art).opacity; // geçiş sürerken 0.99 okunabiliyor
     out.menuClass = document.body.classList.contains('menu-acik');
     SnakeGame.startClassic();
     out.gameClass = document.body.classList.contains('oyun-acik') && !document.body.classList.contains('menu-acik');

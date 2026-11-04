@@ -142,9 +142,16 @@ const SnakeGame = (() => {
         refreshMenuStats();
         
         document.addEventListener('keydown', onKey);
+        // Klavye erişimi: odaktaki mod kartı Enter/Space ile tıklanmış sayılır (iç düğmeler kendi davranışını korur)
+        document.addEventListener('keydown', e => {
+            const el = e.target;
+            if (el && el.classList && el.classList.contains('mode-card') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); el.click(); }
+        });
         // Odak kaybı: pencere arka plana düşerse oyun kendini duraklatır; dönüşte kullanıcı devam eder (P/Esc)
         window.addEventListener('blur', autoPause);
-        document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); holdAudio(document.hidden); });
+        window.addEventListener('blur', () => holdAudio(true));
+        window.addEventListener('focus', () => holdAudio(document.hidden));
         setInterval(pollPads, 60);
         // Tıklamalar: satır içi onclick yok (CSP script-src 'self'); data-act ile tek dinleyici
         document.addEventListener('click', e => {
@@ -431,7 +438,7 @@ const SnakeGame = (() => {
         if (dun) document.getElementById('hudTarget').textContent = dun;
         document.getElementById('hudTarget').classList.remove('gecildi');
         state.pacerDone = false;
-        showBanner('GÜNLÜK HARİTA ' + state.dailyKey.slice(5) + (dun ? ' · DÜN: ' + dun : ''));
+        showBanner('GÜNLÜK ' + state.dailyKey.slice(5) + (dun ? ' · DÜN: ' + dun : ''));
         const midY = Math.floor(ROWS / 2);
         for (let i = 0; i < 9; i++) {
             for (let t = 0; t < 30; t++) {
@@ -718,7 +725,7 @@ const SnakeGame = (() => {
         const lv = speedLevel();
         if (lv === state.speedLv) return;
         state.speedLv = lv;
-        setSpeed(Math.max(50, CONFIG.BASE_SPEED - (lv - 1) * 10));
+        setSpeed(Math.max(50, Math.round(CONFIG.BASE_SPEED * Math.pow(0.9, lv - 1)))); // geometrik: her kademe %10 (140 -> 54 ms)
         document.getElementById('hudLevel').textContent = lv;
         if (lv > 1) showBanner('HIZ ' + lv);
     }
@@ -780,7 +787,7 @@ const SnakeGame = (() => {
         }
         const r = rand();
         // Kaos: ara sıra çürük yem (kural bozma ruhu); diğer modlara girmez
-        food = { ...pos, type: state.mode === 'chaos' && r < 0.15 ? 'curuk' : r < 0.12 + (state.mode === 'chaos' ? 0.15 : 0) ? 'super' : 'normal' };
+        food = { ...pos, age: 0, type: state.mode === 'chaos' && r < 0.15 ? 'curuk' : r < 0.12 + (state.mode === 'chaos' ? 0.15 : 0) ? 'super' : 'normal' };
     }
     
     function eatFood() {
@@ -946,7 +953,7 @@ const SnakeGame = (() => {
     }
     
     function startPattern(type) {
-        const spd = Math.min(0.28, 0.17 + state.wave * 0.008);
+        const spd = Math.min(0.34, 0.17 + state.wave * 0.008);
         
         if (type === 'spiral') {
             const t = turretPos();
@@ -1013,7 +1020,7 @@ const SnakeGame = (() => {
         boss = { x: COLS / 2, y: 2.5, hp, max: hp, t: 0, hit: 0 };
         bullets = [];
         patterns = [];
-        showBanner('PATRON! Yemleri ye, canını azalt');
+        showBanner('PATRON! YEM YE, CANINI AZALT');
         playSound('start');
     }
     
@@ -1352,7 +1359,7 @@ const SnakeGame = (() => {
         }
         
         const head = snake[0];
-        const espd = Math.min(0.17, 0.08 + state.wave * 0.006);
+        const espd = Math.min(0.30, 0.08 + state.wave * 0.006);
         
         sv.timer++;
         if (sv.timer >= sv.cd) {
@@ -1462,7 +1469,7 @@ const SnakeGame = (() => {
             ctx.textAlign = 'center';
             ctx.font = (settings.bigHud ? 16 : 14) + 'px "Press Start 2P", monospace';
             ctx.fillStyle = '#ffd400';
-            ctx.fillText('SEVİYE ATLADIN! 1-2-3 YA DA DOKUN', CONFIG.WIDTH / 2, 70);
+            ctx.fillText('SEVİYE ATLADIN! SEÇ: 1-2-3', CONFIG.WIDTH / 2, 70);
             const w = CONFIG.WIDTH / 3;
             sv.choices.forEach((c, i) => {
                 ctx.fillStyle = 'rgba(20, 34, 54, 0.9)';
@@ -1629,6 +1636,8 @@ const SnakeGame = (() => {
             : top.map((t, i) => `<li class="${t === entry ? 'me' : ''}">${i + 1}. ${t.s}</li>`).join('');
         
         document.getElementById('finalScore').textContent = kayitYok ? (state.score >= TRON_HEDEF ? 'P1' : 'P2') : state.score;
+        document.getElementById('finalLabel').textContent = kayitYok ? 'KAZANAN:' : 'SKOR:';
+        document.getElementById('gameoverTitle').textContent = kayitYok ? '🏁 DÜELLO BİTTİ' : '💀 OYUN BİTTİ';
         document.getElementById('newRecordMsg').style.display = isRecord ? 'block' : 'none';
         document.getElementById('gameoverOverlay').classList.add('active');
     }
@@ -1679,6 +1688,7 @@ const SnakeGame = (() => {
     function onKey(e) {
         const key = e.key.toLowerCase();
         
+        if (key === 'escape' && closeOpenPanel()) return;
         if (key === 'p' || key === 'escape') {
             togglePause();
             return;
@@ -1795,6 +1805,7 @@ const SnakeGame = (() => {
     function togglePause() {
         if (state.over || state.complete) return;
         state.paused = !state.paused;
+        if (state.paused) pausePowerTimers(); else resumePowerTimers(); // güç süreleri duraklamada akmasın
         document.getElementById('pauseOverlay').classList.toggle('active', state.paused);
         if (!state.paused) renderFrame();
     }
@@ -1815,6 +1826,7 @@ const SnakeGame = (() => {
                 hearts += i < state.lives ? '❤️' : '🖤';
             }
             document.getElementById('hudLives').textContent = hearts;
+            document.getElementById('hudLives').setAttribute('aria-label', 'Can: ' + state.lives);
         }
         
         if (state.mode === 'campaign') {
@@ -1879,7 +1891,7 @@ const SnakeGame = (() => {
         if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
         if (powers.shield) drawAura(snake[0], '#00ccff', 22);
         
-        if (['bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron', 'daily'].includes(state.mode)) drawBanner(); // daily eksikti: Günlük afişleri hiç çizilmiyordu
+        if (['classic', 'bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron', 'daily'].includes(state.mode)) drawBanner(); // daily eksikti: Günlük afişleri hiç çizilmiyordu
         drawParticles();
         drawVignette();
         if (state.mode === 'survivor' && sv.choosing) drawLevelUp();
@@ -2547,6 +2559,8 @@ const SnakeGame = (() => {
     }
     
     function tickChaos() {
+        // Çürük yem tek yem olup oyunu kilitlemesin: 60 tik sonra normal yeme döner
+        if (food && food.type === 'curuk' && ++food.age >= 60) food.type = 'normal';
         if (chaos.rule) {
             chaos.left--;
             if (chaos.left <= 0) {
@@ -2560,20 +2574,20 @@ const SnakeGame = (() => {
         chaos.next--;
         if (chaos.next > 0) return;
         const rules = [
-            ['reverse', 'TERS KONTROL!'],
-            ['fast', 'HIZLANDIN!'],
-            ['slow', 'YAVAŞLADIN'],
-            ['ghost', 'GÖVDE GÖRÜNMEZ'],
-            ['triple', 'YEMLER x3 PUAN']
+            ['reverse', 'TERS KONTROL!', 'TERS'],
+            ['fast', 'HIZLANDIN!', 'HIZLI'],
+            ['slow', 'YAVAŞLADIN', 'YAVAŞ'],
+            ['ghost', 'GÖVDE GÖRÜNMEZ', 'HAYALET'],
+            ['triple', 'YEMLER x3 SKOR', 'x3']
         ];
-        const [rule, label] = rules[Math.floor(Math.random() * rules.length)];
+        const [rule, label, kisa] = rules[Math.floor(Math.random() * rules.length)];
         chaos.rule = rule;
         chaos.left = 70;
         chaos.next = 140;
         chaos.saved = state.speed;
         if (rule === 'fast') setSpeed(Math.round(state.speed * 0.65));
         if (rule === 'slow') setSpeed(Math.round(state.speed * 1.5));
-        document.getElementById('hudLevel').textContent = label.slice(0, 8);
+        document.getElementById('hudLevel').textContent = kisa;
         showBanner(label);
         playSound('powerup');
     }
@@ -2592,9 +2606,16 @@ const SnakeGame = (() => {
         if (!soundOn) stopMusic(); else if (state.running) startMusic();
     }
     
+    // Odak kaybında ses bağlamı askıya alınır (arka planda zamanlayıcı kısıldığı için müzik kesik çalmasın); dönüşte devam eder
+    let audioHeld = false;
+    function holdAudio(hold) {
+        audioHeld = !!hold;
+        if (!audio) return;
+        try { (hold ? audio.suspend() : audio.resume()).catch(() => {}); } catch (e) {}
+    }
     function ensureAudio() {
         if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
-        if (audio.state === 'suspended') audio.resume().catch(() => {});
+        if (audio.state === 'suspended' && !audioHeld) audio.resume().catch(() => {});
         if (!masterGain) { masterGain = audio.createGain(); masterGain.gain.value = settings.vol; masterGain.connect(audio.destination); }
         return audio;
     }
@@ -2645,7 +2666,8 @@ const SnakeGame = (() => {
             musicStep = 0;
             const d = a.createOscillator(), dg = a.createGain(), lp = a.createBiquadFilter();
             d.type = 'sawtooth'; d.frequency.value = 55; lp.type = 'lowpass'; lp.frequency.value = 220;
-            dg.gain.value = 0.035; d.connect(lp); lp.connect(dg); dg.connect(masterGain); d.start();
+            dg.gain.setValueAtTime(0.0001, a.currentTime); dg.gain.exponentialRampToValueAtTime(0.035, a.currentTime + 0.3);
+            d.connect(lp); lp.connect(dg); dg.connect(masterGain); d.start();
             musicDrone = { osc: d, gain: dg };
             musicTimer = setInterval(scheduleMusic, 200);
         } catch (e) {}
@@ -2669,7 +2691,14 @@ const SnakeGame = (() => {
     function stopMusic() {
         if (musicTimer) clearInterval(musicTimer);
         musicTimer = null;
-        if (musicDrone) { try { musicDrone.gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.4); musicDrone.osc.stop(audio.currentTime + 0.5); } catch (e) {} musicDrone = null; }
+        if (musicDrone) {
+            try {
+                const now = audio.currentTime, gp = musicDrone.gain.gain;
+                gp.cancelScheduledValues(now); gp.setValueAtTime(Math.max(gp.value, 0.0001), now);
+                gp.exponentialRampToValueAtTime(0.0001, now + 0.4); musicDrone.osc.stop(now + 0.5);
+            } catch (e) {}
+            musicDrone = null;
+        }
     }
     function toggleMusic() {
         setSetting('music', !settings.music);
@@ -2693,14 +2722,14 @@ const SnakeGame = (() => {
         document.documentElement.classList.toggle('buyuk-hud', !!settings.bigHud);
         const t2 = document.getElementById('tron2pBtn');
         if (t2) { t2.textContent = settings.tron2p ? '👥 2 OYUNCU: AÇIK' : '👤 2 OYUNCU: KAPALI'; t2.classList.toggle('on', !!settings.tron2p); }
-        if (masterGain) masterGain.gain.value = settings.vol;
+        if (masterGain && audio) masterGain.gain.setTargetAtTime(settings.vol, audio.currentTime, 0.02);
         if (state.running && !state.paused && loopInterval) { clearInterval(loopInterval); loopInterval = setInterval(tick, effSpeed()); }
         const $ = id => document.getElementById(id);
         if ($('setSpeed')) {
             $('setSpeed').value = settings.speed; $('valSpeed').textContent = settings.speed.toFixed(2).replace(/0$/, '') + 'x';
             $('setFx').value = settings.fx; $('valFx').textContent = Math.round(settings.fx * 100) + '%';
             $('setVol').value = settings.vol; $('valVol').textContent = Math.round(settings.vol * 100) + '%';
-            const tg = (id, on) => { $(id).textContent = on ? 'AÇIK' : 'KAPALI'; $(id).classList.toggle('on', on); };
+            const tg = (id, on) => { $(id).textContent = on ? 'AÇIK' : 'KAPALI'; $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on ? 'true' : 'false'); };
             tg('setReduced', !!settings.reduced); tg('setShake', !!settings.shake); tg('setMusic', !!settings.music); tg('setBigHud', !!settings.bigHud); tg('setCb', !!settings.cb);
             const mb = $('musicBtn'); if (mb) mb.textContent = settings.music ? '🎵 MÜZİK: AÇIK' : '🎵 MÜZİK: KAPALI';
         }
@@ -2721,21 +2750,31 @@ const SnakeGame = (() => {
             $('setSpeed').dataset.bound = '1';
         }
         $('settingsPanel').classList.add('active');
+        panelOpen('settingsPanel');
     }
-    function closeSettings() { document.getElementById('settingsPanel').classList.remove('active'); }
+    function closeSettings() { document.getElementById('settingsPanel').classList.remove('active'); panelClosed(); }
+    // Panel odak yönetimi: açılınca ilk düğmeye, kapanınca açan öğeye dön; Escape açık paneli kapatır
+    let panelOpener = null;
+    function panelOpen(id) { panelOpener = document.activeElement; const b = document.querySelector('#' + id + ' button'); if (b) b.focus(); }
+    function panelClosed() { if (panelOpener && panelOpener.focus) panelOpener.focus(); panelOpener = null; }
+    function closeOpenPanel() {
+        if (document.getElementById('settingsPanel').classList.contains('active')) { closeSettings(); return true; }
+        if (document.getElementById('achPanel').classList.contains('active')) { closeAchievements(); return true; }
+        return false;
+    }
     
     // ======================== BAŞARIMLAR ========================
     const ACH = [
         { id: 'ilkyem', ic: '🍎', t: 'İlk Lokma', d: 'İlk yemi ye.' },
-        { id: 'klasik50', ic: '🐍', t: 'Uzun Yılan', d: 'Klasik modda 50 puan.' },
-        { id: 'klasik100', ic: '👑', t: 'Jörmungandr', d: 'Klasik modda 100 puan.' },
+        { id: 'klasik50', ic: '🐍', t: 'Uzun Yılan', d: 'Klasik modda 50 skor.' },
+        { id: 'klasik100', ic: '👑', t: 'Jörmungandr', d: 'Klasik modda 100 skor.' },
         { id: 'boss', ic: '💀', t: 'Patron Avcısı', d: "Mermi Manyağı'nda bir patronu yen." },
-        { id: 'sv5', ic: '🧟', t: 'Hayatta Kalan', d: "Survivor'da 5. seviyeye ulaş." },
-        { id: 'sv10', ic: '⚔️', t: 'Einherjar', d: "Survivor'da 10. seviyeye ulaş." },
+        { id: 'sv5', ic: '🧟', t: 'Hayatta Kalan', d: "Hayatta Kalma'da 5. seviyeye ulaş." },
+        { id: 'sv10', ic: '⚔️', t: 'Einherjar', d: "Hayatta Kalma'da 10. seviyeye ulaş." },
         { id: 'tron3', ic: '🏍️', t: 'Düellocu', d: "Tron Düellosu'nda 3 tur kazan." },
-        { id: 'zaman30', ic: '⏱️', t: 'Zamanı Bük', d: "Zamana Karşı'da 30 puan." },
-        { id: 'portal20', ic: '🌀', t: 'Bifröst', d: 'Portal modunda 20 puan.' },
-        { id: 'kaos15', ic: '🌪️', t: "Loki'nin Oyunu", d: 'Kaos modunda 15 puan.' },
+        { id: 'zaman30', ic: '⏱️', t: 'Zamanı Bük', d: "Zamana Karşı'da 30 skor." },
+        { id: 'portal20', ic: '🌀', t: 'Bifröst', d: 'Portal modunda 20 skor.' },
+        { id: 'kaos15', ic: '🌪️', t: "Loki'nin Oyunu", d: 'Kaos modunda 15 skor.' },
         { id: 'gunluk', ic: '📅', t: 'Günün Yılanı', d: "Günlük Meydan Okuma'yı oyna." },
         { id: 'star3', ic: '⭐', t: 'Üç Yıldız', d: 'Bir bölümü 3 yıldızla bitir.' },
         { id: 'bolum10', ic: '🏔️', t: 'Midgard', d: '10. bölümü bitir.' },
@@ -2747,7 +2786,7 @@ const SnakeGame = (() => {
         saveData();
         refreshAchCount();
         const a = ACH.find(x => x.id === id);
-        if (a) showToast(a.ic + ' BAŞARIM: ' + a.t.toUpperCase());
+        if (a) showToast(a.ic + ' BAŞARIM: ' + a.t.toLocaleUpperCase('tr-TR'));
         playSound('ach');
         return true;
     }
@@ -2776,8 +2815,9 @@ const SnakeGame = (() => {
     function openAchievements() {
         document.getElementById('achList').innerHTML = ACH.map(a => `<div class="ach ${unlocked[a.id] ? 'on' : ''}"><span class="ic">${unlocked[a.id] ? a.ic : '🔒'}</span><div><b>${a.t}</b><span>${a.d}</span></div></div>`).join('');
         document.getElementById('achPanel').classList.add('active');
+        panelOpen('achPanel');
     }
-    function closeAchievements() { document.getElementById('achPanel').classList.remove('active'); }
+    function closeAchievements() { document.getElementById('achPanel').classList.remove('active'); panelClosed(); }
     
     // ======================== PERSISTENCE ========================
     function saveData() {
@@ -2832,7 +2872,7 @@ const SnakeGame = (() => {
         openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic,
         // Test API'si (_debug, _ach) yalnız ?test=1 ile açılan sayfada; paketli oyunda yok.
         ...(TEST_MODE ? { _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
-        _debug: { tick, get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
+        _debug: { tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
     };
     return PUBLIC;
 })();
