@@ -10,3 +10,6 @@ dist/
 # yerel yedekler
 *.bak
 .claude/
+
+# Rust çekirdek derleme çıktısı
+core/target
