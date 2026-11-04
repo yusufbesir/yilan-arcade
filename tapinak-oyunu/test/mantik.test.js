@@ -323,4 +323,16 @@ ok('Risk kapısı ve Köz Sınavı: işaretli kapı daha kalabalık oda ve çift
   const m = TK.mirasBos(); m.ozellik.risk = false; m.ozellik.kozSinavi = false;
   for (let t = 1; t <= 40; t++) { const s = TK.yeniKosu(t, m, null); for (let d = 0; d < 6; d++) { TK.ilerle(s, 0); assert.ok(!s.oda.risk && !s.oda.sinav && !(s.oda.kapiRisk[0] || s.oda.kapiRisk[1])); if (s.oda.tur === 'boss') break; } }
 });
+ok('Son 5 saniye: darbe kaydı yön ile tutulur, kapalıyken tutulmaz; tohum aynı odayı verir', () => {
+  const m = TK.mirasBos(), s = TK.yeniKosu(5, m, null);
+  s.oda = TK.odaUret(3, 'dinlenme', 2, m, null); s.enemies = [{ tip: 'draugr', x: s.p.x + 2, y: s.p.y, r: 0.4, olu: false, dogum: 0 }];
+  s.zaman = 10; TK.oyuncuHasar(s, 7, 'temas');
+  assert.ok(/Son 5 sn: dokunuş −7 →/.test(TK.son5Raporu(s)), TK.son5Raporu(s));
+  s.zaman = 20; s.p.inv = 0; TK.oyuncuHasar(s, 3, 'temas'); assert.strictEqual(s.son5.length, 1);
+  const k = TK.mirasBos(); k.ozellik.son5 = false; const s2 = TK.yeniKosu(5, k, null); s2.enemies = []; s2.oda = s.oda; TK.oyuncuHasar(s2, 5, 'lav'); assert.strictEqual(s2.son5.length, 0);
+  const a = TK.yeniKosu(77, m, null), b = TK.yeniKosu(77, m, null); assert.deepStrictEqual(a.oda.grid, b.oda.grid);
+  const st = { v: null, setItem(_, v) { this.v = v; }, getItem() { return this.v; } };
+  m.hasarBoyut = 1.6; TK.mirasKaydet(st, m); assert.strictEqual(TK.mirasYukle(st).hasarBoyut, 1.6);
+  st.v = JSON.stringify({ hasarBoyut: 99 }); assert.strictEqual(TK.mirasYukle(st).hasarBoyut, 1);
+});
 console.log(n + ' test geçti');

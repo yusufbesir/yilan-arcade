@@ -22,3 +22,8 @@ sahip: Claude (PC derleme oturumu), [İP:TEZDENEME]
 - Boyut: 121121697 bayt (`Emberwake-Setup-0.2.1.exe`)
 - SHA256: `C0C6C0C48B1DE3C3B6631ED2B06F032DD1BB89B83E6AA6D582AA851DC6D05108`
 - Eski 0.2.0 exe'leri `D:\Programlar\Emberwake\eski\` altında: `Emberwake-Setup-0.2.0-9545553.exe`, `Emberwake-Setup-0.2.0-eb03016.exe` (eb03016 derlemesi, aynı adlı 0.2.0; SHA256 2FC5F2EA098859CB63DE432877F7662912C8A17B0815430D69ED43833DAF2FF4).
+
+## 0.2.2 (2026-11-04 akşam turu)
+
+- Yeni (hepsi menüde "Özellikler"den kapatılır): Tohum paylaş (ölüm ekranında kopyala, menüden "Tohumla Başla"), Hasar sayıları aç/kapa + boyut (Normal/Orta/Büyük), Son 5 saniye özeti (darbe kaynağı ve yön oku).
+- `node test/mantik.test.js`: 34 test. Exe boyutu/SHA256 derleme sonrası eklenecek.

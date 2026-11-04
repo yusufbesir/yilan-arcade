@@ -149,9 +149,9 @@ const Ciz = (() => {
   }
   function olaylariIsle(s) {
     for (const o of s.olaylar) {
-      if (o.tip === 'vurus') { for (let i = 0; i < 7; i++) p(o.x, o.y, '#ffe9a8', 0.35, 5); yazilar.push({ x: o.x, y: o.y, t: 0.7, m: String(Math.round(o.d)), r: '#fff2c0' }); titresim = Math.max(titresim, 2); }
+      if (o.tip === 'vurus') { for (let i = 0; i < 7; i++) p(o.x, o.y, '#ffe9a8', 0.35, 5); if (TK.ozAcik(s.meta, 'hasarSayi')) yazilar.push({ x: o.x, y: o.y, t: 0.7, m: String(Math.round(o.d)), r: '#fff2c0', sayi: 1 }); titresim = Math.max(titresim, 2); }
       if (o.tip === 'oldu') { for (let i = 0; i < 22; i++) p(o.x, o.y, i % 2 ? '#ff9a3c' : '#e9d8ff', 0.8, 6); titresim = Math.max(titresim, 5); }
-      if (o.tip === 'hasar') { for (let i = 0; i < 14; i++) p(o.x, o.y, '#ff4a5f', 0.6, 5); titresim = Math.max(titresim, 8); yazilar.push({ x: o.x, y: o.y - 0.5, t: 0.9, m: '-' + o.d, r: '#ff6b7c' }); }
+      if (o.tip === 'hasar') { for (let i = 0; i < 14; i++) p(o.x, o.y, '#ff4a5f', 0.6, 5); titresim = Math.max(titresim, 8); if (TK.ozAcik(s.meta, 'hasarSayi')) yazilar.push({ x: o.x, y: o.y - 0.5, t: 0.9, m: '-' + o.d, r: '#ff6b7c', sayi: 1 }); }
       if (o.tip === 'savur') kesikler.push({ x: o.x, y: o.y, aci: o.aci, t: 0.2 });
       if (o.tip === 'atilim') for (let i = 0; i < 14; i++) p(o.x, o.y, '#b7e6ff', 0.4, 3);
       if (o.tip === 'kirildi') { for (let i = 0; i < 24; i++) p(o.x, o.y, '#c9b9a0', 0.9, 6); titresim = 9; }
@@ -464,7 +464,7 @@ const Ciz = (() => {
     c.save();
     c.imageSmoothingEnabled = false;
     c.drawImage(lo, 0, 0, CW, CH);
-    for (const y of yazilar) { c.globalAlpha = Math.min(1, y.t * 2); c.fillStyle = y.r; c.font = 'bold 14px Georgia,serif'; c.textAlign = 'center'; c.fillText(y.m, sx(y.x) * 2, sy(y.y) * 2 - 30); }
+    for (const y of yazilar) { c.globalAlpha = Math.min(1, y.t * 2); c.fillStyle = y.r; c.font = 'bold ' + Math.round(14 * (y.sayi ? (s.meta.hasarBoyut || 1) : 1)) + 'px Georgia,serif'; c.textAlign = 'center'; c.fillText(y.m, sx(y.x) * 2, sy(y.y) * 2 - 30); }
     c.globalAlpha = 1; c.textAlign = 'left';
     c.restore();
     if (!s.menuFon) hud(c, s);

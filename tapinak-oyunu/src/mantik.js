@@ -79,6 +79,9 @@
     risk: { ad: 'Risk kapısı', acik: 'Bazı kapılar lanetli: %30 fazla düşman, Kül iki kat' },
     diyarSablon: { ad: 'Diyara özel odalar', acik: 'Her diyar kendi şablonlarını daha sık çıkarır' },
     armaganSatis: { ad: 'Armağan satışı', acik: 'Pazarda en zayıf Armağanı 35 Kül karşılığı bırak' },
+    tohum: { ad: 'Tohum paylaş', acik: 'Koşu sonunda tohum kodu gösterilir ve kopyalanır; menüden aynı tohumla başlanır' },
+    hasarSayi: { ad: 'Hasar sayıları', acik: 'Vuruş ve hasar sayıları ekranda uçar (boyutu menüden değişir)' },
+    son5: { ad: 'Son 5 saniye', acik: 'Ölünce son 5 saniyedeki darbeler ve yönleri gösterilir' },
     karsilik: { ad: 'Karşılık', acik: 'Atılımın ilk anında hasar gelirse yakındaki düşmanlar sersemler' }
   };
   const ozAcik = (m, k) => !m || !m.ozellik || m.ozellik[k] !== false;
@@ -104,7 +107,7 @@
   // ---------- Miras (kalıcı ilerleme) ----------
   function mirasBos() {
     const s = {}; for (const k in MIRAS) s[k] = 0;
-    return { kul: 0, seviye: s, yetenek: { kirik: false, sicrama: false }, kosu: 0, enIyi: 0, zafer: 0, bossOldu: 0, gunluk: { gun: 0, enIyi: 0 }, ozellik: Object.fromEntries(Object.keys(OZELLIKLER).map(k => [k, true])) };
+    return { kul: 0, seviye: s, yetenek: { kirik: false, sicrama: false }, kosu: 0, enIyi: 0, zafer: 0, bossOldu: 0, gunluk: { gun: 0, enIyi: 0 }, hasarBoyut: 1, ozellik: Object.fromEntries(Object.keys(OZELLIKLER).map(k => [k, true])) };
   }
   function mirasYukle(depo) {
     const m = mirasBos();
@@ -115,6 +118,7 @@
       for (const k in m.seviye) { const v = o.seviye && o.seviye[k]; if (Number.isInteger(v) && v >= 0 && v <= MIRAS[k].maks) m.seviye[k] = v; }
       for (const k in m.yetenek) m.yetenek[k] = !!(o.yetenek && o.yetenek[k]);
       for (const k of ['kosu', 'enIyi', 'zafer', 'bossOldu']) if (Number.isInteger(o[k]) && o[k] >= 0 && o[k] < 1e6) m[k] = o[k];
+      if (o.hasarBoyut === 1 || o.hasarBoyut === 1.3 || o.hasarBoyut === 1.6) m.hasarBoyut = o.hasarBoyut;
       if (o.ozellik && typeof o.ozellik === 'object') for (const k in OZELLIKLER) if (typeof o.ozellik[k] === 'boolean') m.ozellik[k] = o.ozellik[k];
       const g = o.gunluk;
       if (g && Number.isInteger(g.gun) && g.gun >= 0 && g.gun < 1e8 && Number.isInteger(g.enIyi) && g.enIyi >= 0 && g.enIyi <= 99) m.gunluk = { gun: g.gun, enIyi: g.enIyi };
@@ -312,7 +316,7 @@
     const s = {
       seed, rnd, meta: m, muhur: mh, derinlik: 0, olaylar: [], zaman: 0, bitti: null, secim: null, kul: 0, oldurme: 0,
       armagan: {}, kullanilanSans: false, enemies: [], mermiler: [], tuzaklar: [], ustOda: null, gizliBulundu: false,
-      hasarKaynak: {}, oldurTip: {}, p: null, oda: null, odaSayac: 0, gecmis: { sablon: [], kadro: [] }, kozElde: 0
+      hasarKaynak: {}, son5: [], oldurTip: {}, p: null, oda: null, odaSayac: 0, gecmis: { sablon: [], kadro: [] }, kozElde: 0
     };
     const g = m.seviye;
     s.p = {
@@ -359,6 +363,11 @@
     if (h) r.push('En çok can alan: ' + (HASAR_AD[h[0]] || h[0]) + ' (' + Math.round(h[1]) + ')');
     if (k) r.push('En çok kesilen: ' + DUSMAN[k[0]].ad + ' ×' + k[1]);
     return r.join(' · ');
+  }
+  const YONLER = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'];
+  function son5Raporu(s) {
+    if (!s.son5 || !s.son5.length) return '';
+    return 'Son 5 sn: ' + s.son5.filter(h => s.zaman - h.t <= 5).map(h => (HASAR_AD[h.kaynak] || h.kaynak) + ' −' + Math.round(h.d) + (h.aci === null ? '' : ' ' + YONLER[Math.round(((h.aci % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / (Math.PI / 4)) % 8])).join(', ');
   }
   // Boss Provası: yenilmiş bir boss ile tek odalık deneme (ödül yok, Kül %30, istatistik değişmez).
   function bossProvasi(meta, bi, seed) {
@@ -409,6 +418,13 @@
     }
     if (p.inv > 0 || p.dashT > 0 || s.bitti) return;
     s.hasarKaynak[kaynak] = (s.hasarKaynak[kaynak] || 0) + d;
+    if (ozAcik(s.meta, 'son5')) {
+      let k = null, en = 1e9;
+      const adaylar = kaynak === 'mermi' ? s.mermiler.filter(m => m.dusman) : kaynak === 'temas' ? s.enemies.filter(e => !e.olu) : [];
+      for (const a of adaylar) { const q = mesafe(a, p); if (q < en) { en = q; k = a; } }
+      s.son5.push({ t: s.zaman, kaynak, d, aci: k ? Math.atan2(k.y - p.y, k.x - p.x) : null });
+      while (s.son5.length && s.zaman - s.son5[0].t > 5) s.son5.shift();
+    }
     p.hp -= d; p.inv = 0.8;
     olay(s, 'hasar', { x: p.x, y: p.y, d, kaynak });
     if (p.hp <= 0) {
@@ -874,5 +890,5 @@
     return true;
   }
 
-  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, oyuncuHasar, OZELLIKLER, ozAcik, olumRaporu, bossProvasi, zayifArmagan, armaganSat, gunNo, gunlukKosu, gunlukKaydet, armaganAcik, ARMAGAN_SIRA, ESLESME, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
+  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, oyuncuHasar, OZELLIKLER, ozAcik, olumRaporu, son5Raporu, bossProvasi, zayifArmagan, armaganSat, gunNo, gunlukKosu, gunlukKaydet, armaganAcik, ARMAGAN_SIRA, ESLESME, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
 });

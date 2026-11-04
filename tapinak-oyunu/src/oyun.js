@@ -55,6 +55,10 @@
       b.addEventListener('click', () => { meta.ozellik[k] = meta.ozellik[k] === false; TK.mirasKaydet(depo, meta); ozellikYenile(); });
       kutu.append(b);
     }
+    const hb = document.createElement('button'); hb.className = 'chip'; hb.textContent = 'Sayı boyutu: ' + (meta.hasarBoyut === 1.6 ? 'Büyük' : meta.hasarBoyut === 1.3 ? 'Orta' : 'Normal');
+    hb.addEventListener('click', () => { meta.hasarBoyut = meta.hasarBoyut === 1 ? 1.3 : meta.hasarBoyut === 1.3 ? 1.6 : 1; TK.mirasKaydet(depo, meta); ozellikYenile(); });
+    kutu.append(hb);
+    $('tohumKutu').style.display = TK.ozAcik(meta, 'tohum') ? '' : 'none';
     const pk = $('provalar'); pk.textContent = '';
     const acik = Math.min(3, meta.bossOldu);
     $('provaBaslik').style.display = acik ? '' : 'none';
@@ -66,6 +70,7 @@
     }
   }
   function gunlukYenile() { const g = meta.gunluk, bugun = TK.gunNo(); $('gunlukYet').textContent = 'Bugünün tohumu ' + bugun + (g && g.gun === bugun ? ' · en iyi: oda ' + g.enIyi : ''); }
+  function tohumBasla() { const v = Number($('tohumGir').value); if (!Number.isInteger(v) || v < 0 || v > 4294967295) { $('tohumGir').value = ''; return; } Ses.baslat(); s = TK.yeniKosu(v >>> 0, meta, null); goster(null); }
   function gunlukBasla() { Ses.baslat(); s = TK.gunlukKosu(meta); goster(null); }
   function bitis() {
     TK.gunlukKaydet(meta, s);
@@ -76,6 +81,10 @@
     $('sonKul').textContent = '+' + s.kazanc + ' Kül kazandın (toplam ' + meta.kul + ')';
     $('sonYet').textContent = 'Oda: ' + s.derinlik + ' · Öldürülen: ' + s.oldurme + (s.gizliBulundu ? ' · Gizli oda bulundu' : '');
     if (TK.ozAcik(meta, 'olumRapor')) { const rp = TK.olumRaporu(s); if (rp) $('sonYet').textContent += ' · ' + rp; }
+    $('sonSon5').textContent = TK.ozAcik(meta, 'son5') && !z ? TK.son5Raporu(s) : '';
+    const tk = $('bTohumKop'); tk.style.display = TK.ozAcik(meta, 'tohum') && !s.gunluk && !s.prova ? '' : 'none';
+    tk.textContent = 'Tohum ' + s.seed + ' · Kopyala';
+    tk.onclick = () => { try { navigator.clipboard.writeText(String(s.seed)); tk.textContent = 'Kopyalandı: ' + s.seed; } catch (e) { /* pano yok */ } };
     goster('son');
   }
   function secimGoster() {
@@ -99,7 +108,7 @@
   $('bNasil').onclick = () => goster('nasil'); $('bNGeri').onclick = () => goster('menu');
   $('bSes').onclick = () => { Ses.baslat(); Ses.sessiz(!Ses.sessizMi()); sesYaz(); };
   $('bCik').onclick = () => { window.close(); };
-  $('bBasla').onclick = basla; $('bGunluk').onclick = gunlukBasla; $('bTekrar').onclick = basla;
+  $('bBasla').onclick = basla; $('bGunluk').onclick = gunlukBasla; $('bTohum').onclick = tohumBasla; $('bTekrar').onclick = basla;
   $('bMiras').onclick = () => { mirasYenile(); goster('miras'); };
   $('bGeri').onclick = () => { menuYenile(); goster('menu'); };
   $('bMenu').onclick = () => { menuYenile(); goster('menu'); };
