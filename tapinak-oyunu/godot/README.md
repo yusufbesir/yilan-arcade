@@ -5,7 +5,8 @@ Godot 4.7 + Rust (gdext). Oyun mantığı `../core` (emberwake-core) içinde kal
 ## Derleme ve çalıştırma (Windows)
 ```
 cd rust; cargo build            # target\debug\emberwake_godot.dll
-mkdir ..\proje\bin; copy target\debug\emberwake_godot.dll ..\proje\bin\
+mkdir ..\proje\bin\debug; copy target\debug\emberwake_godot.dll ..\proje\bin\debug\
+D:\Programlar\Godot\4.7.2\Godot_v4.7.2-stable_win64_console.exe --headless --path ..\proje --import   # yalnız ilk kez
 D:\Programlar\Godot\4.7.2\Godot_v4.7.2-stable_win64.exe --path ..\proje
 ```
 Tuşlar: WASD/oklar, R yeni oda, 1 savaş, 2 elit, 3 boss, 4 pazar.
