@@ -11,6 +11,12 @@ const Gfx25 = (() => {
 
     let dpr = 1;
     const cache = new Map();
+    // Pişmiş 3B sprite'lar (src/sprites.js); yoksa/yüklenmediyse tuval çizimine dönülür
+    const SP = n => (typeof Sprites !== 'undefined' && Sprites.has(n) ? Sprites : null);
+    const SEG_PX = 8.6;   // gövde sprite'ının pişirildiği yarıçap (baş tarafı, px)
+    const LINK_LIFT = 4;  // tüp ekseninin yerden görünür yüksekliği (px)
+    // yön -> şerit sırası: sağ, aşağı, sol, yukarı
+    const dirIx = (dx, dy) => (Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 0 : 2) : (dy >= 0 ? 1 : 3));
     let bgCache = { c: null, key: '' };
     let shadowsDone = false;
 
@@ -370,10 +376,11 @@ const Gfx25 = (() => {
         });
     }
 
-    function drawBlock(ctx, x, y, color, ember, t, S) {
+    function drawBlock(ctx, x, y, color, ember, t, S, cb) {
         const v = ((x * 7 + y * 13) % 4 + 4) % 4;
-        const sp = blockSprite(color, !!ember, v, S);
-        blit(ctx, sp, x * S, y * S);
+        const name = ember ? 'block_ember' : 'block';
+        if (!cb && SP(name)) Sprites.draw(ctx, name, ((x * 7 + y * 13) % 6 + 6) % 6, x * S + S / 2, y * S + S / 2 + 1, S / 20);
+        else blit(ctx, blockSprite(color, !!ember, v, S), x * S, y * S);
         if (ember) {
             const a = 0.28 + 0.12 * Math.sin(t * 5 + x);
             glow(ctx, x * S + S / 2 - 1, y * S + S / 2 - BLOCK_H, 'rgb(255,110,20)', 26, a);
@@ -382,14 +389,14 @@ const Gfx25 = (() => {
 
     // Ressam sırası: y artan (üst yüzler arkadaki ön yüzleri örter)
     let sortBuf = [];
-    function drawBlocks(ctx, list, color, ember, t, S, floorXY) {
+    function drawBlocks(ctx, list, color, ember, t, S, floorXY, cb) {
         setDpr(ctx);
         sortBuf.length = 0;
         for (let i = 0; i < list.length; i++) sortBuf.push(list[i]);
         sortBuf.sort((a, b) => (floorXY ? Math.floor(a.y) - Math.floor(b.y) : a.y - b.y));
         for (let i = 0; i < sortBuf.length; i++) {
             const o = sortBuf[i];
-            drawBlock(ctx, floorXY ? Math.floor(o.x) : o.x, floorXY ? Math.floor(o.y) : o.y, color, ember, t, S);
+            drawBlock(ctx, floorXY ? Math.floor(o.x) : o.x, floorXY ? Math.floor(o.y) : o.y, color, ember, t, S, cb);
         }
     }
 
@@ -479,6 +486,32 @@ const Gfx25 = (() => {
         const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2 - LIFT;
         const prev = o.all && o.all[idx - 1];
         const pk = bodyPalette(k, o.cb, o.pal);
+        const sfx = o.cb ? '_cb' : '';
+        if (SP('seg' + sfx) && SP('linkh' + sfx) && SP('linkv' + sfx)) {
+            // 3B pişmiş gövde: önce bir öncekine giden pullu tüp, sonra küre (ya da kuyruk ucu)
+            const tone = Math.min(3, Math.round(k * 3));
+            const sc = r / SEG_PX;
+            const gx = pos.x * S + S / 2, gy = pos.y * S + S / 2;
+            const adj = prev && Math.abs(prev.x - pos.x) + Math.abs(prev.y - pos.y) <= 1.5;
+            if (adj) {
+                const dx = prev.x - pos.x, dy = prev.y - pos.y;
+                const mx = gx + dx * S / 2, my = gy + dy * S / 2;
+                if (Math.abs(dy) < 0.02) Sprites.drawCrop(ctx, 'linkh' + sfx, tone, mx, my, sc, Math.abs(dx) * S + 1, null);
+                else if (Math.abs(dx) < 0.02) Sprites.drawCrop(ctx, 'linkv' + sfx, tone, mx, my, sc, null, Math.abs(dy) * S + 1, -LINK_LIFT * sc);
+                else {
+                    // köşe dönüşü sırasında çapraz ara konum: düz tüp
+                    ctx.lineCap = 'round';
+                    ctx.strokeStyle = pk.lo; ctx.lineWidth = r * 1.6;
+                    ctx.beginPath(); ctx.moveTo(gx, gy - LINK_LIFT * sc); ctx.lineTo(mx * 2 - gx, my * 2 - gy - LINK_LIFT * sc); ctx.stroke();
+                    ctx.strokeStyle = pk.mid; ctx.lineWidth = r * 1.1;
+                    ctx.beginPath(); ctx.moveTo(gx, gy - LINK_LIFT * sc - r * 0.2); ctx.lineTo(mx * 2 - gx, my * 2 - gy - LINK_LIFT * sc - r * 0.2); ctx.stroke();
+                }
+            }
+            if (idx === total - 1 && total > 2 && adj && SP('tail' + sfx)) {
+                Sprites.draw(ctx, 'tail' + sfx, dirIx(pos.x - prev.x, pos.y - prev.y), gx, gy, sc * 1.15);
+            } else Sprites.draw(ctx, 'seg' + sfx, tone * 2 + (idx % 3 === 1 ? 1 : 0), gx, gy, sc);
+            return;
+        }
         if (prev && Math.abs(prev.x - pos.x) + Math.abs(prev.y - pos.y) <= 1.5) {
             const px = prev.x * S + S / 2, py = prev.y * S + S / 2 - LIFT;
             ctx.lineCap = 'round';
@@ -506,6 +539,12 @@ const Gfx25 = (() => {
         setDpr(ctx);
         if (!shadowsDone) shadowPass(ctx, [pos], S);
         shadowsDone = false;
+        const hn = o.cb ? 'head_cb' : 'head';
+        if (SP(hn)) {
+            const tongue = (t * 2.2) % 1 < 0.35 ? 1 : 0;
+            Sprites.draw(ctx, hn, dirIx(dir.x, dir.y) * 2 + tongue, pos.x * S + S / 2, pos.y * S + S / 2, 1.2);
+            return;
+        }
         const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2 - LIFT;
         const th = Math.atan2(dir.y, dir.x);
         const cs = Math.cos(th), sn = Math.sin(th);
@@ -693,7 +732,7 @@ const Gfx25 = (() => {
                 ctx.beginPath(); ctx.arc(cx - 4 + i * 4, cy - 8 - ph * 14, 2 + ph * 3, 0, TAU); ctx.fill();
             }
             ctx.globalAlpha = 1;
-            blit(ctx, appleSprite(true), cx, cy);
+            if (!SP('apple_rot') || !Sprites.draw(ctx, 'apple_rot', 0, cx, cy + 4, 0.95)) blit(ctx, appleSprite(true), cx, cy);
             if (o.cb) {
                 ctx.strokeStyle = o.pal.curuk; ctx.lineWidth = 3; ctx.lineCap = 'round';
                 ctx.beginPath(); ctx.moveTo(cx - 5, cy - 5); ctx.lineTo(cx + 5, cy + 5); ctx.moveTo(cx + 5, cy - 5); ctx.lineTo(cx - 5, cy + 5); ctx.stroke();
@@ -713,15 +752,25 @@ const Gfx25 = (() => {
             ctx.translate(cx, cy);
             // dikey eksende dönen yıldız: 2.5D madalyon
             const sx = o.reduced ? 1 : (0.35 + 0.65 * Math.abs(Math.cos(t * 1.6)));
-            ctx.scale(sx * pulse, pulse);
-            blit(ctx, starSprite(), 0, 0);
-            ctx.restore();
+            if (SP('star')) {
+                ctx.restore();
+                Sprites.draw(ctx, 'star', o.reduced ? 0 : Math.floor(t * 9), cx, cy + 5, pulse);
+            } else {
+                ctx.scale(sx * pulse, pulse);
+                blit(ctx, starSprite(), 0, 0);
+                ctx.restore();
+            }
         } else {
             ctx.save();
             ctx.translate(cx, cy);
-            ctx.scale(pulse, pulse);
-            blit(ctx, appleSprite(false), 0, 0);
-            ctx.restore();
+            if (SP('apple')) {
+                ctx.restore();
+                Sprites.draw(ctx, 'apple', 0, cx, cy + 4, pulse);
+            } else {
+                ctx.scale(pulse, pulse);
+                blit(ctx, appleSprite(false), 0, 0);
+                ctx.restore();
+            }
         }
         if (!o.reduced) {
             ctx.fillStyle = isSuper ? '#ffdd00' : (o.cb ? o.pal.yem : '#ffbf2e');
@@ -768,6 +817,14 @@ const Gfx25 = (() => {
         const col = o.colors[p.type];
         const cx = gx, cy = gy - h;
         glow(ctx, cx, cy, col, 17 + Math.sin(t * 6) * 2, 0.55);
+        if (SP('crystal_' + p.type)) {
+            Sprites.draw(ctx, 'crystal_' + p.type, o.reduced ? 0 : Math.floor(t * 8), cx, cy + 6, 1.05);
+            ctx.save(); ctx.globalAlpha = 0.9;
+            ctx.translate(cx + 7, cy - 6); ctx.scale(0.62, 0.62);
+            powerGlyph(ctx, p.type, 0, 0);
+            ctx.restore();
+            return;
+        }
         // rün taşı: döner elmas, iki tonlu yüzeyler
         ctx.save();
         ctx.translate(cx, cy);
@@ -822,6 +879,6 @@ const Gfx25 = (() => {
         });
     }
 
-    return { drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H };
+    return { dirIx, drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H };
 })();
 if (typeof window !== 'undefined') window.Gfx25 = Gfx25;

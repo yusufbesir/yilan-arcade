@@ -698,6 +698,10 @@ const Tapinak = (() => {
     const TAS = { ust1: '#80879f', ust2: '#4d536b', on1: '#3a4056', on2: '#15171f' };
     const SUTUN_TAS = { ust1: '#959ab2', ust2: '#585e78', on1: '#41475e', on2: '#181a24' };
     const DUVAR_H = 12, SUTUN_H = 20;
+    // Pişmiş 3B sprite'lar (src/sprites.js); hazır değilse tuval çizimine dönülür
+    const SP = n => (typeof Sprites !== 'undefined' && Sprites.has(n) ? Sprites : null);
+    const SPR_AD = { kovalayan: 'hortlak', atici: 'cadi', zirhli: 'muhafiz' };
+    const yonHafiza = new WeakMap();   // yalnız çizim: düşmanın baktığı yön (mantığa dokunmaz)
 
     function blok(c, x, y, hgt, renk, onYuz) {
         const px = x * C, py = y * C;
@@ -725,7 +729,8 @@ const Tapinak = (() => {
     }
 
     function statik(oda, dpr) {
-        if (oda._cv && oda._dpr === dpr) return oda._cv;
+        const spv = typeof Sprites !== 'undefined' ? Sprites.version : 0;
+        if (oda._cv && oda._dpr === dpr && oda._spv === spv) return oda._cv;
         const cv = document.createElement('canvas');
         cv.width = Math.round(W * C * dpr); cv.height = Math.round(H * C * dpr);
         const c = cv.getContext('2d');
@@ -815,7 +820,7 @@ const Tapinak = (() => {
                 if (on && (x + y) % 2 === 0) { c.strokeStyle = 'rgba(120,220,255,0.45)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x * C + 10, y * C + 4); c.lineTo(x * C + 10, y * C + 17); c.moveTo(x * C + 10, y * C + 7); c.lineTo(x * C + 15, y * C + 11); c.stroke(); }
             }
         }
-        oda._cv = cv; oda._dpr = dpr;
+        oda._cv = cv; oda._dpr = dpr; oda._spv = spv;
         return cv;
     }
 
@@ -926,6 +931,15 @@ const Tapinak = (() => {
     function mesaleler(c, t, reduced) {
         [[1, 1], [W - 2, 1], [1, H - 2], [W - 2, H - 2]].forEach(([x, y], i) => {
             const px = x * C + C / 2, py = y * C - 2;
+            if (SP('torch')) {
+                Sprites.draw(c, 'torch', reduced ? 0 : Math.floor(t * 9 + i * 1.3), px, py + 10, 1);
+                c.save(); c.globalCompositeOperation = 'lighter';
+                const g = c.createRadialGradient(px, py - 14, 1, px, py - 14, 22);
+                g.addColorStop(0, `rgba(255,150,60,${reduced ? 0.35 : 0.3 + 0.08 * Math.sin(t * 9 + i)})`); g.addColorStop(1, 'rgba(255,120,40,0)');
+                c.fillStyle = g; c.fillRect(px - 22, py - 36, 44, 44);
+                c.restore();
+                return;
+            }
             c.fillStyle = '#2a1c12'; c.beginPath(); c.ellipse(px, py + 4, 7, 3.5, 0, 0, 7); c.fill();
             c.fillStyle = '#4a3220'; c.fillRect(px - 6, py, 12, 4);
             const f = reduced ? 0 : Math.sin(t * 9 + i * 2) * 1.5;
@@ -986,11 +1000,13 @@ const Tapinak = (() => {
     function sunakCiz(c, s, t, reduced) {
         const x = s.x * C, y = s.y * C, w = 2 * C;
         golge(c, x + w / 2 + 5, y + 2 * C - 1, 22, 6, 0.45);
-        // basamaklı taş sunak
-        c.fillStyle = '#262a39'; c.fillRect(x - 2, y + 22, w + 4, 16);
-        c.fillStyle = '#5d637c'; c.fillRect(x - 2, y + 16, w + 4, 7);
-        c.fillStyle = '#323748'; c.fillRect(x + 4, y + 8, w - 8, 14);
-        c.fillStyle = '#7a809a'; c.fillRect(x + 4, y + 4, w - 8, 5);
+        // rün taşı sunak (pişmiş 3B) ya da basamaklı taş sunak
+        if (!SP('runestone') || !Sprites.draw(c, 'runestone', 0, x + w / 2, y + 2 * C - 4, 1.1)) {
+            c.fillStyle = '#262a39'; c.fillRect(x - 2, y + 22, w + 4, 16);
+            c.fillStyle = '#5d637c'; c.fillRect(x - 2, y + 16, w + 4, 7);
+            c.fillStyle = '#323748'; c.fillRect(x + 4, y + 8, w - 8, 14);
+            c.fillStyle = '#7a809a'; c.fillRect(x + 4, y + 4, w - 8, 5);
+        }
         const yt = s.yetenek ? YETENEKLER[s.yetenek] : null;
         const renk = yt ? yt.renk : '#ff4d7a';
         const bob = reduced ? 0 : Math.sin(t * 2.4) * 3;
@@ -1033,6 +1049,25 @@ const Tapinak = (() => {
         const px = e.x * C, py = e.y * C, t = o.t;
         const bob = o.reduced ? 0 : Math.sin(t * 6 + e.faz) * 1.5;
         const cb = o.cb ? (o.dusmanRenk || '#CC79A7') : null;
+        const spn = SPR_AD[e.tur];
+        if (SP(spn)) {
+            // bakış yönü: son yatay harekete göre (sprite sağa dönük pişirildi)
+            let yh = yonHafiza.get(e);
+            if (!yh) { yh = { x: e.x, sol: false }; yonHafiza.set(e, yh); }
+            if (Math.abs(e.x - yh.x) > 0.01) { yh.sol = e.x < yh.x; yh.x = e.x; }
+            if (cb) { c.save(); c.strokeStyle = cb; c.lineWidth = 2.5; c.beginPath(); c.ellipse(px, py + 7, 12, 5, 0, 0, 7); c.stroke(); c.restore(); }
+            const fr = o.reduced ? 0 : Math.floor(t * 5 + e.faz);
+            Sprites.draw(c, spn, fr, px, py + 8, e.tur === 'zirhli' ? 1.4 : 1.35, yh.sol);
+            if (e.tur === 'atici' && e.sarj > 0) {
+                const sr = 3 + (16 - e.sarj) / 16 * 4, ox = yh.sol ? -9 : 9;
+                c.save(); c.globalCompositeOperation = 'lighter';
+                c.shadowColor = '#ff5ed1'; c.shadowBlur = 18; c.fillStyle = '#ffd0f4';
+                c.beginPath(); c.arc(px + ox * 1.35, py - 28, sr, 0, 7); c.fill();
+                c.restore();
+                c.strokeStyle = 'rgba(255,94,209,0.6)'; c.lineWidth = 1; c.beginPath(); c.arc(px, py, 6 + e.sarj, 0, 7); c.stroke();
+            }
+            if (e.tur === 'zirhli') for (let i = 0; i < e.max; i++) { c.fillStyle = i < Math.ceil(e.hp) ? '#ffcf7a' : 'rgba(255,255,255,0.15)'; c.fillRect(px - 11 + i * 4, py - 38, 3, 3); }
+        } else {
         golge(c, px + 3, py + 9, e.tur === 'zirhli' ? 15 : 11, 5, 0.45);
         c.save();
         c.translate(px, py); c.scale(1.3, 1.3); c.translate(-px, -py);
@@ -1077,9 +1112,10 @@ const Tapinak = (() => {
             for (let i = 0; i < e.max; i++) { c.fillStyle = i < Math.ceil(e.hp) ? '#ffcf7a' : 'rgba(255,255,255,0.15)'; c.fillRect(px - 11 + i * 4, py - 27, 3, 3); }
         }
         c.restore();
+        }
         if (e.tur !== 'zirhli' && e.hp < e.max) {
-            c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(px - 9, py - 27, 18, 3);
-            c.fillStyle = '#ff6b5e'; c.fillRect(px - 9, py - 27, 18 * Math.max(0, e.hp) / e.max, 3);
+            c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(px - 9, py - 34, 18, 3);
+            c.fillStyle = '#ff6b5e'; c.fillRect(px - 9, py - 34, 18 * Math.max(0, e.hp) / e.max, 3);
         }
         if (e.flash > 0) { c.save(); c.globalAlpha = 0.55; c.fillStyle = '#fff'; c.beginPath(); c.arc(px, py - 4, 14, 0, 7); c.fill(); c.restore(); }
         if (e.zehirT > 0 && !o.reduced) { c.fillStyle = 'rgba(124,255,107,0.8)'; for (let i = 0; i < 3; i++) { const a = t * 3 + i * 2.1; c.beginPath(); c.arc(px + Math.cos(a) * 7, py - 6 - ((t * 12 + i * 5) % 12), 1.6, 0, 7); c.fill(); } }
@@ -1090,7 +1126,7 @@ const Tapinak = (() => {
         const renk = b.faz === 1 ? '#ff8a2a' : b.faz === 2 ? '#ff5a2a' : '#ff2a5a';
         c.save();
         if (b.uyan > 0) c.globalAlpha = 0.3 + 0.7 * (1 - b.uyan / 40);
-        golge(c, px + 8, py + R * 0.95, R * 1.1, R * 0.35, 0.5);
+        if (!SP('jarl')) golge(c, px + 8, py + R * 0.95, R * 1.1, R * 0.35, 0.5);
         if (!o.reduced) {
             c.globalCompositeOperation = 'lighter';
             const ag = c.createRadialGradient(px, py, R * 0.3, px, py, R * 2.2);
@@ -1098,6 +1134,16 @@ const Tapinak = (() => {
             c.fillStyle = ag; c.fillRect(px - R * 2.2, py - R * 2.2, R * 4.4, R * 4.4);
             c.globalCompositeOperation = 'source-over';
         }
+        if (SP('jarl')) {
+            Sprites.draw(c, 'jarl', o.reduced ? 0 : Math.floor(t * 4), px, py + R * 0.8, R / 27);
+            // faz rengi: göğüs çekirdeği nabzı
+            const p = 0.75 + 0.25 * Math.sin(t * (2 + b.faz));
+            c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha *= 0.55 * p;
+            const cg = c.createRadialGradient(px, py + R * 0.05, 1, px, py + R * 0.05, R * 0.6);
+            cg.addColorStop(0, b.faz === 3 ? '#ff6a8a' : '#ffb347'); cg.addColorStop(1, 'rgba(60,10,0,0)');
+            c.fillStyle = cg; c.beginPath(); c.arc(px, py + R * 0.05, R * 0.6, 0, 7); c.fill();
+            c.restore();
+        } else {
         // pelerin
         c.fillStyle = '#17141a';
         c.beginPath();
@@ -1130,6 +1176,7 @@ const Tapinak = (() => {
         c.shadowColor = renk; c.shadowBlur = 12; c.fillStyle = '#fff1b0';
         c.fillRect(px - R * 0.22, py - R * 0.66, R * 0.14, R * 0.07); c.fillRect(px + R * 0.08, py - R * 0.66, R * 0.14, R * 0.07);
         c.shadowBlur = 0;
+        }
         // yüzen közler
         if (!o.reduced) for (let i = 0; i < 10; i++) {
             const a = i * 0.628 + t * 0.6, rr = R * (1.1 + 0.3 * Math.sin(t * 2 + i));
