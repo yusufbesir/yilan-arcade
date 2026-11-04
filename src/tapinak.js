@@ -954,6 +954,8 @@ const Tapinak = (() => {
                 if (on && (x + y) % 2 === 0) { c.strokeStyle = 'rgba(120,220,255,0.45)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x * C + 10, y * C + 4); c.lineTo(x * C + 10, y * C + 17); c.moveTo(x * C + 10, y * C + 7); c.lineTo(x * C + 15, y * C + 11); c.stroke(); }
             }
         }
+        // ışık katmanı kancası (isik.js): durağan ışık haritası oda önbelleğine bir kez pişer
+        if (typeof Isik !== 'undefined' && Isik.zeminPisir) Isik.zeminPisir(c, W * C, H * C, th, [1, 1, W - 2, 1, 1, H - 2, W - 2, H - 2].map(v => v * C + C / 2), oda, C);
         oda._cv = cv; oda._dpr = dpr; oda._tex = tex; oda._spv = spv;
         return cv;
     }
@@ -1357,6 +1359,7 @@ const Tapinak = (() => {
     function ciz(c, run, o) {
         const oda = run.odalar[run.oda];
         c.drawImage(statik(oda, o.dpr || 1), 0, 0, W * C, H * C);
+        if (o.zemin) o.zemin(c); // ışık katmanı kancası (isik.js): zemin üstü, nesnelerin altı
         const t = o.t;
         // rün çemberi: temizse altın, savaşta kızıl nabız
         c.save();
@@ -1457,6 +1460,7 @@ const Tapinak = (() => {
             c.fillStyle = g; c.fillRect(px - 150, py - 150, 300, 300);
         });
         c.restore();
+        if (o.ust) o.ust(c); // ışık katmanı kancası (isik.js): atmosfer/efekt, HUD'un altında
         // boss çubuğu
         if (oda.boss) {
             const b = oda.boss, bw = 420, bx = (W * C - bw) / 2, by = 26;
