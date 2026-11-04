@@ -226,4 +226,12 @@ ok('bot koşusu: 40 koşu hatasız (biyom geçişleri, kapı seçimi, pazar, lan
   }
   assert.ok(en >= 4, 'bot en az ilk boss odasına ulaşmalı: ' + en);
 });
+test('sade başlangıç: Armağanlar boss yenildikçe açılır', () => {
+  const m = TK.mirasBos();
+  const sayi = b => { m.bossOldu = b; return TK.armaganAcik({ meta: m }).length; };
+  assert.deepStrictEqual([0, 1, 2, 3, 9].map(sayi), [5, 7, 9, 10, 10]);
+  m.bossOldu = 0;
+  const s = TK.yeniKosu(5, m);
+  for (let i = 0; i < 50; i++) for (const o of Object.keys(s.armagan)) assert.ok(TK.armaganAcik(s).includes(o));
+});
 console.log(n + ' test geçti');

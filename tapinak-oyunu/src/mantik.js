@@ -296,8 +296,14 @@
     for (let i = 0; i < g.ilk; i++) rastgeleArmagan(s);
     return s;
   }
+  // Sade başlangıç: ilk 5 Armağan baştan açık; kalanlar boss yenildikçe açılır (1 boss: +2, 2 boss: +2, 3 boss: +1).
+  const ARMAGAN_SIRA = ['keskin', 'ruzgar', 'kalp', 'bilek', 'alev', 'golge', 'kivilcim', 'kan', 'cember', 'tilsim'];
+  function armaganAcik(s) {
+    const b = Math.min(3, (s.meta && s.meta.bossOldu) || 0);
+    return ARMAGAN_SIRA.slice(0, 5 + (b >= 1 ? 2 : 0) + (b >= 2 ? 2 : 0) + (b >= 3 ? 1 : 0));
+  }
   function rastgeleArmagan(s) {
-    const idler = Object.keys(ARMAGANLAR).filter(k => (s.armagan[k] || 0) < 6);
+    const idler = armaganAcik(s).filter(k => (s.armagan[k] || 0) < 6);
     if (!idler.length) return;
     armaganAl(s, sec(s.rnd, idler), 0);
   }
@@ -583,7 +589,7 @@
     }
   }
   function armaganSecenekleri(s, min) {
-    const idler = Object.keys(ARMAGANLAR).filter(k => (s.armagan[k] || 0) < 6);
+    const idler = armaganAcik(s).filter(k => (s.armagan[k] || 0) < 6);
     for (let i = idler.length - 1; i > 0; i--) { const j = Math.floor(s.rnd() * (i + 1)); [idler[i], idler[j]] = [idler[j], idler[i]]; }
     return idler.slice(0, 3).map(id => {
       const x = s.rnd(), sans = Math.min(0.5, 0.05 + s.derinlik * 0.03);
@@ -783,5 +789,5 @@
     return true;
   }
 
-  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
+  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, armaganAcik, ARMAGAN_SIRA, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
 });
