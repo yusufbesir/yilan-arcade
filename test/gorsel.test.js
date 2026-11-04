@@ -36,7 +36,7 @@ const fs = require('fs');
     em.addEventListener('error', () => setTimeout(() => r(em.hidden && !em.nextElementSibling.hasAttribute('hidden') && getComputedStyle(em.nextElementSibling).display !== 'none'), 0));
     em.src = 'img/yok.png';
   }));
-  await page.screenshot({ path: path.join(__dirname, '..', 'gorsel-menu.png') }).catch(() => {});
+  await page.screenshot({ path: path.join(require('os').tmpdir(), 'twilight-gorsel-menu.png') }).catch(() => {});
   await browser.close();
   const files = ['src/img/emblem.png', 'src/img/menu-bg.jpg', 'build/icon.png'].map(f => fs.existsSync(path.join(__dirname, '..', f)));
   const ok = res.emblemLoaded && res.svgHidden && res.bgUrl && res.menuOpacity === '1' && res.menuClass && res.gameClass && res.backToMenu && gameOpacity === '0.25' && fallback && files.every(Boolean) && errors.length === 0;

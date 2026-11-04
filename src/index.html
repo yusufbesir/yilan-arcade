@@ -834,6 +834,16 @@
             border: 1px solid var(--nors-cizgi);
             border-radius: 12px;
         }
+        .hud-label { font-size: 7px; color: #9fb4c7; }
+        .hud-value { font-size: 17px; }
+        /* Büyük HUD ayarı */
+        html.buyuk-hud .hud-label { font-size: 10px; }
+        html.buyuk-hud .hud-value { font-size: 24px; }
+        html.buyuk-hud .hud-value.lives { font-size: 20px; }
+        html.buyuk-hud .hud-section { gap: 18px; }
+        /* Tron kartı içi 2 oyuncu düğmesi */
+        .tron-2p { font-family: inherit; font-size: 7px; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--nors-cizgi); background: rgba(255,255,255,0.06); color: #cfe0ec; cursor: pointer; letter-spacing: 1px; }
+        .tron-2p.on { background: rgba(255,153,0,0.22); color: #ffb347; border-color: #ff9900; }
 
         /* ===== Dinamik ölçek: tuval pencereye göre büyür/küçülür ===== */
         .screen { width: min(96vw, calc((100vh - 250px) * 1.375), 1100px); max-width: none; min-width: 300px; }
@@ -1011,6 +1021,7 @@
                         </div>
                         <div class="mode-stats">
                             <span class="high-score">🏆 REKOR: <span id="menuTronHigh">0</span></span>
+                            <button class="tron-2p" id="tron2pBtn" onclick="event.stopPropagation(); SnakeGame.setSetting('tron2p', !SnakeGame.getSettings().tron2p)">👤 2 OYUNCU: KAPALI</button>
                             <span class="mode-badge">⚔ DÜELLO</span>
                         </div>
                     </div>
@@ -1182,6 +1193,9 @@
             <div class="row"><label>HAREKET AZALTMA<small>Sarsıntı, kuzey ışıkları ve giriş animasyonları kapanır</small></label><button class="toggle" id="setReduced" onclick="SnakeGame.setSetting('reduced', !SnakeGame.getSettings().reduced)">KAPALI</button></div>
             <div class="row"><label>EKRAN SARSINTISI<small>Vuruş ve yem patlamalarında</small></label><button class="toggle on" id="setShake" onclick="SnakeGame.setSetting('shake', !SnakeGame.getSettings().shake)">AÇIK</button></div>
             <div class="row"><label>MÜZİK<small>Prosedürel Nors ezgisi</small></label><button class="toggle on" id="setMusic" onclick="SnakeGame.toggleMusic()">AÇIK</button></div>
+            <div class="row"><label>BÜYÜK HUD<small>Skor, rekor ve seviye yazıları daha büyük</small></label><button class="toggle" id="setBigHud" onclick="SnakeGame.setSetting('bigHud', !SnakeGame.getSettings().bigHud)">KAPALI</button></div>
+            <div class="row"><label>RENK KÖRÜ PALETİ<small>Yılan mavi, yem halkalı; kırmızı-yeşil ayrımına bağlı kalmaz</small></label><button class="toggle" id="setCb" onclick="SnakeGame.setSetting('cb', !SnakeGame.getSettings().cb)">KAPALI</button></div>
+            <div class="row"><label>GAMEPAD<small>Sol çubuk / yön tuşları hareket, A ateş, Start duraklat. 2 oyuncuda ikinci kol P2.</small></label><span class="val" id="padInfo">BAĞLI DEĞİL</span></div>
             <button class="menu-btn close" onclick="SnakeGame.closeSettings()">KAPAT</button>
         </div>
     </div>
@@ -1262,7 +1276,7 @@
         let sv = { level: 1, xp: 0, need: 5, dmg: 1, cd: 10, multi: 1, magnet: 2.5, timer: 0, choosing: false, choices: [] };
         let banner = { text: '', until: 0 };
         let portals = [];
-        let tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1 };
+        let tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0 };
         let chaos = { rule: null, left: 0, next: 0, saved: 0 };
         let rand = Math.random;
         let particles = [];
@@ -1273,7 +1287,7 @@
         let dpr = 1;
         const SYS_REDUCED = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
         let REDUCED = SYS_REDUCED;
-        let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true };
+        let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true, bigHud: false, cb: false, tron2p: false };
         const effSpeed = () => Math.max(30, Math.round(state.speed / settings.speed));
         const STARS = Array.from({ length: 46 }, (_, i) => ({ x: (i * 97.13) % 660, y: (i * 53.71) % 480, r: 0.6 + (i % 3) * 0.5, s: 0.4 + (i % 5) * 0.25, p: i }));
         const CLASSIC_LIKE = ['classic', 'portal', 'daily'];
@@ -1300,7 +1314,7 @@
             document.body.classList.add('menu-acik');
             fitDpr = () => {
                 const cssW = canvas.getBoundingClientRect().width || CONFIG.WIDTH;
-                const nd = Math.min(3, Math.max(1, (window.devicePixelRatio || 1) * Math.max(1, cssW / CONFIG.WIDTH)));
+                const nd = Math.min(4, Math.max(1, (window.devicePixelRatio || 1) * Math.max(1, cssW / CONFIG.WIDTH)));
                 if (Math.abs(nd - dpr) < 0.05) return;
                 dpr = nd;
                 canvas.width = Math.round(CONFIG.WIDTH * dpr);
@@ -1320,6 +1334,7 @@
             refreshMenuStats();
             
             document.addEventListener('keydown', onKey);
+            setInterval(pollPads, 60);
             canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
             canvas.addEventListener('pointerdown', onCanvasClick);
         }
@@ -1627,15 +1642,21 @@
             nextDir = { x: 1, y: 0 };
             tron.ai = [{ x: COLS - 6, y: midY }, { x: COLS - 5, y: midY }, { x: COLS - 4, y: midY }];
             tron.aiDir = { x: -1, y: 0 };
+            tron.p2Next = { x: -1, y: 0 };
         }
+        const TRON_HEDEF = 5; // 2 oyuncuda ilk 5 turu alan kazanır
         
         function startTron() {
-            startSimple('tron', 105, { high: records.tron, levelLabel: 'TUR' });
+            const twoP = !!settings.tron2p;
+            startSimple('tron', 105, twoP ? { levelLabel: 'TUR', targetLabel: 'P1 - P2' } : { high: records.tron, levelLabel: 'TUR' });
             food = { x: -5, y: -5, type: 'normal' };
             tron.round = 1;
+            tron.twoP = twoP;
+            tron.p2Wins = 0;
             tronReset();
             document.getElementById('hudLevel').textContent = 1;
-            showBanner('DÜŞMANI KAPAT!');
+            if (twoP) document.getElementById('hudTarget').textContent = '0 - 0';
+            showBanner(twoP ? 'P1: WASD   P2: OK TUŞLARI' : 'DÜŞMANI KAPAT!');
             showGame();
             beginLoop();
             playSound('start');
@@ -1674,7 +1695,7 @@
             banner = { text: '', until: 0 };
             food = null;
             portals = [];
-            tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1 };
+            tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0 };
             chaos = { rule: null, left: 0, next: 120, saved: 0 };
             state.timeLeft = 60;
             rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
@@ -2529,8 +2550,12 @@
             if (state.mode !== 'survivor' || !sv.choosing) return;
             const r = canvas.getBoundingClientRect();
             const y = (e.clientY - r.top) / r.height * CONFIG.HEIGHT;
+            const x = (e.clientX - r.left) / r.width * CONFIG.WIDTH;
             if (y < 110 || y > 350) return;
-            pickUpgrade(Math.min(2, Math.floor(((e.clientX - r.left) / r.width) * 3)));
+            const w = CONFIG.WIDTH / 3;
+            const i = Math.min(2, Math.floor(x / w));
+            if (x < i * w + 14 || x > i * w + w - 14) return; // kartlar arası boşluk seçmez
+            pickUpgrade(i);
         }
         
         function drawSurvivorLayer() {
@@ -2551,7 +2576,7 @@
                 ctx.fillStyle = 'rgba(0,0,0,0.75)';
                 ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
                 ctx.textAlign = 'center';
-                ctx.font = '14px "Press Start 2P", monospace';
+                ctx.font = (settings.bigHud ? 16 : 14) + 'px "Press Start 2P", monospace';
                 ctx.fillStyle = '#ffd400';
                 ctx.fillText('SEVİYE ATLADIN! 1-2-3 YA DA DOKUN', CONFIG.WIDTH / 2, 70);
                 const w = CONFIG.WIDTH / 3;
@@ -2564,9 +2589,9 @@
                     ctx.fillStyle = '#fff';
                     ctx.font = '22px "Press Start 2P", monospace';
                     ctx.fillText(String(i + 1), i * w + w / 2, 160);
-                    ctx.font = '10px "Press Start 2P", monospace';
+                    ctx.font = (settings.bigHud ? 12 : 10) + 'px "Press Start 2P", monospace';
                     const words = c.text.split(' ');
-                    words.forEach((word, k) => ctx.fillText(word, i * w + w / 2, 230 + k * 20));
+                    words.forEach((word, k) => ctx.fillText(word, i * w + w / 2, 230 + k * 22));
                 });
             }
         }
@@ -2698,7 +2723,8 @@
             startFx();
             
             let isRecord = false;
-            if (typeof records[state.mode] === 'number' && state.score > records[state.mode]) {
+            const kayitYok = state.mode === 'tron' && tron.twoP; // 2 oyuncu: rekor tutulmaz
+            if (!kayitYok && typeof records[state.mode] === 'number' && state.score > records[state.mode]) {
                 records[state.mode] = state.score;
                 if (state.mode === 'daily') records.dailyDate = state.dailyKey || todayKey();
                 isRecord = true;
@@ -2706,14 +2732,19 @@
             
             if (!records.top) records.top = {};
             const entry = { s: state.score, d: Date.now() };
-            const top = (records.top[state.mode] || []).concat([entry]).sort((a, b) => b.s - a.s).slice(0, 5);
-            records.top[state.mode] = top;
-            saveData();
+            let top = records.top[state.mode] || [];
+            if (!kayitYok) {
+                top = top.concat([entry]).sort((a, b) => b.s - a.s).slice(0, 5);
+                records.top[state.mode] = top;
+                saveData();
+                checkAch('end');
+            }
             stopMusic();
-            checkAch('end');
-            document.getElementById('topList').innerHTML = top.map((t, i) => `<li class="${t === entry ? 'me' : ''}">${i + 1}. ${t.s}</li>`).join('');
+            document.getElementById('topList').innerHTML = kayitYok
+                ? `<li class="me">P1 ${state.score} - ${tron.p2Wins} P2</li>`
+                : top.map((t, i) => `<li class="${t === entry ? 'me' : ''}">${i + 1}. ${t.s}</li>`).join('');
             
-            document.getElementById('finalScore').textContent = state.score;
+            document.getElementById('finalScore').textContent = kayitYok ? (state.score >= TRON_HEDEF ? 'P1' : 'P2') : state.score;
             document.getElementById('newRecordMsg').style.display = isRecord ? 'block' : 'none';
             document.getElementById('gameoverOverlay').classList.add('active');
         }
@@ -2801,12 +2832,62 @@
                 return;
             }
             
+            if (state.mode === 'tron' && tron.twoP) {
+                switch (key) {
+                    case 'w': steer(0, -1); break;
+                    case 's': steer(0, 1); break;
+                    case 'a': steer(-1, 0); break;
+                    case 'd': steer(1, 0); break;
+                    case 'arrowup': steerP2(0, -1); e.preventDefault(); break;
+                    case 'arrowdown': steerP2(0, 1); e.preventDefault(); break;
+                    case 'arrowleft': steerP2(-1, 0); e.preventDefault(); break;
+                    case 'arrowright': steerP2(1, 0); e.preventDefault(); break;
+                }
+                return;
+            }
             switch (key) {
                 case 'arrowup': case 'w': steer(0, -1); e.preventDefault(); break;
                 case 'arrowdown': case 's': steer(0, 1); e.preventDefault(); break;
                 case 'arrowleft': case 'a': steer(-1, 0); e.preventDefault(); break;
                 case 'arrowright': case 'd': steer(1, 0); e.preventDefault(); break;
             }
+        }
+        function steerP2(dx, dy) {
+            const d = tron.aiDir;
+            if (dx !== 0 && d.x !== -dx) tron.p2Next = { x: dx, y: 0 };
+            if (dy !== 0 && d.y !== -dy) tron.p2Next = { x: 0, y: dy };
+        }
+        
+        // ======================== GAMEPAD ========================
+        // Klavye eşlemesinin aynısı: çubuk/d-pad yön, A ateş, Start duraklat. 2 oyuncuda pad 0 → P1 (WASD), pad 1 → P2 (oklar).
+        const padPrev = {};
+        function padKeys(gp, idx) {
+            const out = [];
+            const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+            const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
+            const twoP = state.mode === 'tron' && tron.twoP;
+            const arrows = !(twoP && idx === 0);
+            const K = arrows ? { u: 'ArrowUp', d: 'ArrowDown', l: 'ArrowLeft', r: 'ArrowRight' } : { u: 'w', d: 's', l: 'a', r: 'd' };
+            if (ay < -0.5 || b(12)) out.push(K.u);
+            if (ay > 0.5 || b(13)) out.push(K.d);
+            if (ax < -0.5 || b(14)) out.push(K.l);
+            if (ax > 0.5 || b(15)) out.push(K.r);
+            if (b(0)) out.push(' ');
+            if (b(9)) out.push('p');
+            if (b(1) || b(2) || b(3)) out.push(idx === 0 ? '1' : '2');
+            return out;
+        }
+        function pollPads() {
+            if (!navigator.getGamepads) return;
+            const pads = Array.from(navigator.getGamepads() || []).filter(Boolean);
+            const info = document.getElementById('padInfo');
+            if (info) info.textContent = pads.length ? pads.length + ' KOL BAĞLI' : 'BAĞLI DEĞİL';
+            pads.slice(0, 2).forEach((gp, idx) => {
+                const now = padKeys(gp, idx);
+                const prev = padPrev[idx] || [];
+                now.forEach(k => { if (!prev.includes(k) && document.body.classList.contains('oyun-acik') && !state.over) onKey({ key: k, preventDefault() {} }); });
+                padPrev[idx] = now;
+            });
         }
         
         function steer(dx, dy) {
@@ -3100,7 +3181,7 @@
             const S = CONFIG.CELL;
             const k = total > 1 ? idx / (total - 1) : 0;
             const r = Math.max(5.2, 8.6 - k * 3.2);
-            const col = `hsl(${158 - 16 * k} ${88 - 14 * k}% ${50 - 22 * k}%)`;
+            const col = settings.cb ? `hsl(${208 - 10 * k} ${90 - 10 * k}% ${58 - 22 * k}%)` : `hsl(${158 - 16 * k} ${88 - 14 * k}% ${50 - 22 * k}%)`;
             const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2;
             const prev = renderPos[idx - 1];
             ctx.fillStyle = col;
@@ -3148,6 +3229,10 @@
             halo.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = halo;
             ctx.fillRect(cx - 22, cy - 22, 44, 44);
+            if (settings.cb) { // şekil ipucu: beyaz halka
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.setLineDash(isSuper ? [3, 3] : []);
+                ctx.beginPath(); ctx.arc(cx, cy, 11 * pulse, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            }
 
             if (isSuper) {
                 ctx.save();
@@ -3485,14 +3570,31 @@
             document.getElementById('hudLevel').textContent = tron.round;
             playSound('complete');
             setSpeed(Math.max(60, 105 - state.score * 3));
+            if (tron.twoP) {
+                document.getElementById('hudTarget').textContent = state.score + ' - ' + tron.p2Wins;
+                if (state.score >= TRON_HEDEF) { showBanner('P1 KAZANDI!'); endGame(); return; }
+                tronReset();
+                showBanner('P1 TURU ALDI');
+                return;
+            }
             if (state.score >= 3) unlockAch('tron3');
             tronReset();
             showBanner('TUR KAZANDIN! SIRADAKİ TUR');
         }
+        function tronP2Win() {
+            tron.p2Wins++;
+            tron.round++;
+            document.getElementById('hudLevel').textContent = tron.round;
+            document.getElementById('hudTarget').textContent = state.score + ' - ' + tron.p2Wins;
+            playSound('complete');
+            if (tron.p2Wins >= TRON_HEDEF) { showBanner('P2 KAZANDI!'); endGame(); return; }
+            tronReset();
+            showBanner('P2 TURU ALDI');
+        }
         
         function tickTron() {
             dir = { ...nextDir };
-            tron.aiDir = aiChooseDir();
+            tron.aiDir = tron.twoP ? { ...tron.p2Next } : aiChooseDir();
             const ph = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
             const ah = { x: tron.ai[0].x + tron.aiDir.x, y: tron.ai[0].y + tron.aiDir.y };
             const pDead = tronBlocked(ph.x, ph.y) || (ph.x === ah.x && ph.y === ah.y);
@@ -3502,7 +3604,7 @@
                 showBanner('BERABERE! TUR YENİLENDİ');
                 return;
             }
-            if (pDead) { endGame(); return; }
+            if (pDead) { if (tron.twoP) tronP2Win(); else endGame(); return; }
             if (aDead) { tronWin(); return; }
             snake.unshift(ph);
             tron.ai.unshift(ah);
@@ -3646,6 +3748,9 @@
         function applySettings() {
             REDUCED = SYS_REDUCED || !!settings.reduced;
             document.documentElement.classList.toggle('reduced', REDUCED);
+            document.documentElement.classList.toggle('buyuk-hud', !!settings.bigHud);
+            const t2 = document.getElementById('tron2pBtn');
+            if (t2) { t2.textContent = settings.tron2p ? '👥 2 OYUNCU: AÇIK' : '👤 2 OYUNCU: KAPALI'; t2.classList.toggle('on', !!settings.tron2p); }
             if (masterGain) masterGain.gain.value = settings.vol;
             if (state.running && !state.paused && loopInterval) { clearInterval(loopInterval); loopInterval = setInterval(tick, effSpeed()); }
             const $ = id => document.getElementById(id);
@@ -3654,7 +3759,7 @@
                 $('setFx').value = settings.fx; $('valFx').textContent = Math.round(settings.fx * 100) + '%';
                 $('setVol').value = settings.vol; $('valVol').textContent = Math.round(settings.vol * 100) + '%';
                 const tg = (id, on) => { $(id).textContent = on ? 'AÇIK' : 'KAPALI'; $(id).classList.toggle('on', on); };
-                tg('setReduced', !!settings.reduced); tg('setShake', !!settings.shake); tg('setMusic', !!settings.music);
+                tg('setReduced', !!settings.reduced); tg('setShake', !!settings.shake); tg('setMusic', !!settings.music); tg('setBigHud', !!settings.bigHud); tg('setCb', !!settings.cb);
                 const mb = $('musicBtn'); if (mb) mb.textContent = settings.music ? '🎵 MÜZİK: AÇIK' : '🎵 MÜZİK: KAPALI';
             }
         }

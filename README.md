@@ -23,6 +23,12 @@ Tekrarlanabilir derleme için `npm ci`, sonra `npm run dist`. `npm audit --omit=
 ## Kurulum notu (kod imzası yok)
 Kurulum dosyası kod imzalı değil, bu yüzden Windows SmartScreen "Windows bilgisayarınızı korudu" uyarısı gösterebilir. Dosyayı kendiniz derlediyseniz veya SHA256 değeri `BUILD-NOTU.md` ile aynıysa: **Ek bilgi** → **Yine de çalıştır**. Kişisel kullanım için ayrı bir sertifika alınmadı.
 
+## İki oyuncu, gamepad ve erişilebilirlik
+
+- Tron Düellosu kartındaki **2 OYUNCU** düğmesi açıkken rakip yapay zekâ yerine ikinci oyuncu geçer: P1 WASD, P2 ok tuşları; ilk 5 turu alan kazanır. Bu modda rekor ve başarım kaydedilmez.
+- **Gamepad**: sol çubuk ya da yön tuşları hareket, A ateş, Start duraklat. İki oyuncuda ilk kol P1, ikinci kol P2. Klavye eşlemesinin aynısıdır, ayrı ekran yoktur.
+- Ayarlar'da **BÜYÜK HUD** ve **RENK KÖRÜ PALETİ** (yılan mavi, yem beyaz halkalı, rakip turuncu).
+
 ## Görseller
 
 Menü arka planı (`src/img/menu-bg.jpg`) ve amblem (`src/img/emblem.png`) Canva ile üretildi; ayrıntı `CREDITS.md`. Amblem yüklenemezse kodla çizilen SVG logo görünür. Anahtar görsel menüde belirgin, oyun sırasında soluktur.

@@ -1,2 +1,7 @@
 node_modules/
 dist/
+
+# test ekran görüntüleri
+*.png
+!src/img/*.png
+!build/icon.png
