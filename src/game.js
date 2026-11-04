@@ -6,8 +6,8 @@ const SnakeGame = (() => {
     // ======================== CONFIGURATION ========================
     const CONFIG = {
         CELL: 20,
-        WIDTH: 660,
-        HEIGHT: 480,
+        WIDTH: 960,
+        HEIGHT: 640,
         BASE_SPEED: 140,
         COLORS: {
             bg: '#080810',
@@ -97,7 +97,7 @@ const SnakeGame = (() => {
     const TEST_MODE = /[?&]test=1\b/.test(location.search);
     let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true, bigHud: false, cb: false, tron2p: false };
     const effSpeed = () => Math.max(30, Math.round(state.speed / settings.speed));
-    const STARS = Array.from({ length: 46 }, (_, i) => ({ x: (i * 97.13) % 660, y: (i * 53.71) % 480, r: 0.6 + (i % 3) * 0.5, s: 0.4 + (i % 5) * 0.25, p: i }));
+    const STARS = Array.from({ length: 46 }, (_, i) => ({ x: (i * 97.13) % 960, y: (i * 53.71) % 640, r: 0.6 + (i % 3) * 0.5, s: 0.4 + (i % 5) * 0.25, p: i }));
     const CLASSIC_LIKE = ['classic', 'portal', 'daily'];
     
     let powers = { shield: false, speed: false, invincible: false };
