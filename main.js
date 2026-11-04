@@ -17,7 +17,10 @@ function createWindow() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: !app.isPackaged }
   });
   Menu.setApplicationMenu(null);
-  win.webContents.session.setPermissionRequestHandler((wc, permission, cb) => cb(false));
+  // İzinler: yalnız panoya DÜZ METİN yazma (Günlük sonuç kartı, tıklamayla); okuma ve diğer tüm izinler kapalı
+  const izinli = (permission) => permission === 'clipboard-sanitized-write';
+  win.webContents.session.setPermissionRequestHandler((wc, permission, cb) => cb(izinli(permission)));
+  win.webContents.session.setPermissionCheckHandler((wc, permission) => izinli(permission));
   // Dış bağlantı: yalnız http/https (URL ayrıştırılarak), yeni pencere asla açılmaz
   const disHttp = (url) => { try { const u = new URL(url); return u.protocol === 'https:' || u.protocol === 'http:'; } catch (e) { return false; } };
   win.webContents.setWindowOpenHandler(({ url }) => { if (disHttp(url)) shell.openExternal(url); return { action: 'deny' }; });

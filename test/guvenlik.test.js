@@ -43,7 +43,7 @@ const fs = require('fs');
   const cspVal = html.match(/Content-Security-Policy" content="([^"]+)"/)[1];
   const csp = /default-src 'self'/.test(cspVal) && !/script-src[^;]*unsafe-inline/.test(cspVal) && /object-src 'none'/.test(cspVal) && /base-uri 'none'/.test(cspVal) && !/\son(click|load|error|input|change|touchstart|pointerdown|touchend|mousedown)=/.test(html) && !/<script>/.test(html);
   const main = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
-  const shell = ['contextIsolation: true', 'nodeIntegration: false', 'sandbox: true', 'setPermissionRequestHandler', 'setWindowOpenHandler', "will-navigate", 'will-attach-webview', 'devTools: !app.isPackaged', 'new URL('].every(k => main.includes(k));
+  const shell = ['contextIsolation: true', 'nodeIntegration: false', 'sandbox: true', 'setPermissionRequestHandler', 'setPermissionCheckHandler', "permission === 'clipboard-sanitized-write'", 'setWindowOpenHandler', "will-navigate", 'will-attach-webview', 'devTools: !app.isPackaged', 'new URL('].every(k => main.includes(k));
   const ok = prod.dbg === 'undefined' && prod.ach === 'undefined' && prod.keys.length === 0 && prod.works && test.dbg === 'object' && test.ach === 'object' && clicked && dpad.changed && dpad.cspv === 0 && dpad.hasPress && tronBtn && shakeBtn && cspEnforced && sane && csp && shell && errors.length === 0;
   console.log(JSON.stringify({ prod, test, clicked, dpad, tronBtn, shakeBtn, cspEnforced, sane, csp, shell, errors }));
   console.log(ok ? 'GUVENLIK TEST: GECTI' : 'GUVENLIK TEST: KALDI');
