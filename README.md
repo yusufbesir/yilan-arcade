@@ -23,6 +23,13 @@ Tekrarlanabilir derleme için `npm ci`, sonra `npm run dist`. `npm audit --omit=
 ## Kurulum notu (kod imzası yok)
 Kurulum dosyası kod imzalı değil, bu yüzden Windows SmartScreen "Windows bilgisayarınızı korudu" uyarısı gösterebilir. Dosyayı kendiniz derlediyseniz veya SHA256 değeri `BUILD-NOTU.md` ile aynıysa: **Ek bilgi** → **Yine de çalıştır**. Kişisel kullanım için ayrı bir sertifika alınmadı.
 
+## Kaos, hız kademesi ve günlük
+
+- **Kaos'ta çürük yem**: koyu mor, duman çıkaran yem; yenirse puan vermez, yılanı 2 halka kısaltır (en az 3 kalır). Yalnız Kaos modunda çıkar.
+- **Hız kademesi**: Klasik, Portal ve Günlük modlarda her 5 yemde bir kademe (1–10), HUD'daki HIZ kutusunda görünür; kademe 10'da en yüksek hız.
+- **Günlük'te dünkü skor**: dün oynandıysa HUD'da DÜN kutusunda dünkü skor görünür; geçilince ışıltı ve bant.
+- Tron'daki tek oyuncu rakibi zaten kural tabanlıdır (en geniş alana döner, kazandıkça akıllanır).
+
 ## Güvenlik
 
 Electron 45; pencere contextIsolation, sandbox, nodeIntegration kapalı, izin isteği reddi, webview engeli, yalnız kendi index.html'ine gezinme (URL ayrıştırmalı) ve CSP ile açılır; devTools yalnız paketsiz sürümde. Betik `src/game.js` dosyasındadır, satır içi betik ve `onclick` yoktur (CSP `script-src 'self'`); tıklamalar `data-act` ile tek dinleyiciden geçer. Ayarlar ve başarım kayıtları yüklenirken tip ve aralık denetiminden geçer; eski veri taşıması geçici klasöre kopyalayıp yeniden adlandırır, sembolik bağlantıları kopyalamaz. Test API'si (`SnakeGame._debug`, `_ach`) yalnız sayfa `?test=1` ile açıldığında vardır; paketli oyunda yoktur. `test/guvenlik.test.js` bunları doğrular.

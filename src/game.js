@@ -187,7 +187,7 @@ const SnakeGame = (() => {
         document.getElementById('menuBulletHigh').textContent = records.bullet;
         document.getElementById('menuTailHigh').textContent = records.tailgun;
         document.getElementById('menuSurvHigh').textContent = records.survivor;
-        if (records.dailyDate !== todayKey()) records.daily = 0;
+        rollDaily();
         [['menuTimeHigh', 'timeattack'], ['menuPortalHigh', 'portal'], ['menuTronHigh', 'tron'], ['menuChaosHigh', 'chaos'], ['menuDailyHigh', 'daily']].forEach(([id, k]) => {
             document.getElementById(id).textContent = records[k];
         });
@@ -241,9 +241,12 @@ const SnakeGame = (() => {
         state.mode = 'classic';
         state.lives = 1;
         state.speed = CONFIG.BASE_SPEED;
+        state.speedLv = 0;
         
         document.getElementById('hudHighBox').style.display = '';
-        document.getElementById('hudLevelBox').style.display = 'none';
+        document.getElementById('hudLevelBox').style.display = '';
+        document.getElementById('hudLevelLabel').textContent = 'HIZ';
+        document.getElementById('hudLevel').textContent = '1';
         document.getElementById('hudTargetBox').style.display = 'none';
         document.getElementById('hudLivesBox').style.display = 'none';
         document.getElementById('hudHigh').textContent = records.classic;
@@ -319,6 +322,19 @@ const SnakeGame = (() => {
         playSound('start');
     }
     
+    function rollDaily() { // gün değişince önceki günün skoru saklanır, günlük rekor sıfırlanır
+        const t = todayKey();
+        if (records.dailyDate === t) return;
+        if (records.daily > 0 && records.dailyDate) records.dailyPrev = { d: records.dailyDate, s: records.daily };
+        records.dailyDate = t; records.daily = 0;
+    }
+    function dunkuSkor() {
+        const p = records.dailyPrev;
+        if (!p || !(p.s > 0)) return 0;
+        const d = new Date(); d.setDate(d.getDate() - 1);
+        const dunKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        return p.d === dunKey ? p.s : 0;
+    }
     function todayKey() {
         const d = new Date();
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -379,9 +395,13 @@ const SnakeGame = (() => {
     function startDaily() {
         setTimeout(() => unlockAch('gunluk'), 0);
         state.dailyKey = todayKey();
-        if (records.dailyDate !== state.dailyKey) { records.dailyDate = state.dailyKey; records.daily = 0; }
-        startSimple('daily', CONFIG.BASE_SPEED, { high: records.daily, levelLabel: todayKey().slice(5) });
-        document.getElementById('hudLevel').textContent = 'GÜNLÜK';
+        rollDaily();
+        const dun = dunkuSkor();
+        startSimple('daily', CONFIG.BASE_SPEED, { high: records.daily, levelLabel: 'HIZ', targetLabel: dun ? 'DÜN' : undefined });
+        document.getElementById('hudLevel').textContent = '1';
+        if (dun) document.getElementById('hudTarget').textContent = dun;
+        state.pacerDone = false;
+        showBanner('GÜNLÜK HARİTA ' + state.dailyKey.slice(5) + (dun ? ' · DÜN: ' + dun : ''));
         const midY = Math.floor(ROWS / 2);
         for (let i = 0; i < 9; i++) {
             for (let t = 0; t < 30; t++) {
@@ -418,7 +438,8 @@ const SnakeGame = (() => {
     }
     
     function startPortal() {
-        startSimple('portal', CONFIG.BASE_SPEED, { high: records.portal });
+        startSimple('portal', CONFIG.BASE_SPEED, { high: records.portal, levelLabel: 'HIZ' });
+        document.getElementById('hudLevel').textContent = '1';
         // iki duvar, her birinde iki boşluk
         [11, 22].forEach(wx => {
             const gaps = [2 + Math.floor(Math.random() * 6), 14 + Math.floor(Math.random() * 6)];
@@ -658,14 +679,17 @@ const SnakeGame = (() => {
             }
         }
         
-        // Classic speed increase
-        if (CLASSIC_LIKE.includes(state.mode) && state.score > 0 && state.score % 5 === 0) {
-            if (state.speed > 50) {
-                state.speed -= 3;
-                clearInterval(loopInterval);
-                loopInterval = setInterval(tick, effSpeed());
-            }
-        }
+        // Klasik benzeri modlarda hız kademesi: her 5 yemde bir, 1-10 (eski kod skor 5'in katıyken her tikte hızlanıyordu)
+        if (CLASSIC_LIKE.includes(state.mode)) applySpeedLevel();
+    }
+    function speedLevel() { return Math.min(10, 1 + Math.floor(state.score / 5)); }
+    function applySpeedLevel() {
+        const lv = speedLevel();
+        if (lv === state.speedLv) return;
+        state.speedLv = lv;
+        setSpeed(Math.max(50, CONFIG.BASE_SPEED - (lv - 1) * 10));
+        document.getElementById('hudLevel').textContent = lv;
+        if (lv > 1) showBanner('HIZ ' + lv);
     }
     
     // ======================== DAMAGE & COLLISION ========================
@@ -723,16 +747,31 @@ const SnakeGame = (() => {
             food = { x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2), type: 'normal' };
             return;
         }
-        food = { ...pos, type: rand() < 0.12 ? 'super' : 'normal' };
+        const r = rand();
+        // Kaos: ara sıra çürük yem (kural bozma ruhu); diğer modlara girmez
+        food = { ...pos, type: state.mode === 'chaos' && r < 0.15 ? 'curuk' : r < 0.12 + (state.mode === 'chaos' ? 0.15 : 0) ? 'super' : 'normal' };
     }
     
     function eatFood() {
+        if (food.type === 'curuk') {
+            burst(food.x + 0.5, food.y + 0.5, '#7a4ea8', 16, 1.2);
+            snake.splice(Math.max(3, snake.length - 3)); // yeni baş eklendi: büyüme yok + 2 halka kısalır, en az 3 kalır
+            showBanner('ÇÜRÜK YEM! -2');
+            playSound('hit');
+            addShake(4);
+            spawnFood();
+            return;
+        }
         let pts = food.type === 'super' ? 5 : 1;
         if (chaos.rule === 'triple') pts *= 3;
         burst(food.x + 0.5, food.y + 0.5, food.type === 'super' ? '#ffdd00' : '#ffbf2e', food.type === 'super' ? 22 : 12);
         state.score += pts;
         if (state.mode === 'timeattack') state.timeLeft += food.type === 'super' ? 5 : 2;
         if (state.mode === 'portal' && state.score % 5 === 0) placePortals();
+        if (state.mode === 'daily' && !state.pacerDone) {
+            const dun = dunkuSkor();
+            if (dun && state.score > dun) { state.pacerDone = true; showBanner('DÜNKÜ SKORU GEÇTİN!'); burst(food.x + 0.5, food.y + 0.5, '#e8c46a', 30, 1.8); playSound('ach'); }
+        }
         updateHUD();
         playSound(food.type === 'super' ? 'supereat' : 'eat');
         checkAch('eat');
@@ -2025,12 +2064,37 @@ const SnakeGame = (() => {
         }
     }
 
+    function drawRottenFood(cx, cy, t) {
+        // Çürük yem: koyu mor elma, yeşil duman; renk körü paletinde X işareti
+        ctx.save();
+        for (let i = 0; i < 3; i++) {
+            const ph = (t * 0.8 + i * 0.33) % 1;
+            ctx.globalAlpha = 0.35 * (1 - ph);
+            ctx.fillStyle = '#7CFF6B';
+            ctx.beginPath(); ctx.arc(cx - 4 + i * 4, cy - 8 - ph * 14, 2 + ph * 3, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        const g = ctx.createRadialGradient(cx - 2, cy - 2, 1, cx, cy, 9);
+        g.addColorStop(0, '#9b6cc7'); g.addColorStop(1, '#3a1f52');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2a1238';
+        ctx.beginPath(); ctx.arc(cx + 3, cy + 1, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx, cy - 8); ctx.lineTo(cx + 2, cy - 12); ctx.stroke();
+        if (settings.cb) {
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(cx - 5, cy - 5); ctx.lineTo(cx + 5, cy + 5); ctx.moveTo(cx + 5, cy - 5); ctx.lineTo(cx - 5, cy + 5); ctx.stroke();
+        }
+        ctx.restore();
+    }
     function drawFood() {
         const S = CONFIG.CELL;
         const t = performance.now() / 1000;
         const isSuper = food.type === 'super';
         const cx = food.x * S + S / 2, cy = food.y * S + S / 2;
         const pulse = 1 + Math.sin(t * 5) * 0.1;
+        if (food.type === 'curuk') { drawRottenFood(cx, cy, t); return; }
         const col = isSuper ? '#ffdd00' : '#ffbf2e';
 
         const halo = ctx.createRadialGradient(cx, cy, 2, cx, cy, 20 * pulse);
@@ -2666,6 +2730,7 @@ const SnakeGame = (() => {
                 const r = data.records && typeof data.records === 'object' ? data.records : {};
                 Object.keys(records).forEach(k => { if (k !== 'top' && k !== 'dailyDate' && typeof r[k] === 'number' && isFinite(r[k])) records[k] = r[k]; });
                 if (typeof r.dailyDate === 'string') records.dailyDate = r.dailyDate;
+                if (r.dailyPrev && typeof r.dailyPrev.d === 'string' && typeof r.dailyPrev.s === 'number' && isFinite(r.dailyPrev.s)) records.dailyPrev = { d: r.dailyPrev.d, s: r.dailyPrev.s };
                 records.top = {};
                 if (r.top && typeof r.top === 'object') Object.keys(r.top).forEach(m => { if (Array.isArray(r.top[m])) records.top[m] = r.top[m].filter(t => t && typeof t.s === 'number').slice(0, 5); });
                 const pr = data.progress && typeof data.progress === 'object' ? data.progress : {};
