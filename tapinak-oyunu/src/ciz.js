@@ -223,7 +223,27 @@ const Ciz = (() => {
       c.fillStyle = 'rgba(255,179,90,.5)'; c.fillRect(px + 6, yy + 4, 1, 4);
     }
   }
-  function direk(c, x, y, tx) {
+  // Biyoma özgü engel görünümü (yalnız çizim; mantık değişmez): 0 buz kristali, 1 obsidyen kaya, 2 kök/ağaç
+  function biyomEngel(c, x, y, bi) {
+    const px = sx(x) + (TW >> 1), py = sy(y) + TH - 1;
+    gol(c, px, py + 1, 9, 0.35);
+    if (bi === 0) {
+      c.fillStyle = '#4a7fa8'; c.beginPath(); c.moveTo(px - 8, py); c.lineTo(px - 3, py - 24); c.lineTo(px + 1, py); c.fill();
+      c.fillStyle = '#9fd8f2'; c.beginPath(); c.moveTo(px - 2, py); c.lineTo(px + 4, py - 30); c.lineTo(px + 9, py); c.fill();
+      c.fillStyle = '#e8f8ff'; c.fillRect(px + 3, py - 24, 2, 14);
+    } else if (bi === 1) {
+      c.fillStyle = '#2a2222'; c.fillRect(px - 9, py - 16, 18, 16); c.fillStyle = '#403434'; c.fillRect(px - 7, py - 24, 13, 9);
+      c.fillStyle = '#1a1414'; c.fillRect(px + 3, py - 22, 4, 22);
+      c.globalAlpha = 0.6 + 0.3 * Math.sin(sure * 3 + x); c.fillStyle = '#ff7a2a'; c.fillRect(px - 5, py - 10, 2, 5); c.fillRect(px + 1, py - 18, 2, 3); c.globalAlpha = 1;
+    } else {
+      c.fillStyle = '#3a2616'; c.fillRect(px - 3, py - 16, 6, 16); c.fillRect(px - 8, py - 3, 5, 3); c.fillRect(px + 3, py - 3, 5, 3);
+      c.fillStyle = '#1f4a2c'; c.beginPath(); c.arc(px, py - 22, 10, 0, 6.3); c.fill();
+      c.fillStyle = '#2d6a3e'; c.beginPath(); c.arc(px - 3, py - 25, 6, 0, 6.3); c.fill();
+      c.globalAlpha = 0.5 + 0.3 * Math.sin(sure * 2 + y); c.fillStyle = '#7de3a0'; c.fillRect(px + 2, py - 20, 2, 2); c.globalAlpha = 1;
+    }
+  }
+  function direk(c, x, y, tx, bi) {
+    if (bi !== undefined) { biyomEngel(c, x, y, bi); return; }
     const px = sx(x) + (TW >> 1), py = sy(y) + TH - 1, P = tx.P;
     gol(c, px, py + 1, 9, 0.35);
     const g = tx.D0;
@@ -421,7 +441,7 @@ const Ciz = (() => {
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const t = s.oda.grid[y][x];
       if (t === T.DUVAR || t === T.CATLAK) { if (y === 0 && (x === TK.KAPI_X[0] || x === TK.KAPI_X[1])) continue; liste.push({ k: y + 1, f: () => blok(lc, x, y, y === 0 || y === H - 1 ? DH : 11, tx, t) }); }
-      else if (t === T.SUTUN) liste.push({ k: y + 1, f: () => direk(lc, x, y, tx) });
+      else if (t === T.SUTUN) liste.push({ k: y + 1, f: () => direk(lc, x, y, tx, s.oda.biyom || 0) });
       else if (t === T.GIZLIKAPI && x === 0) { lc.fillStyle = '#05030a'; lc.fillRect(sx(0), sy(y), TW, TH); }
       else if (t === T.GERI) { lc.fillStyle = P.isik; lc.globalAlpha = 0.4; lc.fillRect(sx(x), sy(y) + TH - 3, TW, 3); lc.globalAlpha = 1; }
     }
