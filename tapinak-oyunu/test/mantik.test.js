@@ -247,4 +247,15 @@ ok('Günlük Koşu: aynı gün aynı odalar, farklı gün farklı; en iyi derinl
   assert.deepStrictEqual(m.gunluk, { gun: 20261104, enIyi: 5 });
   const d = depo(); TK.mirasKaydet(d, m); assert.deepStrictEqual(TK.mirasYukle(d).gunluk, m.gunluk);
 });
+ok('Armağan eşleşmeleri: Tılsım+Kül Emici açlık doldurur, Alev+Çember yakar', () => {
+  const m = TK.mirasBos(); m.bossOldu = 3;
+  const s = TK.yeniKosu(11, m);
+  TK.armaganAl(s, 'kan', 0); s.p.aclik = 50; s.p.susuz = 50;
+  const e1 = temasEnemy('draugr', 5, 5, { hp: 1, maxHp: 1 }); s.enemies = [e1];
+  TK.dusmanHasar(s, e1, 99, 0); assert.strictEqual(s.p.aclik, 50);
+  TK.armaganAl(s, 'tilsim', 0);
+  const e2 = temasEnemy('draugr', 5, 5, { hp: 1, maxHp: 1 }); s.enemies = [e2];
+  TK.dusmanHasar(s, e2, 99, 0); assert.ok(s.p.aclik > 50 && s.p.susuz > 50);
+  assert.strictEqual(TK.ESLESME.length, 3);
+});
 console.log(n + ' test geçti');

@@ -67,6 +67,8 @@
       const b = document.createElement('b'); b.textContent = (i + 1) + ') ' + a.ad; b.style.color = a.renk;
       const nl = document.createElement('div'); nl.textContent = nd.ad + (s.armagan[id] ? ' · sahip: x' + s.armagan[id].toFixed(1) : ''); nl.style.cssText = 'font-size:12px;color:' + nd.renk;
       const sm = document.createElement('small'); sm.textContent = a.acik;
+      const es = TK.ESLESME.find(e => (e[0] === id && s.armagan[e[1]]) || (e[1] === id && s.armagan[e[0]]));
+      if (es) { const ei = document.createElement('div'); ei.textContent = 'Eşleşme: ' + es[2]; ei.style.cssText = 'font-size:12px;color:#ffd86b'; sm.append(document.createElement('br'), ei); }
       const bt = document.createElement('button'); bt.textContent = 'Seç'; bt.addEventListener('click', () => sec(i));
       k.append(b, nl, sm, bt); l.append(k);
     });

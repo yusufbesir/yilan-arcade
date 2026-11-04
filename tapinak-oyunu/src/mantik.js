@@ -312,6 +312,8 @@
     return s;
   }
   // Sade başlangıç: ilk 5 Armağan baştan açık; kalanlar boss yenildikçe açılır (1 boss: +2, 2 boss: +2, 3 boss: +1).
+  // Eşleşmeler (Armağan iki yönlü ipucu): alev+cember: küreler yakar; tilsim+kan: öldürmede açlık/su dolar; golge+kivilcim: atılımda vurunca +1 köz yükü.
+  const ESLESME = [['alev', 'cember', 'Küreler yakar'], ['tilsim', 'kan', 'Öldürmede açlık ve su dolar'], ['golge', 'kivilcim', 'Atılımla vurunca +1 köz yükü']];
   const ARMAGAN_SIRA = ['keskin', 'ruzgar', 'kalp', 'bilek', 'alev', 'golge', 'kivilcim', 'kan', 'cember', 'tilsim'];
   function armaganAcik(s) {
     const b = Math.min(3, (s.meta && s.meta.bossOldu) || 0);
@@ -387,7 +389,7 @@
     const tn = DUSMAN[e.tip];
     const kazan = Math.round(tn.kul * (e.mini ? 0.4 : 1) * (e.etki ? 1.6 : 1) * (1 + 0.15 * s.meta.seviye.kul));
     s.kul += kazan;
-    if (s.armagan.kan) s.p.hp = Math.min(s.p.maxHp, s.p.hp + 2 * s.armagan.kan);
+    if (s.armagan.kan) { s.p.hp = Math.min(s.p.maxHp, s.p.hp + 2 * s.armagan.kan); if (s.armagan.tilsim) { s.p.aclik = Math.min(100, s.p.aclik + 2); s.p.susuz = Math.min(100, s.p.susuz + 2); } }
     olay(s, 'oldu', { x: e.x, y: e.y, tip: e.tip, kul: kazan });
     if (tn.boss) { for (const o2 of s.enemies) if (o2 !== e && !o2.olu) { o2.olu = true; olay(s, 'oldu', { x: o2.x, y: o2.y, tip: o2.tip, kul: 0 }); } s.mermiler.length = 0; s.tuzaklar.length = 0; }
     if (tn.ai === 'patlayan') { olay(s, 'patla', { x: e.x, y: e.y }); if (mesafe(e, s.p) < 1.7) oyuncuHasar(s, 14, 'patlama'); }
@@ -514,7 +516,7 @@
     let dx = mx, dy = my;
     const l = Math.hypot(dx, dy);
     if (l < 0.1) { dx = Math.cos(p.dir); dy = Math.sin(p.dir); } else { dx /= l; dy /= l; }
-    p.dashX = dx; p.dashY = dy; p.dashT = 0.18; p.dashCd = 0.7 * Math.pow(0.8, s.armagan.golge || 0); p.dashVuruldu = new Set();
+    p.dashX = dx; p.dashY = dy; p.dashT = 0.18; p.dashCd = 0.7 * Math.pow(0.8, s.armagan.golge || 0); p.dashVuruldu = new Set(); p.dashKoz = false;
     olay(s, 'atilim', { x: p.x, y: p.y });
   }
   function dusmanAtis(s, e, aci, hiz, hasar, ek) {
@@ -539,7 +541,7 @@
       const v = 14.5 * dt;
       hareket(s, p, p.dashX * v, p.dashY * v);
       if (p.dashT <= 0 && hucre(s, p.x, p.y) === T.UCURUM) p.dashT = 0.04;
-      if (s.armagan.golge) for (const e of s.enemies) if (!e.olu && e.dogum <= 0 && !p.dashVuruldu.has(e) && mesafe(e, p) < e.r + 0.7) { p.dashVuruldu.add(e); dusmanHasar(s, e, 15 * hasarCarpan(s) * s.armagan.golge, Math.atan2(p.dashY, p.dashX)); }
+      if (s.armagan.golge) for (const e of s.enemies) if (!e.olu && e.dogum <= 0 && !p.dashVuruldu.has(e) && mesafe(e, p) < e.r + 0.7) { p.dashVuruldu.add(e); dusmanHasar(s, e, 15 * hasarCarpan(s) * s.armagan.golge, Math.atan2(p.dashY, p.dashX)); if (s.armagan.kivilcim && !p.dashKoz) { p.dashKoz = true; p.kozYuk = Math.min(p.kozMaks, p.kozYuk + 1); } }
     } else {
       let mx = girdi.mx || 0, my = girdi.my || 0;
       const l = Math.hypot(mx, my);
@@ -560,7 +562,7 @@
       const n = 2 + Math.floor(s.armagan.cember);
       for (let i = 0; i < n; i++) {
         const a = p.cemberA + i * Math.PI * 2 / n, cx = p.x + Math.cos(a) * 1.7, cy = p.y + Math.sin(a) * 1.3;
-        for (const e of s.enemies) if (!e.olu && e.dogum <= 0 && Math.hypot(e.x - cx, e.y - cy) < e.r + 0.3 && s.zaman - (e.cemberT || -9) > 0.5) { e.cemberT = s.zaman; dusmanHasar(s, e, 8 * hasarCarpan(s), a); }
+        for (const e of s.enemies) if (!e.olu && e.dogum <= 0 && Math.hypot(e.x - cx, e.y - cy) < e.r + 0.3 && s.zaman - (e.cemberT || -9) > 0.5) { e.cemberT = s.zaman; dusmanHasar(s, e, 8 * hasarCarpan(s), a); if (s.armagan.alev) e.yanik = 3; }
       }
     }
     // dalgalar
@@ -804,5 +806,5 @@
     return true;
   }
 
-  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, gunNo, gunlukKosu, gunlukKaydet, armaganAcik, ARMAGAN_SIRA, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
+  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, gunNo, gunlukKosu, gunlukKaydet, armaganAcik, ARMAGAN_SIRA, ESLESME, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
 });
