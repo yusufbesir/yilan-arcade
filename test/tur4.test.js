@@ -41,7 +41,7 @@ const path = require('path');
     const p2Before = T().ai[0].y;
     D.tick();
     o.p2Moved = T().ai[0].y === p2Before - 1 && T().aiDir.y === -1;
-    o.p1Moved = D.get().snake[0].y === Math.floor(24 / 2) - 1;
+    o.p1Moved = D.get().snake[0].y === Math.floor(32 / 2) - 1;
     // P1 duvara çarpar → P2 turu alır, oyun bitmez
     key('a'); // ters yön, yok sayılır
     for (let i = 0; i < 30 && !D.get().state.over; i++) D.tick();
@@ -60,7 +60,7 @@ const path = require('path');
     o.single = T().twoP === false && document.getElementById('hudTargetBox').style.display === 'none';
     // Tek oyuncu rakibi: 200 tikte boş komşusu varken duvara/kuyruğa çarpmaz (oyuncu güvenli sürülür)
     {
-      const COLS = 33, ROWS = 24, D4 = [[1,0],[-1,0],[0,1],[0,-1]];
+      const COLS = 48, ROWS = 32, D4 = [[1,0],[-1,0],[0,1],[0,-1]];
       const blocked = (x, y) => x < 0 || x >= COLS || y < 0 || y >= ROWS || D.get().snake.some(c => c.x === x && c.y === y) || T().ai.some(c => c.x === x && c.y === y);
       let bad = 0, ticks = 0;
       for (let i = 0; i < 200 && !D.get().state.over; i++) {
@@ -103,7 +103,7 @@ const path = require('path');
     setTimeout(() => {
       const d1 = document.getElementById('padInfo').textContent === '1 KOL BAĞLI';
       D.tick();
-      const up = D.get().snake[0].y < Math.floor(24 / 2);
+      const up = D.get().snake[0].y < Math.floor(32 / 2);
       window.__pads[0].buttons[9].pressed = true; // Start → duraklat
       setTimeout(() => r({ padInfo: d1, padUp: up, paused: D.get().state.paused === true }), 150);
     }, 150);
