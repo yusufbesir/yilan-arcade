@@ -786,6 +786,7 @@ const SnakeGame = (() => {
         playSound('hit');
         burst(snake[0].x + 0.5, snake[0].y + 0.5, '#ff2244', 26, 1.4);
         addShake(7);
+        isikOlay('hasar');
         
         if (state.lives <= 0) {
             endGame();
@@ -1592,6 +1593,7 @@ const SnakeGame = (() => {
         if (powerTimers[type]) clearTimeout(powerTimers[type]);
         
         playSound('powerup');
+        isikOlay('guc', snake[0].x + 0.5, snake[0].y + 0.5, CONFIG.COLORS['power' + type.charAt(0).toUpperCase() + type.slice(1)]);
         
         switch (type) {
             case 'shield':
@@ -1756,9 +1758,9 @@ const SnakeGame = (() => {
                 case 'oldu': burst(e.x, e.y, '#9fe8ff', 14, 1.1); playSound('eat'); break;
                 case 'govde': spark(e.x, e.y); break;
                 case 'oz': playSound('eat'); break;
-                case 'hasar': burst(e.x, e.y, '#ff2244', 22, 1.3); addShake(7); flashCanvas('#ff0033'); playSound('hit'); break;
+                case 'hasar': burst(e.x, e.y, '#ff2244', 22, 1.3); addShake(7); flashCanvas('#ff0033'); playSound('hit'); isikOlay('hasar'); break;
                 case 'kalkan': flashCanvas('#00ccff'); playSound('shield'); break;
-                case 'temiz': showBanner(e.tur === 'savas' ? 'ODA TEMİZLENDİ · ARMAĞAN SEÇ' : e.tur === 'boss' ? 'KÜL JARLI DÜŞTÜ · SUNAK VE ÇIKIŞ' : 'ODA TEMİZLENDİ · SUNAĞA DOKUN', true); playSound('powerup'); break;
+                case 'temiz': isikOlay('kapi'); showBanner(e.tur === 'savas' ? 'ODA TEMİZLENDİ · ARMAĞAN SEÇ' : e.tur === 'boss' ? 'KÜL JARLI DÜŞTÜ · SUNAK VE ÇIKIŞ' : 'ODA TEMİZLENDİ · SUNAĞA DOKUN', true); playSound('powerup'); break;
                 case 'armagan': showBanner(e.ad + ': ' + e.acik, true); playSound('supereat'); break;
                 case 'yetenek':
                     tpMeta.yetenek[e.id] = true;
@@ -1773,9 +1775,9 @@ const SnakeGame = (() => {
                 case 'kilit': burst(e.x, e.y, '#e8c46a', 20, 1.2); playSound('powerup'); break;
                 case 'atilim': burst(e.x1, e.y1, '#7fe3ff', 10, 0.9); playSound('powerup'); break;
                 case 'ipucu': showBanner(e.metin); break;
-                case 'faz': showBanner('KÜL JARLI · FAZ ' + e.faz, true); addShake(8); playSound('hit'); break;
+                case 'faz': { const b = tp.odalar[tp.oda].boss; if (b) isikOlay('sok', b.x, b.y); showBanner('KÜL JARLI · FAZ ' + e.faz, true); addShake(8); playSound('hit'); break; }
                 case 'sarsinti': addShake(6); break;
-                case 'bossOldu': burst(e.x, e.y, '#ffb347', 60, 2.2); addShake(12); playSound('complete'); break;
+                case 'bossOldu': burst(e.x, e.y, '#ffb347', 60, 2.2); isikOlay('sok', e.x, e.y); addShake(12); playSound('complete'); break;
                 case 'bitti': bitis = e; break;
             }
         });
@@ -1791,10 +1793,10 @@ const SnakeGame = (() => {
         endGame();
     }
     function drawTapinakLayer() {
-        if (tp) Tapinak.ciz(ctx, tp, { dpr, t: performance.now() / 1000, reduced: REDUCED, cb: settings.cb, dusmanRenk: PALET.dusman });
+        if (tp) Tapinak.ciz(ctx, tp, { dpr, t: performance.now() / 1000, reduced: REDUCED, cb: settings.cb, dusmanRenk: PALET.dusman, zemin: isikZemin });
     }
     function drawTapinakTop() {
-        if (tp) Tapinak.cizUst(ctx, tp, { dpr, t: performance.now() / 1000, reduced: REDUCED, bas: renderPos[0] });
+        if (tp) Tapinak.cizUst(ctx, tp, { dpr, t: performance.now() / 1000, reduced: REDUCED, bas: renderPos[0], ust: isikUst });
     }
     
     function winLevel() {
@@ -2017,6 +2019,7 @@ const SnakeGame = (() => {
         ctx.save();
         if (shake.mag > 0.2 && !REDUCED) ctx.translate((Math.random() - 0.5) * shake.mag, (Math.random() - 0.5) * shake.mag);
         drawBackground(nowT);
+        if (state.mode !== 'tapinak') isikZemin(ctx); // ışık haritası/sis/iz: tüm nesnelerin altında (Tapınak: tapinak.js kancası)
         
         // Static obstacles
         if (G25()) G25().drawBlocks(ctx, obstacles, settings.cb ? PALET.engel : C.obstacle, false, nowT / 1000, CELL, false, settings.cb);
@@ -2067,12 +2070,35 @@ const SnakeGame = (() => {
         
         if (['classic', 'bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron', 'daily', 'tapinak'].includes(state.mode)) drawBanner(); // daily eksikti: Günlük afişleri hiç çizilmiyordu
         drawParticles();
+        if (state.mode !== 'tapinak') isikUst(ctx);
         drawVignette();
         if (state.mode === 'survivor' && sv.choosing) drawLevelUp();
         ctx.restore();
     }
     
     const G25 = () => (typeof Gfx25 !== 'undefined' ? Gfx25 : null);
+    // ---- IŞIK (src/isik.js): dinamik aydınlatma/atmosfer/efekt; yalnız çizim, yoksa atlanır ----
+    const ISIK = () => (typeof Isik !== 'undefined' ? Isik : null);
+    const isikO = { W: CONFIG.WIDTH, H: CONFIG.HEIGHT, S: CONFIG.CELL, gucRenk: null, mermiMerkez: true, torches: null };
+    const isikTor = [34, 34, CONFIG.WIDTH - 34, 34, 34, CONFIG.HEIGHT - 34, CONFIG.WIDTH - 34, CONFIG.HEIGHT - 34]; // zemindeki meşale havuzları (gfx25)
+    const isikTorTp = [30, 20, 930, 20, 30, 600, 930, 600]; // Tapınak meşaleleri (hücre 1/46, 1/30)
+    function isikOpts() {
+        const o = isikO;
+        o.t = performance.now() / 1000; o.dpr = dpr; o.fx = settings.fx; o.reduced = REDUCED; o.cb = settings.cb;
+        o.tema = (typeof Doku !== 'undefined') ? Doku.themeFor(state.mode, state.level) : 'tas';
+        o.bas = (chaos.rule === 'ghost' || !renderPos.length) ? (snake[0] || null) : renderPos[0];
+        o.yem = state.mode === 'tron' || state.mode === 'tapinak' ? null : food;
+        o.yemRenk = food && food.type === 'super' ? '#ffdd00' : '#ffbf2e';
+        o.guclar = powerups; o.engeller = obstacles; o.korlar = movingObs; o.portallar = portals; o.mermiler = bullets;
+        if (!o.gucRenk) o.gucRenk = { shield: CONFIG.COLORS.powerShield, speed: CONFIG.COLORS.powerSpeed, invincible: CONFIG.COLORS.powerInvincible, clear: CONFIG.COLORS.powerClear };
+        o.hiz = !!powers.speed;
+        o.tapinak = state.mode === 'tapinak' ? tp : null;
+        o.torches = o.tapinak ? isikTorTp : isikTor;
+        return o;
+    }
+    function isikZemin(c) { if (ISIK()) ISIK().zemin(c, isikOpts()); }
+    function isikUst(c) { if (ISIK()) ISIK().ust(c, isikO); }
+    function isikOlay(t, x, y, renk) { if (ISIK()) ISIK().olay(t, x, y, renk); }
     let nors = { bg: null, key: '' };
     let renderPos = [];
 
@@ -2415,6 +2441,7 @@ const SnakeGame = (() => {
     
     // ---- efektler ----
     function burst(x, y, color, n, speed) {
+        if (ISIK()) ISIK().patla(x, y, color, n);
         n = Math.round(n * settings.fx);
         if (REDUCED) n = Math.ceil(n / 3);
         for (let i = 0; i < n && particles.length < 400; i++) {
@@ -3123,7 +3150,7 @@ const SnakeGame = (() => {
         ...(TEST_MODE ? { _tapinak: { run: () => tp, meta: () => tpMeta, tick: () => tick(), atil: () => tapinakAtil(), sec: i => tapinakSec(i) } } : {}),
         // Test API'si (_debug, _ach) yalnız ?test=1 ile açılan sayfada; paketli oyunda yok.
         ...(TEST_MODE ? { _miras: { buy: mirasBuy, render: renderMiras }, _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
-        _debug: { tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
+        _debug: { tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), draw: () => draw(), extra: () => ({ portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
     };
     return PUBLIC;
 })();

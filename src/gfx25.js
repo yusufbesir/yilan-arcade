@@ -197,6 +197,8 @@ const Gfx25 = (() => {
         ao(0, H - 6, 0, H - 20, 0, H - 20, W, 14); // alt
 
         drawFrame(g, o, !!base);
+        // ışık katmanı kancası (isik.js): durağan ışık haritası zemin önbelleğine bir kez pişer
+        if (typeof Isik !== 'undefined' && Isik.zeminPisir) Isik.zeminPisir(g, W, H, o.theme || 'tas', [34, 34, W - 34, 34, 34, H - 34, W - 34, H - 34], null, S);
         return c;
     }
 
@@ -1197,6 +1199,7 @@ const Gfx25 = (() => {
         });
     }
 
-    return { dirIx, drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawSnakeRibbon, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H };
+    // zeminTuvali: önbellekli zemin (isik.js baş ışığı bölgesini buradan geri basar; salt okunur)
+    return { zeminTuvali: () => bgCache.c, dirIx, drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawSnakeRibbon, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H };
 })();
 if (typeof window !== 'undefined') window.Gfx25 = Gfx25;
