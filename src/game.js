@@ -1976,8 +1976,8 @@ const SnakeGame = (() => {
         stopMusic();
         
         document.getElementById('starsDisplay').innerHTML = yildizlar(stars, 3);
-        document.getElementById('starsDisplay').setAttribute('aria-label', stars + ' yıldız');
-        document.getElementById('levelEndScore').textContent = state.score + (hizli ? ' · HIZLI BİTİRİŞ' : '');
+        document.getElementById('starsDisplay').setAttribute('aria-label', stars + ' yıldız' + (hizli ? ', hızlı bitiriş' : ''));
+        document.getElementById('levelEndScore').textContent = state.score + (hizli ? ' ⚡' : '');
         mirasVer('kulMsgWin', true, true);
         document.getElementById('completeOverlay').classList.add('active');
     }
