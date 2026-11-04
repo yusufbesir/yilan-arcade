@@ -32,6 +32,89 @@ const assert = require('assert');
   });
   assert.deepStrictEqual(tampon.d1, { x: 0, y: -1 }, 'ilk dönüş yukarı olmalı');
   assert.deepStrictEqual(tampon.d2, { x: -1, y: 0 }, 'ikinci dönüş (tampon) sola uygulanmalı');
+
+  // Ortak yardımcı: modu başlat (sayfa yenilenir), elle tik atılır
+  const baslat = async (act) => {
+    await page.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
+    await page.waitForTimeout(250);
+    await page.evaluate(a => document.querySelector('[data-act=' + a + ']').click(), act);
+    await page.waitForTimeout(120);
+    await page.evaluate(() => { window.T = () => { const st = SnakeGame._debug.get().state; st.paused = false; SnakeGame._debug.tick(); st.paused = true; }; window.T(); });
+  };
+  // yemi baş yönünün önüne koy ve tik at
+  const yemTik = () => page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(); const h = g.snake[0];
+    d.extra().food.x = h.x + g.nextDir.x; d.extra().food.y = h.y + g.nextDir.y; d.extra().food.type = 'normal';
+    const once = d.get().state.score; T(); return d.get().state.score - once;
+  });
+  // 1) Rekor ışıltısı
+  await baslat('startClassic');
+  r.rekor = await page.evaluate(() => {
+    const d = SnakeGame._debug; d.extra().records.classic = 1; d.get().state.score = 1;
+    const h = d.get().snake[0], f = d.extra().food; f.x = h.x + 1; f.y = h.y; f.type = 'normal';
+    T(); return d.extra().banner.text;
+  });
+  assert.ok(/REKOR/.test(r.rekor), 'rekor afişi yok: ' + r.rekor);
+  // 2) Klasik zamanlı bonus yem: 5. yemde belirir, yenince 5+ puan
+  await baslat('startClassic');
+  r.zbonus = await page.evaluate(() => {
+    const d = SnakeGame._debug; d.get().state.yemSay = 4;
+    const h = d.get().snake[0], f = d.extra().food; f.x = h.x + 1; f.y = h.y; f.type = 'normal';
+    T(); const e = d.get().state.ekYem; if (!e) return null;
+    const x0 = d.get().state.score, hd = d.get().snake[0];
+    e.x = hd.x + d.get().dir.x; e.y = hd.y + d.get().dir.y; e.left = 56; T();
+    return { tur: e.tur, puan: d.get().state.score - x0, kalan: d.get().state.ekYem };
+  });
+  assert.ok(r.zbonus && r.zbonus.tur === 'bonus' && r.zbonus.puan >= 5 && !r.zbonus.kalan, 'bonus yem çalışmadı: ' + JSON.stringify(r.zbonus));
+  // Kapalıyken bonus yem çıkmaz
+  await baslat('startClassic');
+  r.zbonusKapali = await page.evaluate(() => {
+    SnakeGame.setSetting('ek', { zbonus: false });
+    const d = SnakeGame._debug; d.get().state.yemSay = 4;
+    const h = d.get().snake[0], f = d.extra().food; f.x = h.x + 1; f.y = h.y; f.type = 'normal';
+    T(); const k = d.get().state.ekYem; SnakeGame.setSetting('ek', {}); return k;
+  });
+  assert.strictEqual(r.zbonusKapali, null, 'kapalıyken bonus yem çıktı');
+  // 3) Zamana Karşı seri yem: 3 art arda yem +1 sn
+  await baslat('startTimeAttack');
+  const t0 = await page.evaluate(() => SnakeGame._debug.get().state.timeLeft);
+  for (let i = 0; i < 3; i++) await yemTik();
+  r.zseri = await page.evaluate(t0 => SnakeGame._debug.get().state.timeLeft - t0, t0);
+  assert.ok(r.zseri > 6.5, 'seri +1 sn gelmedi: ' + r.zseri);
+  // 4) Günlük kıvrım bonusu: son 3 yön farklıysa x2
+  await baslat('startDaily');
+  r.kivrim = await page.evaluate(() => {
+    const d = SnakeGame._debug; d.get().state.yonler = [{ x: 0, y: -1 }, { x: -1, y: 0 }];
+    const h = d.get().snake[0], f = d.extra().food; f.x = h.x + 1; f.y = h.y; f.type = 'normal';
+    const s0 = d.get().state.score; T(); return d.get().state.score - s0;
+  });
+  assert.strictEqual(r.kivrim, 2, 'kıvrım x2 yok: ' + r.kivrim);
+  // 5) Kaos çekim yemi
+  await baslat('startChaos');
+  r.cekim = await page.evaluate(() => {
+    const d = SnakeGame._debug, h = d.get().snake[0], g = d.get();
+    g.state.ekYem = { x: h.x + 1, y: h.y, tur: 'cekim', left: 50, max: 70 };
+    T(); return d.get().state.cekimLeft;
+  });
+  assert.ok(r.cekim > 0, 'çekim yemi etkisiz');
+  // 6) Mermi Manyağı sıyrılma zinciri: aynı tikte iki sıyrılma 1+2 = 3
+  await baslat('startBullet');
+  r.siyrilma = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(), h = g.snake[0];
+    g.bullets.length = 0;
+    g.bullets.push({ x: h.x + 1.5, y: h.y + 1.5, dx: 0, dy: 0, homing: false, color: '#f00', grazed: false });
+    g.bullets.push({ x: h.x + 1.5, y: h.y - 1.5, dx: 0, dy: 0, homing: false, color: '#f00', grazed: false });
+    g.state.waveHit = false; const s0 = g.state.score; T(); return d.get().state.score - s0;
+  });
+  assert.ok(r.siyrilma >= 3, 'sıyrılma zinciri yok: ' + r.siyrilma);
+  // 7) Tron iz boşluğu
+  await baslat('startTron');
+  r.tizbos = await page.evaluate(() => {
+    const d = SnakeGame._debug, t = d.extra().tron, g = d.get();
+    for (let i = 0; i < 7; i++) { g.snake.push({ x: 1, y: 1 + i }); t.ai.push({ x: 46, y: 1 + i }); }
+    t.gapN = 29; T(); return t.gaps.size;
+  });
+  assert.ok(r.tizbos >= 2, 'iz boşluğu açılmadı');
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
