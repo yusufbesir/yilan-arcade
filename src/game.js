@@ -129,7 +129,8 @@ const SnakeGame = (() => {
             canvas.height = Math.round(CONFIG.HEIGHT * dpr);
         };
         dpr = Math.min(2, window.devicePixelRatio || 1);
-        window.addEventListener('resize', () => setTimeout(fitDpr, 50));
+        let fitT = 0; // art arda resize olaylarını tek fitDpr'a indir
+        window.addEventListener('resize', () => { clearTimeout(fitT); fitT = setTimeout(fitDpr, 50); });
         setTimeout(fitDpr, 0);
         canvas.width = CONFIG.WIDTH * dpr;
         canvas.height = CONFIG.HEIGHT * dpr;
@@ -1915,6 +1916,7 @@ const SnakeGame = (() => {
     // ======================== GAMEPAD ========================
     // Klavye eşlemesinin aynısı: çubuk/d-pad yön, A ateş, Start duraklat. 2 oyuncuda pad 0 → P1 (WASD), pad 1 → P2 (oklar).
     const padPrev = {};
+    let padCountPrev = 0, padInfoEl = null;
     function padKeys(gp, idx) {
         const out = [];
         let ax = Number(gp.axes[0]) || 0, ay = Number(gp.axes[1]) || 0;
@@ -1935,10 +1937,15 @@ const SnakeGame = (() => {
     }
     function pollPads() {
         if (!navigator.getGamepads) return;
-        const slots = Array.from(navigator.getGamepads() || []);
-        const count = slots.filter(Boolean).length;
-        const info = document.getElementById('padInfo');
-        if (info) info.textContent = count ? count + ' KOL BAĞLI' : 'BAĞLI DEĞİL';
+        const slots = navigator.getGamepads() || [];
+        let count = 0;
+        for (let i = 0; i < slots.length; i++) if (slots[i]) count++;
+        if (!count && !padPrev[0] && !padPrev[1] && !padCountPrev) return; // kol yok ve durum zaten temiz: ucuz çık
+        if (count !== padCountPrev || padInfoEl === null && count) {
+            padInfoEl = padInfoEl || document.getElementById('padInfo');
+            if (padInfoEl) padInfoEl.textContent = count ? count + ' KOL BAĞLI' : 'BAĞLI DEĞİL';
+            padCountPrev = count;
+        }
         // Yuva sırası korunur: 1. kol çıkınca 2. kol P1 olmaz; boş yuvanın önceki durumu silinir
         for (let i = 0; i < 2; i++) if (!slots[i]) delete padPrev[i]; // dizi kısalırsa (kol çıkınca) eski durum da silinir
         slots.slice(0, 2).forEach((gp, idx) => {
@@ -2424,14 +2431,18 @@ const SnakeGame = (() => {
     function updateFx(dt) {
         shake.mag *= Math.pow(0.002, dt);
         if (shake.mag < 0.2) shake.mag = 0;
-        particles = particles.filter(p => {
+        // Yerinde sıkıştırma: her karede yeni dizi üretme
+        let j = 0;
+        for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
             p.life -= dt;
             p.x += p.vx * dt;
             p.y += p.vy * dt;
             p.vx *= 0.97;
             p.vy *= 0.97;
-            return p.life > 0;
-        });
+            if (p.life > 0) particles[j++] = p;
+        }
+        particles.length = j;
     }
     
     function drawParticles() {
