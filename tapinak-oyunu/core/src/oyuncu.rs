@@ -15,13 +15,13 @@ pub struct Ayar { pub iase: f64, pub guc: f64, pub kitlik: bool, pub sicrama: bo
 pub struct Oyuncu {
     pub x: f64, pub y: f64, pub r: f64, pub dir: f64, pub hp: f64, pub max_hp: f64,
     pub swing_t: f64, pub swing_cd: f64, pub dash_t: f64, pub dash_cd: f64, pub dash_x: f64, pub dash_y: f64, pub inv: f64,
-    pub koz_yuk: i32, pub koz_maks: i32, pub koz_sayac: f64, pub aclik: f64, pub susuz: f64, pub lav_t: f64, pub swing_id: u32,
+    pub koz_yuk: i32, pub koz_maks: i32, pub koz_sayac: f64, pub aclik: f64, pub susuz: f64, pub lav_t: f64, pub swing_id: u32, pub swing_yon: f64,
 }
 
 impl Oyuncu {
     pub fn yeni(hp: f64, koz: i32) -> Oyuncu {
         Oyuncu { x: 11.0, y: 11.4, r: 0.32, dir: -std::f64::consts::FRAC_PI_2, hp, max_hp: hp, swing_t: 0.0, swing_cd: 0.0, dash_t: 0.0, dash_cd: 0.0, dash_x: 0.0, dash_y: 0.0, inv: 0.0,
-            koz_yuk: koz, koz_maks: koz, koz_sayac: 0.0, aclik: 100.0, susuz: 100.0, lav_t: 0.0, swing_id: 0 }
+            koz_yuk: koz, koz_maks: koz, koz_sayac: 0.0, aclik: 100.0, susuz: 100.0, lav_t: 0.0, swing_id: 0, swing_yon: 0.0 }
     }
 }
 
