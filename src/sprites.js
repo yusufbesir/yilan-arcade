@@ -7,7 +7,7 @@
 const Sprites = (() => {
     'use strict';
     const MAP = (typeof window !== 'undefined' && window.SPRITE_MAP && window.SPRITE_MAP.sprites) || {};
-    const SC = (typeof window !== 'undefined' && window.SPRITE_MAP && window.SPRITE_MAP.scale) || 2;
+    const SC0 = (typeof window !== 'undefined' && window.SPRITE_MAP && window.SPRITE_MAP.scale) || 2;
     const img = {};
     const st = { yuklenen: 0, hata: [], toplam: Object.keys(MAP).length };
     let version = 0;
@@ -18,7 +18,7 @@ const Sprites = (() => {
         Object.keys(MAP).forEach(k => {
             const im = new Image();
             im.decoding = 'async';
-            im.onload = () => { img[k] = im; st.yuklenen++; version++; cache.clear(); };
+            im.onload = () => { img[k] = im; st.yuklenen++; version++; cache.clear(); tintCache.clear(); };
             im.onerror = () => { st.hata.push(k); };
             // data: URI (gömülü) tercih edilir: file:// altında tuvali kirletmez; yoksa PNG dosyası
             im.src = (window.SPRITE_DATA && window.SPRITE_DATA[k]) || MAP[k].file;
@@ -28,12 +28,13 @@ const Sprites = (() => {
     function dprOf(ctx) { let d = 1; try { d = ctx.getTransform().a || 1; } catch (e) { d = 1; } return d; }
 
     // Kareyi hedef piksel boyuna yüksek kaliteyle indir (yarılayarak)
+    // m.sc (varsa): sprite'a özgü çözünürlük (ör. düşmanlar 3 px = 1 mantıksal px)
     function scaled(name, i, s, dpr) {
         const q = Math.round(s * 20) / 20;
         const key = name + '|' + i + '|' + q + '|' + dpr;
         let c = cache.get(key);
         if (c) return c;
-        const m = MAP[name], im = img[name];
+        const m = MAP[name], im = img[name], SC = m.sc || SC0;
         const tw = Math.max(1, Math.round(m.w / SC * q * dpr)), th = Math.max(1, Math.round(m.h / SC * q * dpr));
         let src = document.createElement('canvas');
         src.width = m.w; src.height = m.h;
@@ -84,8 +85,47 @@ const Sprites = (() => {
         return true;
     }
     function frames(name) { return MAP[name] ? MAP[name].n : 0; }
+    // Adlandırılmış kare aralığı: anim('hortlak','bekle') -> [ilk, adet]; yoksa null
+    function anim(name, ad) { const a = MAP[name] && MAP[name].anim; return a && a[ad] ? a[ad] : null; }
+
+    // Renkli siluet (vuruş flaşı, ölüm parlaması): karenin alfa maskesi düz renkle doldurulur ve
+    // 'lighter' ile sprite'ın üstüne eklenir (ctx.filter gerekmez). a: 0..1 yoğunluk.
+    const tintCache = new Map();
+    function drawTint(ctx, name, i, x, y, s, flip, color, a) {
+        if (!img[name] || !(a > 0)) return false;
+        const m = MAP[name];
+        const fr = ((i % m.n) + m.n) % m.n;
+        const sp = scaled(name, fr, s || 1, dprOf(ctx));
+        const key = sp.c.width + 'x' + sp.c.height + '|' + name + '|' + fr + '|' + color;
+        let t = tintCache.get(key);
+        if (!t) {
+            t = document.createElement('canvas'); t.width = sp.c.width; t.height = sp.c.height;
+            const g = t.getContext('2d');
+            g.drawImage(sp.c, 0, 0);
+            // pişmiş zemin gölgesi (siyah, yarı saydam) maskeye girmesin: alfa parlaklıkla ağırlıklanır
+            try {
+                const d = g.getImageData(0, 0, t.width, t.height), a = d.data;
+                for (let i = 0; i < a.length; i += 4) {
+                    const l = (a[i] * 0.3 + a[i + 1] * 0.59 + a[i + 2] * 0.11) / 255;
+                    a[i + 3] = a[i + 3] * Math.min(1, Math.max(0, (l - 0.03) / 0.12));
+                }
+                g.putImageData(d, 0, 0);
+            } catch (e) { /* kirli tuval: düz maske */ }
+            g.globalCompositeOperation = 'source-in';
+            g.fillStyle = color; g.fillRect(0, 0, t.width, t.height);
+            if (tintCache.size > 200) tintCache.clear();
+            tintCache.set(key, t);
+        }
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha *= Math.min(1, a);
+        if (flip) { ctx.translate(x, y); ctx.scale(-1, 1); ctx.drawImage(t, -sp.ax, -sp.ay, sp.w, sp.h); }
+        else ctx.drawImage(t, x - sp.ax, y - sp.ay, sp.w, sp.h);
+        ctx.restore();
+        return true;
+    }
 
     load();
-    return { has, draw, drawCrop, frames, durum: () => st, get version() { return version; }, MAP };
+    return { has, draw, drawCrop, drawTint, frames, anim, durum: () => st, get version() { return version; }, MAP };
 })();
 if (typeof window !== 'undefined') window.Sprites = Sprites;
