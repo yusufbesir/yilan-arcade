@@ -1993,7 +1993,7 @@ const SnakeGame = (() => {
         drawBackground(nowT);
         
         // Static obstacles
-        if (G25()) G25().drawBlocks(ctx, obstacles, settings.cb ? PALET.engel : C.obstacle, false, nowT / 1000, CELL, false);
+        if (G25()) G25().drawBlocks(ctx, obstacles, settings.cb ? PALET.engel : C.obstacle, false, nowT / 1000, CELL, false, settings.cb);
         else obstacles.forEach(o => drawBlock(o.x, o.y, settings.cb ? PALET.engel : C.obstacle, '#55557a'));
         
         // Moving obstacles

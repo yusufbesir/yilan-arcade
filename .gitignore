@@ -4,6 +4,7 @@ dist/
 # test ekran görüntüleri
 *.png
 !src/img/*.png
+!src/img/sprites/*.png
 !build/icon.png
 
 # yerel yedekler
