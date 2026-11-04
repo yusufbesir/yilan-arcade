@@ -734,6 +734,29 @@ const Gfx25 = (() => {
         }
     }
 
+    // Emoji yazı tipine bağımlı olmayan çizimli güç simgeleri (beyaz, koyu kenarlı)
+    function powerGlyph(ctx, type, cx, cy) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        if (type === 'shield') {
+            ctx.moveTo(0, -5); ctx.lineTo(4.5, -3.2); ctx.lineTo(3.8, 1.6); ctx.quadraticCurveTo(2.5, 4, 0, 5.5);
+            ctx.quadraticCurveTo(-2.5, 4, -3.8, 1.6); ctx.lineTo(-4.5, -3.2); ctx.closePath();
+        } else if (type === 'speed') {
+            ctx.moveTo(1.5, -5.5); ctx.lineTo(-3.5, 0.8); ctx.lineTo(-0.3, 0.8); ctx.lineTo(-1.5, 5.5); ctx.lineTo(3.5, -1); ctx.lineTo(0.3, -1); ctx.closePath();
+        } else if (type === 'invincible') {
+            for (let i = 0; i < 10; i++) { const a = (i * 36 - 90) * Math.PI / 180, r = i % 2 ? 2.3 : 5.4; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+            ctx.closePath();
+        } else {
+            for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8, r = i % 2 ? 2.6 : 5.6; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+            ctx.closePath();
+        }
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
+
     function drawPowerup(ctx, p, t, o) {
         setDpr(ctx);
         const S = o.CELL;
@@ -743,7 +766,6 @@ const Gfx25 = (() => {
         const k = 1 - Math.min(1, h / 22);
         groundShadow(ctx, gx + 1, gy + 6.5, 7 * k + 1.5, 3.2 * k + 0.8, 0.34 * k + 0.1);
         const col = o.colors[p.type];
-        const icons = { shield: '🛡️', speed: '⚡', invincible: '🌟', clear: '💥' };
         const cx = gx, cy = gy - h;
         glow(ctx, cx, cy, col, 17 + Math.sin(t * 6) * 2, 0.55);
         // rün taşı: döner elmas, iki tonlu yüzeyler
@@ -767,10 +789,7 @@ const Gfx25 = (() => {
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(-7, -7); ctx.lineTo(7, -7); ctx.lineTo(7, 7); ctx.stroke();
         ctx.restore();
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(icons[p.type], cx, cy + 0.5);
+        powerGlyph(ctx, p.type, cx, cy);
     }
 
     function drawPortal(ctx, p, t, o) {
