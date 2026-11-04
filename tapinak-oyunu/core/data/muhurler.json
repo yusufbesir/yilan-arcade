@@ -19,6 +19,11 @@
   "acik": "Boss canı +%30 ve daha hırçın",
   "bonus": 0.2
  },
+ "sis": {
+  "ad": "Sisli Oda",
+  "acik": "Görüş yalnız feneri kadar",
+  "bonus": 0.2
+ },
  "cimri": {
   "ad": "Cimri Kader",
   "acik": "Pazar ve dinlenme odası çıkmaz",

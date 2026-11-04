@@ -15,7 +15,7 @@
   function menuYenile() {
     $('menuKul').textContent = 'Kül: ' + meta.kul + ' · Koşu: ' + meta.kosu + ' · Zafer: ' + meta.zafer + ' · En derin oda: ' + meta.enIyi;
     const y = []; for (const k in meta.yetenek) if (meta.yetenek[k]) y.push(TK.YETENEKLER[k].ad);
-    muhurYenile(); gunlukYenile();
+    muhurYenile(); gunlukYenile(); ozellikYenile();
     $('menuYet').textContent = y.length ? 'Kalıcı yetenekler: ' + y.join(', ') : 'Kalıcı yetenek yok (boss ve gizli odalar yetenek verir)';
   }
   function mirasYenile() {
@@ -47,6 +47,24 @@
     }
   }
   function basla() { Ses.baslat(); s = TK.yeniKosu((Date.now() ^ (Math.random() * 1e9)) >>> 0, meta, muhurSecili); goster(null); }
+  function ozellikYenile() {
+    const kutu = $('ozellikler'); kutu.textContent = '';
+    for (const k in TK.OZELLIKLER) {
+      const o = TK.OZELLIKLER[k], b = document.createElement('button');
+      b.className = 'chip' + (meta.ozellik[k] !== false ? ' on' : ''); b.textContent = o.ad; b.title = o.acik;
+      b.addEventListener('click', () => { meta.ozellik[k] = meta.ozellik[k] === false; TK.mirasKaydet(depo, meta); ozellikYenile(); });
+      kutu.append(b);
+    }
+    const pk = $('provalar'); pk.textContent = '';
+    const acik = Math.min(3, meta.bossOldu);
+    $('provaBaslik').style.display = acik ? '' : 'none';
+    for (let i = 0; i < acik; i++) {
+      const b = document.createElement('button'); b.className = 'chip'; b.textContent = TK.DUSMAN[TK.BIYOMLAR[i].boss].ad;
+      b.title = 'Ödülsüz deneme: Kül %30, istatistik değişmez';
+      b.addEventListener('click', () => { Ses.baslat(); s = TK.bossProvasi(meta, i); goster(null); });
+      pk.append(b);
+    }
+  }
   function gunlukYenile() { const g = meta.gunluk, bugun = TK.gunNo(); $('gunlukYet').textContent = 'Bugünün tohumu ' + bugun + (g && g.gun === bugun ? ' · en iyi: oda ' + g.enIyi : ''); }
   function gunlukBasla() { Ses.baslat(); s = TK.gunlukKosu(meta); goster(null); }
   function bitis() {
@@ -57,6 +75,7 @@
     $('sonAlt').textContent = z ? 'Kül Jarlı yıkıldı. Kırıcı Rün artık seninle.' : 'Fener söndü, ama Kül yolunu bulur.';
     $('sonKul').textContent = '+' + s.kazanc + ' Kül kazandın (toplam ' + meta.kul + ')';
     $('sonYet').textContent = 'Oda: ' + s.derinlik + ' · Öldürülen: ' + s.oldurme + (s.gizliBulundu ? ' · Gizli oda bulundu' : '');
+    if (TK.ozAcik(meta, 'olumRapor')) { const rp = TK.olumRaporu(s); if (rp) $('sonYet').textContent += ' · ' + rp; }
     goster('son');
   }
   function secimGoster() {

@@ -260,10 +260,67 @@ ok('Armağan eşleşmeleri: Tılsım+Kül Emici açlık doldurur, Alev+Çember y
 });
 ok('Miras: Pazarlık Ustası pazar fiyatını düşürür, kayıt doğrulanır', () => {
   const m0 = TK.mirasBos(), m3 = TK.mirasBos(); m3.seviye.pazar = 3;
-  const f = m => TK.odaUret(9, 'pazar', 6, m, null).nesneler.filter(n => n.tur === 'raf').map(n => n.fiyat);
+  const f = m => TK.odaUret(9, 'pazar', 6, m, null).nesneler.filter(n => n.tur === 'raf' && n.alt !== 'sat').map(n => n.fiyat);
   const a = f(m0), b = f(m3);
   assert.ok(a.length === 4 && a.every((v, i) => b[i] < v));
   const d = depo(); d.setItem(TK.KEY, JSON.stringify({ kul: 5, seviye: { pazar: 99 } }));
   assert.strictEqual(TK.mirasYukle(d).seviye.pazar, 0);
+});
+ok('geri alınabilir özellikler: varsayılan açık, kayıt doğrulanır, kapatılınca etkisiz', () => {
+  const m = TK.mirasBos();
+  assert.ok(Object.keys(TK.OZELLIKLER).every(k => m.ozellik[k] === true));
+  const d = depo(); d.setItem(TK.KEY, JSON.stringify({ ozellik: { risk: false, ocak: 'evet', bilinmeyen: false } }));
+  const y = TK.mirasYukle(d); assert.strictEqual(y.ozellik.risk, false); assert.strictEqual(y.ozellik.ocak, true); assert.ok(!('bilinmeyen' in y.ozellik));
+  const sat = (mm, tur) => TK.odaUret(5, tur, 4, mm, null).nesneler.map(n => n.alt || n.tur);
+  assert.ok(sat(m, 'pazar').includes('sat') && sat(m, 'dinlenme').includes('ocak'));
+  const k = TK.mirasBos(); k.ozellik.armaganSatis = false; k.ozellik.ocak = false;
+  assert.ok(!sat(k, 'pazar').includes('sat') && !sat(k, 'dinlenme').includes('ocak'));
+});
+ok('Armağan satışı en zayıf Armağanı geri alır; Köz Ocağı açlık ve suyu doldurur', () => {
+  const s = TK.yeniKosu(3, TK.mirasBos(), null);
+  TK.armaganAl(s, 'kalp', 0); TK.armaganAl(s, 'keskin', 2);
+  const maks = s.p.maxHp; assert.strictEqual(TK.zayifArmagan(s), 'kalp');
+  TK.armaganSat(s, 'kalp'); assert.ok(s.p.maxHp < maks && !s.armagan.kalp && s.armagan.keskin);
+  s.oda = TK.odaUret(2, 'dinlenme', 3, s.meta, null); s.p.x = 11; s.p.y = 8.6; s.p.aclik = 10; s.p.susuz = 10;
+  TK.adim(s, gir(), 1 / 60); assert.ok(s.p.aclik > 90 && s.p.susuz > 90);
+});
+ok('Karşılık: atılımın ilk anında hasar gelirse düşman sersemler, kapatılınca olmaz', () => {
+  for (const acik of [true, false]) {
+    const m = TK.mirasBos(); m.ozellik.karsilik = acik;
+    const s = TK.yeniKosu(4, m, null); const e = temasEnemy('draugr', s.p.x + 1, s.p.y); s.enemies = [e];
+    s.p.dashT = 0.15; TK.oyuncuHasar(s, 10, 'temas');
+    assert.strictEqual(e.sersem > 0, acik); assert.strictEqual(s.p.hp, s.p.maxHp);
+  }
+});
+ok('Ölüm raporu hasar kaynağını ve kesilen düşmanı yazar', () => {
+  const s = TK.yeniKosu(6, TK.mirasBos(), null);
+  TK.oyuncuHasar(s, 12, 'mermi'); s.oldurTip.draugr = 3;
+  const r = TK.olumRaporu(s); assert.ok(r.includes('mermi (12)') && r.includes('Draugr ×3'), r);
+});
+ok('Boss Provası: boss ölünce biter, istatistik ve boss sayacı değişmez', () => {
+  const m = TK.mirasBos(); m.bossOldu = 1; const kosu = m.kosu;
+  const s = TK.bossProvasi(m, 0);
+  assert.strictEqual(s.oda.tur, 'boss'); for (let i = 0; i < 90; i++) TK.adim(s, gir(), 1 / 60);
+  const b = s.enemies.find(e => TK.DUSMAN[e.tip].boss); assert.ok(b);
+  b.dogum = 0; TK.dusmanHasar(s, b, 99999, 0); for (let i = 0; i < 5; i++) TK.adim(s, gir(), 1 / 60);
+  assert.strictEqual(s.bitti, 'zafer'); assert.strictEqual(m.kosu, kosu); assert.strictEqual(m.bossOldu, 1);
+});
+ok('Risk kapısı ve Köz Sınavı: işaretli kapı daha kalabalık oda ve çift Kül verir', () => {
+  let risk = 0, sinav = 0;
+  for (let t = 1; t <= 120; t++) {
+    const s = TK.yeniKosu(t, TK.mirasBos(), null);
+    for (let d = 0; d < 7; d++) {
+      if (s.oda.kapiRisk && s.oda.kapiRisk[0]) { const on = TK.onizle(s, 0); assert.ok(on.risk); }
+      const kapi = s.oda.kapiRisk && s.oda.kapiRisk[1] ? 1 : 0;
+      const r0 = s.oda.kapiRisk && s.oda.kapiRisk[kapi];
+      TK.ilerle(s, kapi);
+      if (r0 && s.oda.tur !== 'boss') { assert.ok(s.oda.risk); risk++; }
+      if (s.oda.sinav) { assert.strictEqual(s.oda.sinavT, 24); sinav++; }
+      if (s.oda.tur === 'boss' || s.derinlik >= 11) break;
+    }
+  }
+  assert.ok(risk > 5 && sinav > 0, 'risk ' + risk + ' sinav ' + sinav);
+  const m = TK.mirasBos(); m.ozellik.risk = false; m.ozellik.kozSinavi = false;
+  for (let t = 1; t <= 40; t++) { const s = TK.yeniKosu(t, m, null); for (let d = 0; d < 6; d++) { TK.ilerle(s, 0); assert.ok(!s.oda.risk && !s.oda.sinav && !(s.oda.kapiRisk[0] || s.oda.kapiRisk[1])); if (s.oda.tur === 'boss') break; } }
 });
 console.log(n + ' test geçti');

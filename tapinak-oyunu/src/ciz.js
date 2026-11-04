@@ -254,6 +254,7 @@ const Ciz = (() => {
   function ikonCiz(c, x, y, on) {
     c.fillStyle = 'rgba(8,5,16,.88)'; c.fillRect(x - 7, y - 6, 14, 12); c.fillRect(x - 8, y - 5, 16, 10);
     const renk = on.tur === 'boss' ? '#ff5d4a' : on.tur === 'dinlenme' ? '#7dffb0' : on.tur === 'pazar' ? '#ffd86b' : on.tur === 'elit' ? '#e07bff' : on.odul === 'armagan' ? '#ffd86b' : '#ffb35a';
+    if (on.risk) { c.strokeStyle = '#ff3b3b'; c.lineWidth = 1; c.strokeRect(x - 8.5, y - 6.5, 17, 13); c.fillStyle = '#ff3b3b'; c.fillRect(x - 8, y - 9, 3, 3); c.fillRect(x + 5, y - 9, 3, 3); }
     c.fillStyle = renk;
     if (on.tur === 'boss') { c.fillRect(x - 3, y - 4, 6, 5); c.fillRect(x - 2, y + 1, 4, 2); c.fillStyle = '#120a1e'; c.fillRect(x - 2, y - 2, 1, 2); c.fillRect(x + 1, y - 2, 1, 2); }
     else if (on.tur === 'dinlenme') { c.fillRect(x - 1, y - 5, 2, 2); c.fillRect(x - 2, y - 3, 4, 3); c.fillRect(x - 3, y, 6, 3); }
@@ -327,11 +328,14 @@ const Ciz = (() => {
       c.fillStyle = '#4a4560'; c.fillRect(px - 9, py - 5, 18, 5); c.fillStyle = n.aktif ? '#4dd9ff' : '#2f4f6a'; c.fillRect(px - 7, py - 6, 14, 2); if (n.aktif) { c.fillStyle = '#d9f6ff'; c.fillRect(px - 2 + Math.round(Math.sin(sure * 4)) * 2, py - 6, 2, 1); }
     } else if (n.tur === 'ziyafet') {
       c.fillStyle = '#5a3a22'; c.fillRect(px - 9, py - 6, 18, 5); c.fillStyle = n.aktif ? '#c04a2a' : '#4a3a32'; c.fillRect(px - 6, py - 9, 5, 3); c.fillStyle = n.aktif ? '#e8c070' : '#4a3a32'; c.fillRect(px + 1, py - 8, 6, 2);
+    } else if (n.tur === 'ocak') {
+      c.fillStyle = '#3a3040'; c.fillRect(px - 8, py - 4, 16, 4); c.fillStyle = '#6a5a70'; c.fillRect(px - 6, py - 6, 12, 2);
+      c.fillStyle = '#ff7a2c'; c.fillRect(px - 3, py - 10 + Math.round(Math.sin(sure * 9)), 6, 4); c.fillStyle = '#ffd86b'; c.fillRect(px - 1, py - 12 + Math.round(Math.sin(sure * 7)), 2, 3);
     } else if (n.tur === 'et') { c.fillStyle = '#c04a2a'; c.fillRect(px - 3, py - 6 + yuk, 6, 4); c.fillStyle = '#f4e6c8'; c.fillRect(px + 3, py - 5 + yuk, 3, 2); }
     else if (n.tur === 'su') { c.fillStyle = '#4dd9ff'; c.fillRect(px - 2, py - 7 + yuk, 4, 6); c.fillStyle = '#d9f6ff'; c.fillRect(px - 1, py - 8 + yuk, 2, 1); }
     else if (n.tur === 'raf') {
       c.fillStyle = '#4a3a2a'; c.fillRect(px - 8, py - 5, 16, 5); c.fillStyle = '#6a5238'; c.fillRect(px - 8, py - 6, 16, 2);
-      const ik = { sifa: '#ff5d7a', yem: '#7dffb0', armagan: '#ffd86b', koz: '#ffcf7a' }[n.alt]; c.fillStyle = ik; c.fillRect(px - 3, py - 14 + yuk, 6, 6); c.fillStyle = '#fff'; c.fillRect(px - 1, py - 13 + yuk, 2, 2);
+      const ik = { sifa: '#ff5d7a', yem: '#7dffb0', armagan: '#ffd86b', koz: '#ffcf7a', sat: '#b69cff' }[n.alt]; c.fillStyle = ik; c.fillRect(px - 3, py - 14 + yuk, 6, 6); c.fillStyle = '#fff'; c.fillRect(px - 1, py - 13 + yuk, 2, 2);
     }
     void s; void tx;
   }
@@ -365,6 +369,9 @@ const Ciz = (() => {
     c.save(); c.globalCompositeOperation = 'multiply';
     const v = c.createRadialGradient(LW / 2, OY + 6 * TH, 60, LW / 2, OY + 6 * TH, 310); v.addColorStop(0, 'rgba(255,255,255,1)'); v.addColorStop(0.7, 'rgba(200,200,210,1)'); v.addColorStop(1, P.sis); c.fillStyle = v; c.fillRect(0, 0, LW, LH);
     c.restore();
+    if (s.muhur && s.muhur.sis) { // Sisli Oda Mührü: görüş feneri kadar
+      c.save(); const sg = c.createRadialGradient(px, py, 28, px, py, 120); sg.addColorStop(0, 'rgba(4,2,10,0)'); sg.addColorStop(1, 'rgba(4,2,10,.97)'); c.fillStyle = sg; c.fillRect(0, 0, LW, LH); c.restore();
+    }
   }
   function bar(c, x, y, w, h, oran, a, b) { c.fillStyle = '#12081a'; c.fillRect(x, y, w, h); const g = c.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, a); g.addColorStop(1, b); c.fillStyle = g; c.fillRect(x, y, w * Math.max(0, Math.min(1, oran)), h); }
   function hud(c, s) {
@@ -393,7 +400,9 @@ const Ciz = (() => {
     if (j) { c.fillStyle = 'rgba(8,5,16,.8)'; c.fillRect(CW / 2 - 232, CH - 40, 464, 22); bar(c, CW / 2 - 226, CH - 34, 452, 10, j.hp / j.maxHp, '#7a1a14', '#ff5d4a'); c.fillStyle = '#ffd9d0'; c.font = '11px Georgia,serif'; c.textAlign = 'center'; c.fillText(TK.DUSMAN[j.tip].ad.toUpperCase(), CW / 2, CH - 46); c.textAlign = 'left'; }
     if (s.oda.tur === 'baslangic' && s.zaman < 14) { c.fillStyle = 'rgba(8,5,16,.7)'; c.fillRect(CW / 2 - 330, CH - 52, 660, 30); c.fillStyle = '#e8dcc0'; c.font = '13px Georgia,serif'; c.textAlign = 'center'; c.fillText('WASD hareket · Fare nişan · Sol tık/Boşluk savur · Sağ tık/E köz at · Shift atılım · Kapıya yürü', CW / 2, CH - 36); c.textAlign = 'left'; }
     if (s.oda.gizli && s.oda.temiz && s.oda.grid[6][0] === T.CATLAK) { c.fillStyle = 'rgba(255,217,160,' + (0.5 + 0.3 * Math.sin(sure * 4)) + ')'; c.font = '11px Georgia,serif'; c.fillText(s.meta.yetenek.kirik ? 'çatlak duvar: savur!' : 'çatlak duvar: Kırıcı Rün gerek', sx(1) * 2, sy(5.2) * 2); }
-    for (const n of s.oda.nesneler) if (n.tur === 'raf' && n.aktif) { c.textAlign = 'center'; c.fillStyle = s.kul >= n.fiyat ? '#ffd86b' : '#ff9a7a'; c.font = '11px Georgia,serif'; c.fillText(n.ad + ' · ' + n.fiyat + ' Kül', sx(n.x) * 2, sy(n.y) * 2 + 18); c.textAlign = 'left'; }
+    for (const n of s.oda.nesneler) if (n.tur === 'raf' && n.aktif) { c.textAlign = 'center'; c.fillStyle = s.kul >= n.fiyat ? '#ffd86b' : '#ff9a7a'; c.font = '11px Georgia,serif'; c.fillText(n.alt === 'sat' ? n.ad + ' · +' + n.kazanc + ' Kül' : n.ad + ' · ' + n.fiyat + ' Kül', sx(n.x) * 2, sy(n.y) * 2 + 18); c.textAlign = 'left'; }
+    if (s.oda.sinav && !s.oda.temiz) { c.textAlign = 'center'; c.fillStyle = s.oda.sinavT > 0 ? '#ffd86b' : '#9d92b8'; c.font = 'bold 14px Georgia,serif'; c.fillText(s.oda.sinavT > 0 ? 'KÖZ SINAVI  ' + Math.ceil(s.oda.sinavT) : 'Köz Sınavı bitti', CW / 2, 20); c.textAlign = 'left'; }
+    if (s.oda.risk && !s.oda.temiz) { c.textAlign = 'center'; c.fillStyle = '#ff6a5a'; c.font = '11px Georgia,serif'; c.fillText('LANETLİ ODA · Kül x2', CW / 2, s.oda.sinav ? 38 : 20); c.textAlign = 'left'; }
     if (afisT > 0 && afis) { const al = Math.min(1, afisT * 1.2); c.globalAlpha = al; c.textAlign = 'center'; c.fillStyle = '#ffd86b'; c.font = 'bold 30px Georgia,serif'; c.shadowColor = '#000'; c.shadowBlur = 8; c.fillText(afis[0], CW / 2, 210); c.fillStyle = '#e8dcc0'; c.font = 'italic 17px Georgia,serif'; c.fillText(afis[1], CW / 2, 238); c.shadowBlur = 0; c.textAlign = 'left'; c.globalAlpha = 1; }
   }
 

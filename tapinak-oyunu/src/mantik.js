@@ -58,6 +58,7 @@
     hizli: { ad: 'Hızlı Ordu', acik: 'Düşman hızı +%15', bonus: 0.15 },
     kitlik: { ad: 'Kıtlık', acik: 'Açlık/susuzluk %60 hızlı, az yiyecek', bonus: 0.2 },
     kral: { ad: 'Kor Kral', acik: 'Boss canı +%30 ve daha hırçın', bonus: 0.2 },
+    sis: { ad: 'Sisli Oda', acik: 'Görüş yalnız feneri kadar', bonus: 0.2 },
     cimri: { ad: 'Cimri Kader', acik: 'Pazar ve dinlenme odası çıkmaz', bonus: 0.25 }
   };
   const MIRAS = {
@@ -70,6 +71,17 @@
     pazar: { ad: 'Pazarlık Ustası', acik: 'Pazar fiyatları %8 ucuz', maks: 3, maliyet: n => 40 + 30 * n },
     iase: { ad: 'Dayanıklı Mide', acik: 'Açlık ve susuzluk %15 yavaş', maks: 3, maliyet: n => 45 + 35 * n }
   };
+  // Geri alınabilir özellikler: menüden tek tek kapatılır (kayıt: meta.ozellik, varsayılan hepsi açık).
+  const OZELLIKLER = {
+    kozSinavi: { ad: 'Köz Sınavı', acik: 'Bazı savaş odalarını 24 sn içinde temizlersen Nadir Armağan' },
+    ocak: { ad: 'Köz Ocağı', acik: 'Dinlenme odasında tek yemek: açlık ve su birlikte dolar' },
+    olumRapor: { ad: 'Ölüm raporu', acik: 'Koşu bitince en çok can alan ve en çok kesilen' },
+    risk: { ad: 'Risk kapısı', acik: 'Bazı kapılar lanetli: %30 fazla düşman, Kül iki kat' },
+    diyarSablon: { ad: 'Diyara özel odalar', acik: 'Her diyar kendi şablonlarını daha sık çıkarır' },
+    armaganSatis: { ad: 'Armağan satışı', acik: 'Pazarda en zayıf Armağanı 35 Kül karşılığı bırak' },
+    karsilik: { ad: 'Karşılık', acik: 'Atılımın ilk anında hasar gelirse yakındaki düşmanlar sersemler' }
+  };
+  const ozAcik = (m, k) => !m || !m.ozellik || m.ozellik[k] !== false;
   const YETENEKLER = {
     kirik: { ad: 'Kırıcı Rün', acik: 'Savurma çatlak duvarları kırar' },
     sicrama: { ad: 'Gölge Atılımı', acik: 'Atılım uçurumun üzerinden geçer' }
@@ -92,7 +104,7 @@
   // ---------- Miras (kalıcı ilerleme) ----------
   function mirasBos() {
     const s = {}; for (const k in MIRAS) s[k] = 0;
-    return { kul: 0, seviye: s, yetenek: { kirik: false, sicrama: false }, kosu: 0, enIyi: 0, zafer: 0, bossOldu: 0, gunluk: { gun: 0, enIyi: 0 } };
+    return { kul: 0, seviye: s, yetenek: { kirik: false, sicrama: false }, kosu: 0, enIyi: 0, zafer: 0, bossOldu: 0, gunluk: { gun: 0, enIyi: 0 }, ozellik: Object.fromEntries(Object.keys(OZELLIKLER).map(k => [k, true])) };
   }
   function mirasYukle(depo) {
     const m = mirasBos();
@@ -103,6 +115,7 @@
       for (const k in m.seviye) { const v = o.seviye && o.seviye[k]; if (Number.isInteger(v) && v >= 0 && v <= MIRAS[k].maks) m.seviye[k] = v; }
       for (const k in m.yetenek) m.yetenek[k] = !!(o.yetenek && o.yetenek[k]);
       for (const k of ['kosu', 'enIyi', 'zafer', 'bossOldu']) if (Number.isInteger(o[k]) && o[k] >= 0 && o[k] < 1e6) m[k] = o[k];
+      if (o.ozellik && typeof o.ozellik === 'object') for (const k in OZELLIKLER) if (typeof o.ozellik[k] === 'boolean') m.ozellik[k] = o.ozellik[k];
       const g = o.gunluk;
       if (g && Number.isInteger(g.gun) && g.gun >= 0 && g.gun < 1e8 && Number.isInteger(g.enIyi) && g.enIyi >= 0 && g.enIyi <= 99) m.gunluk = { gun: g.gun, enIyi: g.enIyi };
     } catch (e) { /* bozuk kayıt: boş başla */ }
@@ -179,11 +192,12 @@
     const tip = biyom === 0 ? T.SIVRI : biyom === 1 ? T.LAV : (r() < 0.5 ? T.SIVRI : T.LAV);
     for (let i = 0; i < say; i++) { const cx = 3 + Math.floor(r() * 16), cy = 3 + Math.floor(r() * 8); for (const [dx, dy] of [[0, 0], [1, 0], [0, 1]]) if (g[cy + dy] && g[cy + dy][cx + dx] === T.ZEMIN) koy(g, cx + dx, cy + dy, tip); }
   }
-  function sablonUret(r, biyom, bolum, gecmis) {
+  function sablonUret(r, biyom, bolum, gecmis, agirlik) {
     for (let deneme = 0; deneme < 10; deneme++) {
       let ad;
       let adaylar = SABLON_ADLARI.filter(a => !gecmis.slice(-3).includes(a));
       if (biyom === 0) adaylar = adaylar.filter(a => a !== 'sivriAlan' || bolum > 0);
+      if (agirlik && adaylar.length) { const tercih = [['sivriAlan', 'koridor'], ['nehir', 'ada'], ['kume', 'halka']][biyom]; adaylar = adaylar.concat(tercih.filter(a => adaylar.includes(a))); }
       ad = sec(r, adaylar.length ? adaylar : SABLON_ADLARI);
       const g = izgara();
       SABLONLAR[ad](g, r, hazardSec(r, biyom));
@@ -248,7 +262,7 @@
       if (derinlik < SON_DERINLIK) for (const x of KAPI_X) g[0][x] = T.KAPIK;
       return oda;
     }
-    const sb = tur === 'dinlenme' || tur === 'pazar' || tur === 'baslangic' ? { g: izgara(), ad: tur === 'baslangic' ? 'acik' : 'duz' } : sablonUret(r, bi, bolum, gecmis.sablon);
+    const sb = tur === 'dinlenme' || tur === 'pazar' || tur === 'baslangic' ? { g: izgara(), ad: tur === 'baslangic' ? 'acik' : 'duz' } : sablonUret(r, bi, bolum, gecmis.sablon, !!meta && ozAcik(meta, 'diyarSablon'));
     if (tur === 'baslangic') SABLONLAR.acik(sb.g, r);
     const g = sb.g; oda.grid = g; oda.sablon = sb.ad;
     // uçurum cebi + sandık (Gölge Atılımı gerekir)
@@ -260,10 +274,11 @@
     if ((tur === 'savas' || tur === 'elit') && derinlik >= 1 && (derinlik === 2 || r() < 0.25)) { g[6][0] = T.CATLAK; oda.gizli = true; }
     // lanetli sandık
     if (tur === 'savas' && derinlik >= 3 && r() < 0.18) oda.nesneler.push({ tur: 'lanet', x: 17.5, y: 11, aktif: true });
-    if (tur === 'dinlenme') { oda.nesneler.push({ tur: 'cesme', x: 9, y: 6.5, aktif: true }); oda.nesneler.push({ tur: 'ziyafet', x: 13, y: 6.5, aktif: true }); }
+    if (tur === 'dinlenme') { oda.nesneler.push({ tur: 'cesme', x: 9, y: 6.5, aktif: true }); oda.nesneler.push({ tur: 'ziyafet', x: 13, y: 6.5, aktif: true }); if (meta && ozAcik(meta, 'ocak')) oda.nesneler.push({ tur: 'ocak', x: 11, y: 8.6, aktif: true }); }
     if (tur === 'pazar') {
       const r2 = [['sifa', 'Şifa', 30], ['yem', 'Yemek ve su', 20], ['armagan', 'Armağan', 70], ['koz', '+1 köz yükü', 55]];
       r2.forEach((u, i) => oda.nesneler.push({ tur: 'raf', alt: u[0], ad: u[1], fiyat: Math.max(1, Math.round((u[2] + Math.floor(derinlik * 2)) * (1 - 0.08 * ((meta && meta.seviye && meta.seviye.pazar) || 0)))), x: 6 + i * 3.4, y: 6.5, aktif: true }));
+      if (meta && ozAcik(meta, 'armaganSatis')) oda.nesneler.push({ tur: 'raf', alt: 'sat', ad: 'Armağanı bırak', fiyat: 0, kazanc: 35, x: 19.6, y: 6.5, aktif: true });
     }
     if (derinlik < SON_DERINLIK) for (const x of KAPI_X) g[0][x] = T.KAPIK;
     if (tur === 'savas' || tur === 'elit') {
@@ -297,7 +312,7 @@
     const s = {
       seed, rnd, meta: m, muhur: mh, derinlik: 0, olaylar: [], zaman: 0, bitti: null, secim: null, kul: 0, oldurme: 0,
       armagan: {}, kullanilanSans: false, enemies: [], mermiler: [], tuzaklar: [], ustOda: null, gizliBulundu: false,
-      p: null, oda: null, odaSayac: 0, gecmis: { sablon: [], kadro: [] }, kozElde: 0
+      hasarKaynak: {}, oldurTip: {}, p: null, oda: null, odaSayac: 0, gecmis: { sablon: [], kadro: [] }, kozElde: 0
     };
     const g = m.seviye;
     s.p = {
@@ -331,6 +346,31 @@
     if (id === 'kalp') { const k = Math.round(25 * guc); s.p.maxHp += k; s.p.hp = Math.min(s.p.maxHp, s.p.hp + k); }
     if (id === 'kivilcim') { const k = nadir >= 1 ? 2 : 1; s.p.kozMaks += k; s.p.kozYuk += k; }
   }
+  function zayifArmagan(s) { let id = null, v = 1e9; for (const k in s.armagan) if (s.armagan[k] > 0 && s.armagan[k] < v) { v = s.armagan[k]; id = k; } return id; }
+  function armaganSat(s, id) {
+    const guc = s.armagan[id]; delete s.armagan[id];
+    if (id === 'kalp') { const k = Math.round(25 * guc); s.p.maxHp = Math.max(100 + 10 * s.meta.seviye.zirh, s.p.maxHp - k); s.p.hp = Math.min(s.p.hp, s.p.maxHp); }
+    if (id === 'kivilcim') { const k = Math.max(1, Math.round(guc)); s.p.kozMaks = Math.max(2 + s.meta.seviye.koz, s.p.kozMaks - k); s.p.kozYuk = Math.min(s.p.kozYuk, s.p.kozMaks); }
+  }
+  const HASAR_AD = { temas: 'dokunuş', mermi: 'mermi', tuzak: 'tuzak', lav: 'lav', diken: 'diken', patlama: 'patlama' };
+  function olumRaporu(s) {
+    const en = o => Object.entries(o).sort((a, b) => b[1] - a[1])[0];
+    const h = en(s.hasarKaynak), k = en(s.oldurTip), r = [];
+    if (h) r.push('En çok can alan: ' + (HASAR_AD[h[0]] || h[0]) + ' (' + Math.round(h[1]) + ')');
+    if (k) r.push('En çok kesilen: ' + DUSMAN[k[0]].ad + ' ×' + k[1]);
+    return r.join(' · ');
+  }
+  // Boss Provası: yenilmiş bir boss ile tek odalık deneme (ödül yok, Kül %30, istatistik değişmez).
+  function bossProvasi(meta, bi, seed) {
+    const s = yeniKosu(seed === undefined ? 4242 + bi : seed, meta, null);
+    s.prova = true; s.derinlik = 4 * (bi + 1) - 1;
+    for (let i = 0; i < 2 + 2 * bi; i++) rastgeleArmagan(s);
+    const oda = odaUret(s.seed + 7, 'boss', 4 * (bi + 1), meta, s.gecmis);
+    oda.kapiTur = ['savas', 'savas']; oda.kapiRisk = [false, false];
+    s.derinlik = 4 * (bi + 1);
+    odayaGir(s, oda, { x: 11, y: 12 });
+    return s;
+  }
   const hasarCarpan = s => (1 + 0.08 * s.meta.seviye.guc) * (1 + 0.2 * (s.armagan.keskin || 0)) * (s.p.aclik < 25 ? 0.85 : 1);
   const hizCarpan = s => (1 + 0.12 * (s.armagan.ruzgar || 0)) * (s.p.susuz < 25 ? 0.88 : 1);
   const swingCd = s => 0.4 * Math.pow(0.85, s.armagan.bilek || 0);
@@ -362,7 +402,13 @@
   // ---------- Hasar ----------
   function oyuncuHasar(s, d, kaynak) {
     const p = s.p;
+    if (p.dashT > 0.08 && !s.bitti && ozAcik(s.meta, 'karsilik') && s.zaman - (p.karsT === undefined ? -9 : p.karsT) > 1) {
+      p.karsT = s.zaman; let n = 0;
+      for (const e of s.enemies) if (!e.olu && e.dogum <= 0 && mesafe(e, p) < 2.5) { e.sersem = DUSMAN[e.tip].boss ? 0.6 : 1.2; n++; }
+      olay(s, 'karsilik', { x: p.x, y: p.y, n });
+    }
     if (p.inv > 0 || p.dashT > 0 || s.bitti) return;
+    s.hasarKaynak[kaynak] = (s.hasarKaynak[kaynak] || 0) + d;
     p.hp -= d; p.inv = 0.8;
     olay(s, 'hasar', { x: p.x, y: p.y, d, kaynak });
     if (p.hp <= 0) {
@@ -388,7 +434,8 @@
     if (e.olu) return;
     e.olu = true; s.oldurme++;
     const tn = DUSMAN[e.tip];
-    const kazan = Math.round(tn.kul * (e.mini ? 0.4 : 1) * (e.etki ? 1.6 : 1) * (1 + 0.15 * s.meta.seviye.kul));
+    const kazan = Math.round(tn.kul * (e.mini ? 0.4 : 1) * (e.etki ? 1.6 : 1) * (s.oda.risk ? 2 : 1) * (1 + 0.15 * s.meta.seviye.kul));
+    s.oldurTip[e.tip] = (s.oldurTip[e.tip] || 0) + 1;
     s.kul += kazan;
     if (s.armagan.kan) { s.p.hp = Math.min(s.p.maxHp, s.p.hp + 2 * s.armagan.kan); if (s.armagan.tilsim) { s.p.aclik = Math.min(100, s.p.aclik + 2); s.p.susuz = Math.min(100, s.p.susuz + 2); } }
     olay(s, 'oldu', { x: e.x, y: e.y, tip: e.tip, kul: kazan });
@@ -414,7 +461,7 @@
   // Kapı önizlemesi her karede çağrılır: oda başına kapı başına bir kez üretilir (oda nesnesine bağlı önbellek).
   function onizle(s, kapi) {
     const oc = s.oda._onizle || (s.oda._onizle = {});
-    if (!oc[kapi]) { const o = sonrakiOda(s, kapi); oc[kapi] = { tur: o.tur, odul: o.odul, biyom: o.biyom }; }
+    if (!oc[kapi]) { const o = sonrakiOda(s, kapi); oc[kapi] = { tur: o.tur, odul: o.odul, biyom: o.biyom, risk: !!(s.oda.kapiRisk && s.oda.kapiRisk[kapi]) }; }
     return oc[kapi];
   }
   function ilerle(s, kapi) {
@@ -423,6 +470,15 @@
     if (oda.sablon && oda.sablon !== 'duz' && oda.sablon !== 'boss') s.gecmis.sablon.push(oda.sablon);
     if (oda.kadro) s.gecmis.kadro.push(oda.kadro);
     oda.kapiTur = kapiTurleri(s.rnd, s.derinlik, s.muhur);
+    // Risk kapısı: önceki odadaki lanetli kapıdan girildiyse bu oda daha kalabalık, Kül iki kat
+    const riskli = s.oda.kapiRisk && s.oda.kapiRisk[kapi] && (oda.tur === 'savas' || oda.tur === 'elit');
+    if (riskli) { oda.risk = true; for (const w of oda.dalgalar) { const n = Math.ceil(w.length * 0.3); for (let i = 0; i < n && w[i]; i++) w.push({ tip: w[i].tip, rol: w[i].rol }); } }
+    else if (ozAcik(s.meta, 'kozSinavi') && oda.tur === 'savas' && s.derinlik >= 3 && s.rnd() < 0.15) { oda.sinav = true; oda.sinavT = 24; }
+    oda.kapiRisk = [false, false];
+    if (ozAcik(s.meta, 'risk') && s.derinlik >= 2 && !bossMu(s.derinlik + 1)) {
+      for (const i of [0, 1]) if ((oda.kapiTur[i] === 'savas' || oda.kapiTur[i] === 'elit') && s.rnd() < 0.3) oda.kapiRisk[i] = true;
+      if (oda.kapiRisk[0] && oda.kapiRisk[1]) oda.kapiRisk[1] = false;
+    }
     if (oda.biyom !== s.oda.biyom) { s.p.aclik = Math.min(100, s.p.aclik + 35); s.p.susuz = Math.min(100, s.p.susuz + 35); }
     odayaGir(s, oda, { x: 11, y: 12 });
   }
@@ -458,14 +514,17 @@
     const o = s.oda;
     o.temiz = true;
     if (o.tur === 'boss') {
+      if (s.prova) { bitir(s, 'zafer'); return; }
       s.meta.yetenek.kirik = true; s.meta.bossOldu++;
       if (o.derinlik >= SON_DERINLIK) { s.meta.zafer++; bitir(s, 'zafer'); return; }
       olay(s, 'bossOldu', { biyom: o.biyom });
       s.p.hp = Math.min(s.p.maxHp, s.p.hp + Math.ceil(s.p.maxHp * 0.3));
     }
     for (const x of KAPI_X) if (o.grid[0][x] === T.KAPIK) o.grid[0][x] = T.KAPI;
-    if (o.odul === 'armagan') o.nesneler.push({ tur: 'sunak', alt: 'armagan', x: 11, y: 5.5, aktif: true, min: o.tur === 'elit' || o.tur === 'boss' ? 1 : 0 });
-    if (o.odul === 'kul') { const k = 25 + o.derinlik * 10; s.kul += k; olay(s, 'kul', { x: 11, y: 6, kul: k }); }
+    let min = o.tur === 'elit' || o.tur === 'boss' ? 1 : 0;
+    if (o.sinav) { if (o.sinavT > 0) { o.odul = 'armagan'; min = Math.max(min, 1); olay(s, 'sinavGecti'); } else olay(s, 'sinavKaldi'); }
+    if (o.odul === 'armagan') o.nesneler.push({ tur: 'sunak', alt: 'armagan', x: 11, y: 5.5, aktif: true, min });
+    if (o.odul === 'kul') { const k = (25 + o.derinlik * 10) * (o.risk ? 2 : 1); s.kul += k; olay(s, 'kul', { x: 11, y: 6, kul: k }); }
     if (o.tur === 'elit') { const k = 30 + o.derinlik * 8; s.kul += k; olay(s, 'kul', { x: 11, y: 6, kul: k }); }
     olay(s, 'temiz');
   }
@@ -474,9 +533,10 @@
     s.bitti = durum;
     const m = s.meta;
     const bonus = Object.keys(s.muhur).reduce((a, k) => a + MUHURLER[k].bonus, 0);
-    const kazanc = Math.round((s.kul + (durum === 'zafer' ? 80 : 0)) * (1 + bonus));
+    const kazanc = s.prova ? Math.round(s.kul * 0.3) : Math.round((s.kul + (durum === 'zafer' ? 80 : 0)) * (1 + bonus));
     s.kazanc = kazanc;
-    m.kul += kazanc; m.kosu++; m.enIyi = Math.max(m.enIyi, s.derinlik);
+    m.kul += kazanc;
+    if (!s.prova) { m.kosu++; m.enIyi = Math.max(m.enIyi, s.derinlik); }
     olay(s, durum);
   }
 
@@ -566,6 +626,7 @@
         for (const e of s.enemies) if (!e.olu && e.dogum <= 0 && Math.hypot(e.x - cx, e.y - cy) < e.r + 0.3 && s.zaman - (e.cemberT || -9) > 0.5) { e.cemberT = s.zaman; dusmanHasar(s, e, 8 * hasarCarpan(s), a); if (s.armagan.alev) e.yanik = 3; }
       }
     }
+    if (o.sinav && !o.temiz && o.sinavT > 0) o.sinavT -= dt;
     // dalgalar
     if ((o.tur === 'savas' || o.tur === 'boss' || o.tur === 'elit') && !o.temiz) {
       const canli = s.enemies.filter(e => !e.olu).length;
@@ -623,6 +684,7 @@
       if (n.tur === 'sandik') { n.aktif = false; s.kul += n.kul; olay(s, 'kul', { x: n.x, y: n.y, kul: n.kul }); }
       else if (n.tur === 'cesme') { n.aktif = false; p.hp = Math.min(p.maxHp, p.hp + Math.ceil(p.maxHp * 0.4)); p.susuz = 100; olay(s, 'iyiles', { x: n.x, y: n.y }); }
       else if (n.tur === 'ziyafet') { n.aktif = false; p.aclik = 100; p.hp = Math.min(p.maxHp, p.hp + 10); olay(s, 'iyiles', { x: n.x, y: n.y }); }
+      else if (n.tur === 'ocak') { n.aktif = false; p.aclik = 100; p.susuz = 100; p.hp = Math.min(p.maxHp, p.hp + 10); olay(s, 'iyiles', { x: n.x, y: n.y }); }
       else if (n.tur === 'et') { n.aktif = false; p.aclik = Math.min(100, p.aclik + 32); olay(s, 'yedi', { x: n.x, y: n.y }); }
       else if (n.tur === 'su') { n.aktif = false; p.susuz = Math.min(100, p.susuz + 32); olay(s, 'yedi', { x: n.x, y: n.y }); }
       else if (n.tur === 'lanet') { n.aktif = false; p.hp = Math.max(1, p.hp - Math.ceil(p.maxHp * 0.25)); olay(s, 'lanet', { x: n.x, y: n.y }); s.secim = { tur: 'armagan', secenekler: armaganSecenekleri(s, 1) }; }
@@ -630,6 +692,10 @@
       else if (n.tur === 'sunak' && n.alt === 'yetenek') {
         n.aktif = false;
         if (!s.meta.yetenek.sicrama) { s.meta.yetenek.sicrama = true; olay(s, 'yetenek', { id: 'sicrama' }); } else { s.kul += 80; olay(s, 'kul', { x: n.x, y: n.y, kul: 80 }); }
+      } else if (n.tur === 'raf' && n.alt === 'sat') {
+        const id = zayifArmagan(s);
+        if (!id) { if (s.zaman - (n.uyari || -9) > 1.5) { n.uyari = s.zaman; olay(s, 'yetmez', { x: n.x, y: n.y }); } continue; }
+        armaganSat(s, id); s.kul += n.kazanc; n.aktif = false; olay(s, 'satin', { x: n.x, y: n.y }); olay(s, 'kul', { x: n.x, y: n.y, kul: n.kazanc });
       } else if (n.tur === 'raf') {
         if (s.kul < n.fiyat) { if (s.zaman - (n.uyari || -9) > 1.5) { n.uyari = s.zaman; olay(s, 'yetmez', { x: n.x, y: n.y }); } continue; }
         s.kul -= n.fiyat; n.aktif = false; olay(s, 'satin', { x: n.x, y: n.y });
@@ -646,6 +712,7 @@
     const p = s.p, tn = DUSMAN[e.tip];
     e.flas = Math.max(0, e.flas - dt);
     if (e.dogum > 0) { e.dogum -= dt; return; }
+    if (e.sersem > 0) { e.sersem -= dt; e.flas = 0.06; return; }
     if (e.yanik > 0) { e.yanik -= dt; e.hp -= 5 * dt; if (e.hp <= 0) { oldur(s, e); return; } }
     if (e.hizliT > 0) e.hizliT -= dt;
     if (Math.abs(e.kx) + Math.abs(e.ky) > 0.05) { hareket(s, e, e.kx * dt, e.ky * dt); e.kx *= Math.pow(0.001, dt); e.ky *= Math.pow(0.001, dt); }
@@ -807,5 +874,5 @@
     return true;
   }
 
-  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, gunNo, gunlukKosu, gunlukKaydet, armaganAcik, ARMAGAN_SIRA, ESLESME, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
+  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, oyuncuHasar, OZELLIKLER, ozAcik, olumRaporu, bossProvasi, zayifArmagan, armaganSat, gunNo, gunlukKosu, gunlukKaydet, armaganAcik, ARMAGAN_SIRA, ESLESME, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
 });
