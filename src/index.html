@@ -1362,6 +1362,51 @@
         .miras-bar div, .level-btn, .overlay-btn, .back-button, .panel .toggle, .dpad-btn { transition: none; }
     }
     html.reduced .level-btn:hover:not(.locked), html.reduced .overlay-btn:hover, html.reduced .back-button:hover { transform: none; }
+
+    /* =====================================================================
+       Menü yeniden tasarımı (0.9.3): Hades / Hollow Knight esinli kısa dikey liste.
+       Tek vurgu rengi altın, serif italik başlıklar, çizimli tek renkli ikonlar.
+       Ana menüde 5 büyük seçenek; tüm modlar "Modlar" ekranında gruplu ızgarada.
+       ===================================================================== */
+    #menuScreen { width: min(94vw, 640px); }
+    .menu-container { display: flex; flex-direction: column; gap: 14px; padding: 4px; }
+    .menu-list { display: flex; flex-direction: column; gap: 8px; }
+    .menu-container .mode-card, .modes-wrap .mode-card {
+        display: flex; flex-direction: row; align-items: center; gap: 14px; min-width: 0;
+        border: 1px solid rgba(232,196,106,0.18); border-left: 3px solid rgba(232,196,106,0.45); border-radius: 12px;
+        background: linear-gradient(90deg, rgba(10,18,32,0.62), rgba(10,18,32,0.34));
+        padding: 12px 16px; margin: 0; cursor: pointer;
+        transition: background .15s, border-color .15s, transform .15s;
+    }
+    .menu-container .mode-card:hover, .menu-container .mode-card:focus-visible,
+    .modes-wrap .mode-card:hover, .modes-wrap .mode-card:focus-visible {
+        background: linear-gradient(90deg, rgba(232,196,106,0.20), rgba(232,196,106,0.06));
+        border-color: #e8c46a; transform: translateX(4px); outline: none;
+    }
+    .menu-container .mode-card.classic { padding: 20px 20px; border-left-width: 4px; border-color: #e8c46a; background: linear-gradient(90deg, rgba(232,196,106,0.26), rgba(232,196,106,0.07)); }
+    .menu-container .mode-card.classic .mi-tx b { font-size: 34px; }
+    .menu-container .mode-card.classic .mi-ik { width: 40px; height: 40px; }
+    .mi-ik { flex: none; width: 28px; height: 28px; color: #e8c46a; display: inline-flex; }
+    .mi-ik .ik { width: 100%; height: 100%; fill: currentColor; stroke: none; }
+    .mi-tx { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
+    .mi-tx b { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 22px; letter-spacing: .5px; color: #f1dca0; line-height: 1.15; }
+    .mi-tx em { font-family: var(--serif); font-style: normal; font-size: 13px; color: var(--yz3); line-height: 1.3; }
+    .mi-sag { flex: none; font-family: var(--serif); font-size: 13px; color: var(--yz3); white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
+    .menu-container .mode-card .mi-sag { font-size: 14px; color: #e8c46a; }
+    .menu-container .menu-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
+    .menu-container .menu-btn { font-family: var(--serif); font-size: 13px; padding: 10px 6px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; min-width: 0; letter-spacing: 0; text-transform: none; }
+    .menu-container .menu-btn .ik { width: 14px; height: 14px; fill: currentColor; }
+    .menu-container .controls-help { opacity: .55; font-size: 10px; margin-top: 2px; }
+    .modes-wrap { display: flex; flex-direction: column; gap: 18px; width: 100%; margin: 0 auto 16px; }
+    .modes-wrap .mi-sag { flex-direction: column; align-items: flex-end; gap: 4px; }
+    #modesScreen { width: min(94vw, 860px); }
+    .mod-grup h3 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 18px; color: #e8c46a; letter-spacing: 2px; margin: 0 0 8px 4px; padding-bottom: 6px; border-bottom: 1px solid rgba(232,196,106,0.25); }
+    .mod-izgara { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 8px; }
+    .modes-wrap .mi-tx b { font-size: 18px; }
+    .modes-wrap .mode-card .tron-2p { font-family: var(--serif); font-size: 11px; padding: 3px 8px; }
+    @media (max-width: 520px) { .menu-container .menu-actions { grid-template-columns: repeat(2, 1fr); } .mi-tx b { font-size: 19px; } .menu-container .mode-card.classic .mi-tx b { font-size: 28px; } }
+    html.reduced .menu-container .mode-card, html.reduced .modes-wrap .mode-card { transition: none; }
+    html.reduced .menu-container .mode-card:hover, html.reduced .modes-wrap .mode-card:hover { transform: none; }
 </style>
 </head>
 <body>
@@ -1391,6 +1436,13 @@
             <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/></symbol>
             <symbol id="i-fire" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></g></symbol>
             <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+
+            <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.500l13 7.500-13 7.500z"/></symbol>
+            <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 8.500V13l3 2M9.500 3h5"/></g></symbol>
+            <symbol id="i-temple" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.500L12 4l9 5.500zM5 20h14M6.500 11.500v6M12 11.500v6M17.500 11.500v6"/></g></symbol>
+            <symbol id="i-portal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500a4.500 4.500 0 104.500 4.500"/></g></symbol>
+            <symbol id="i-calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><rect x="3.500" y="5" width="17" height="15" rx="2"/><path d="M3.500 10h17M8 3v4M16 3v4"/></g></symbol>
+            <symbol id="i-trail" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h9V9h9"/><path d="M17 5l4 4-4 4"/></g></symbol>
         </defs>
     </svg>
     <div class="grid-bg"></div>
@@ -1406,192 +1458,102 @@
             <!-- ==================== MENU SCREEN ==================== -->
             <div class="screen active" id="menuScreen">
                 <div class="menu-container">
-                    <div class="mode-card classic" tabindex="0" role="button" data-act="startClassic">
-                        <div class="mode-header">
-                            <span class="mode-icon">🎮</span>
-                            <div class="mode-text">
-                                <h3>KLASİK MOD</h3>
-                                <p>Orijinal yılan deneyimi. Ye, büyü ve hayatta kal!</p>
-                            </div>
+                    <nav class="menu-list" aria-label="Ana menü">
+                        <div class="mode-card classic menu-item" tabindex="0" role="button" data-act="startClassic">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-play"/></svg></span>
+                            <span class="mi-tx"><b>Oyna</b><em>Klasik yılan, sonsuz</em></span>
+                            <span class="mi-sag"><span class="rk">Rekor <span id="menuClassicHigh">0</span></span></span>
                         </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuClassicHigh">0</span></span>
-                            <span class="mode-badge">∞ SONSUZ</span>
+                        <div class="mode-card campaign menu-item" tabindex="0" role="button" data-act="showLevels">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg></span>
+                            <span class="mi-tx"><b>Bölümler</b><em>30 bölüm, artan zorluk</em></span>
+                            <span class="mi-sag"><span id="menuProgress">0</span>/30</span>
                         </div>
-                    </div>
-                    
-                    <div class="mode-card bullet" tabindex="0" role="button" data-act="startBullet">
-                        <div class="mode-header">
-                            <span class="mode-icon">💥</span>
-                            <div class="mode-text">
-                                <h3>MERMİ MANYAĞI</h3>
-                                <p>Desenli mermi dalgaları, lazerler ve patronlar!</p>
-                            </div>
+                        <div class="mode-card modes menu-item" tabindex="0" role="button" data-act="showModes">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-grid"/></svg></span>
+                            <span class="mi-tx"><b>Modlar</b><em>8 farklı oyun biçimi</em></span>
+                            <span class="mi-sag">&rsaquo;</span>
                         </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuBulletHigh">0</span></span>
-                            <!-- eski: 💀 SURVIVOR --><span class="mode-badge">💀 PATRON</span>
+                        <div class="mode-card tapinak menu-item" tabindex="0" role="button" data-act="startTapinak">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-temple"/></svg></span>
+                            <span class="mi-tx"><b>Tapınak</b><em>Oda oda keşif ve savaş</em></span>
+                            <span class="mi-sag"><span class="rk">Rekor <span id="menuTapinakHigh">0</span></span></span>
                         </div>
-                    </div>
-                    
-                    <div class="mode-card tailgun" tabindex="0" role="button" data-act="startTailgun">
-                        <div class="mode-header">
-                            <span class="mode-icon">🔫</span>
-                            <div class="mode-text">
-                                <h3>KUYRUK SİLAHI</h3>
-                                <p>Kuyruğunu mermi yap, düşman sürüsünü vur!</p>
-                            </div>
+                        <div class="mode-card miras menu-item" tabindex="0" role="button" data-act="openMiras">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg></span>
+                            <span class="mi-tx"><b>Miras</b><em>Kalıcı yetenekler</em></span>
+                            <span class="mi-sag"><span id="mirasInfo">Sv.1 · 0</span></span>
                         </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuTailHigh">0</span></span>
-                            <span class="mode-badge">🎯 NİŞAN</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card survivor" tabindex="0" role="button" data-act="startSurvivor">
-                        <div class="mode-header">
-                            <span class="mode-icon">🧟</span>
-                            <div class="mode-text">
-                                <!-- eski: SURVIVOR --><h3>HAYATTA KALMA</h3>
-                                <p>Otomatik ateş, XP topla, seviye atla, güçlen!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuSurvHigh">0</span></span>
-                            <span class="mode-badge">⬆ YÜKSELT</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card timeattack" tabindex="0" role="button" data-act="startTimeAttack">
-                        <div class="mode-header">
-                            <span class="mode-icon">⏱️</span>
-                            <div class="mode-text">
-                                <h3>ZAMANA KARŞI</h3>
-                                <p>60 saniye! Her yem süre kazandırır.</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuTimeHigh">0</span></span>
-                            <span class="mode-badge">⚡ HIZLI</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card portal" tabindex="0" role="button" data-act="startPortal">
-                        <div class="mode-header">
-                            <span class="mode-icon">🌀</span>
-                            <div class="mode-text">
-                                <h3>PORTAL VE BULMACA</h3>
-                                <p>Duvarlar, boşluklar ve ışınlanan portallar.</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuPortalHigh">0</span></span>
-                            <span class="mode-badge">🧩 BULMACA</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card tron" tabindex="0" role="button" data-act="startTron">
-                        <div class="mode-header">
-                            <span class="mode-icon">🏍️</span>
-                            <div class="mode-text">
-                                <h3>TRON DÜELLOSU</h3>
-                                <p>Yapay zekâyı iz bırakarak kıstır!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuTronHigh">0</span></span>
-                            <button class="tron-2p" id="tron2pBtn" data-act="toggle" data-key="tron2p">👤 2P: KAPALI</button>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card chaos" tabindex="0" role="button" data-act="startChaos">
-                        <div class="mode-header">
-                            <span class="mode-icon">🌪️</span>
-                            <div class="mode-text">
-                                <h3>KAOS</h3>
-                                <p>Kurallar durmadan değişir: ters kontrol, hız, hayalet…</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuChaosHigh">0</span></span>
-                            <span class="mode-badge">🎲 ŞANS</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card daily" tabindex="0" role="button" data-act="startDaily">
-                        <div class="mode-header">
-                            <span class="mode-icon">📅</span>
-                            <div class="mode-text">
-                                <h3 style="line-height:1.6">GÜNLÜK MEYDAN OKUMA</h3>
-                                <p>Herkese aynı gün aynı harita. Bugünün rekoru!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuDailyHigh">0</span></span>
-                            <span class="mode-badge">🗓 GÜNLÜK</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card tapinak" tabindex="0" role="button" data-act="startTapinak">
-                        <div class="mode-header">
-                            <span class="mode-icon">🏛️</span>
-                            <div class="mode-text">
-                                <h3>TAPINAK</h3>
-                                <p>Oda oda savaş, armağan seç, Kül Jarlı'nı yen. Yetenekler kalıcı!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuTapinakHigh">0</span></span>
-                            <span class="mode-badge">🗝 KEŞİF</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card campaign" tabindex="0" role="button" data-act="showLevels">
-                        <div class="mode-header">
-                            <span class="mode-icon">🏆</span>
-                            <div class="mode-text">
-                                <h3>BÖLÜM MODU</h3>
-                                <p>30 bölüm, artan zorluk. Ustalaşabilir misin?</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">📊 İLERLEME: <span id="menuProgress">0</span>/30</span>
-                            <span class="mode-badge">🎯 30 BÖLÜM</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card miras" tabindex="0" role="button" data-act="openMiras">
-                        <div class="mode-header">
-                            <span class="mode-icon">🔥</span>
-                            <div class="mode-text">
-                                <h3>MİRAS</h3>
-                                <p>Her ölüm Kül kazandırır. Kalıcı yetenekler al!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">⭐ SEVİYE: <span id="mirasInfo">Sv.1 · 0</span></span>
-                            <span class="mode-badge">🔓 KALICI</span>
-                        </div>
-                    </div>
-
+                    </nav>
                     <div class="menu-actions">
-                        <button class="menu-btn" data-act="openSettings">⚙ AYARLAR</button>
-                        <button class="menu-btn" data-act="openAchievements">🏅 BAŞARIMLAR <span id="achCount">0/0</span></button>
+                        <button class="menu-btn" data-act="openSettings"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg>Ayarlar</button>
+                        <button class="menu-btn" data-act="openAchievements"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-star"/></svg>Başarımlar <span id="achCount">0/0</span></button>
                         <button id="soundBtn" class="menu-btn" data-act="toggleSound">🔊 SES: AÇIK</button>
                         <button id="musicBtn" class="menu-btn" data-act="toggleMusic">🎵 MÜZİK: AÇIK</button>
                     </div>
                     <div class="controls-help">
                         <span><span class="key-hint">WASD</span><span class="key-hint">← ↑ ↓ →</span>Hareket</span>
                         <span><span class="key-hint">P</span>Duraklat</span>
-                        <span><span class="key-hint">R</span>Yeniden</span>
                         <span><span class="key-hint">M</span>Menü</span>
-                        <span><span class="key-hint">N</span>Ses</span>
-                        <span><span class="key-hint">B</span>Müzik</span>
                         <span><span class="key-hint">Boşluk</span>Ateş</span>
                     </div>
                 </div>
             </div>
-            
+
+            <!-- ==================== MODLAR ==================== -->
+            <div class="screen" id="modesScreen">
+                <div class="level-header"><h2>Modlar</h2><p>Hepsi aynı yılan, farklı kurallar.</p></div>
+                <div class="modes-wrap">
+                    <section class="mod-grup"><h3>Aksiyon</h3><div class="mod-izgara">
+                            <div class="mode-card bullet" tabindex="0" role="button" data-act="startBullet">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-fire"/></svg></span>
+                                <span class="mi-tx"><b>Mermi Manyağı</b><em>Mermi dalgaları, lazerler, patronlar</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuBulletHigh">0</span></span></span>
+                            </div>
+                            <div class="mode-card tailgun" tabindex="0" role="button" data-act="startTailgun">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-target"/></svg></span>
+                                <span class="mi-tx"><b>Kuyruk Silahı</b><em>Kuyruğunu mermi yap, sürüyü vur</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuTailHigh">0</span></span></span>
+                            </div>
+                            <div class="mode-card survivor" tabindex="0" role="button" data-act="startSurvivor">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-skull"/></svg></span>
+                                <span class="mi-tx"><b>Hayatta Kalma</b><em>Otomatik ateş, XP topla, güçlen</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuSurvHigh">0</span></span></span>
+                            </div>
+                    </div></section>
+                    <section class="mod-grup"><h3>Zihin</h3><div class="mod-izgara">
+                            <div class="mode-card portal" tabindex="0" role="button" data-act="startPortal">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-portal"/></svg></span>
+                                <span class="mi-tx"><b>Portal ve Bulmaca</b><em>Duvarlar, boşluklar, portallar</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuPortalHigh">0</span></span></span>
+                            </div>
+                            <div class="mode-card chaos" tabindex="0" role="button" data-act="startChaos">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg></span>
+                                <span class="mi-tx"><b>Kaos</b><em>Kurallar durmadan değişir</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuChaosHigh">0</span></span></span>
+                            </div>
+                    </div></section>
+                    <section class="mod-grup"><h3>Meydan Okuma</h3><div class="mod-izgara">
+                            <div class="mode-card timeattack" tabindex="0" role="button" data-act="startTimeAttack">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-clock"/></svg></span>
+                                <span class="mi-tx"><b>Zamana Karşı</b><em>60 saniye, her yem süre verir</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuTimeHigh">0</span></span></span>
+                            </div>
+                            <div class="mode-card tron" tabindex="0" role="button" data-act="startTron">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-trail"/></svg></span>
+                                <span class="mi-tx"><b>Tron Düellosu</b><em>Yapay zekâyı iz bırakarak kıstır</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuTronHigh">0</span></span><button class="tron-2p" id="tron2pBtn" data-act="toggle" data-key="tron2p">👤 2P: KAPALI</button></span>
+                            </div>
+                            <div class="mode-card daily" tabindex="0" role="button" data-act="startDaily">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg></span>
+                                <span class="mi-tx"><b>Günlük Meydan Okuma</b><em>Herkese aynı gün aynı harita</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuDailyHigh">0</span></span></span>
+                            </div>
+                    </div></section>
+                </div>
+                <button class="back-button" data-act="showMenu"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-back"/></svg><span>ANA MENÜ</span></button>
+            </div>
+
             <!-- ==================== LEVEL SELECT ==================== -->
             <div class="screen" id="levelScreen">
                 <div class="level-header">

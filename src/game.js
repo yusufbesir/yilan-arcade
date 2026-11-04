@@ -190,8 +190,9 @@ const SnakeGame = (() => {
     function showScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        document.body.classList.toggle('menu-acik', id === 'menuScreen');
-        document.body.classList.toggle('oyun-acik', id !== 'menuScreen');
+        const menuMu = id === 'menuScreen' || id === 'modesScreen';
+        document.body.classList.toggle('menu-acik', menuMu);
+        document.body.classList.toggle('oyun-acik', !menuMu);
     }
     
     function showMenu() {
@@ -210,6 +211,13 @@ const SnakeGame = (() => {
         showScreen('levelScreen');
     }
     
+    function showModes() {
+        stopGame();
+        closeOverlays();
+        refreshMenuStats();
+        showScreen('modesScreen');
+    }
+
     function showGame() {
         closeOverlays();
         showScreen('gameScreen');
@@ -3120,6 +3128,7 @@ const SnakeGame = (() => {
         init,
         showMenu,
         showLevels,
+        showModes,
         startClassic,
         startBullet,
         startTailgun,
