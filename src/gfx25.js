@@ -11,8 +11,16 @@ const Gfx25 = (() => {
 
     let dpr = 1;
     const cache = new Map();
+    // Pişmiş 3B sprite'lar (src/sprites.js); yoksa/yüklenmediyse tuval çizimine dönülür
+    const SP = n => (typeof Sprites !== 'undefined' && Sprites.has(n) ? Sprites : null);
+    const SEG_PX = 8.6;   // gövde sprite'ının pişirildiği yarıçap (baş tarafı, px)
+    const LINK_LIFT = 4;  // tüp ekseninin yerden görünür yüksekliği (px)
+    // yön -> şerit sırası: sağ, aşağı, sol, yukarı
+    const dirIx = (dx, dy) => (Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 0 : 2) : (dy >= 0 ? 1 : 3));
     let bgCache = { c: null, key: '' };
     let shadowsDone = false;
+    let curTheme = 'tas', curCb = false, curTex = false;
+    const DK = () => (typeof Doku !== 'undefined' ? Doku : null);
 
     // ---------- yardımcılar ----------
     function hexRgb(hex) {
@@ -90,7 +98,7 @@ const Gfx25 = (() => {
     // ====================================================================
     // (a) ZEMİN + ÇERÇEVE
     // ====================================================================
-    function buildFloor(o) {
+    function buildFloor(o, tex) {
         const W = o.W, H = o.H, S = o.CELL;
         const c = document.createElement('canvas');
         c.width = Math.round(W * dpr);
@@ -99,6 +107,10 @@ const Gfx25 = (() => {
         g.scale(dpr, dpr);
         const R = rng(20250);
 
+        // gerçek doku: PBR zemin (Doku) hazırsa kullan; değilse aşağıdaki prosedürel çizim yedek
+        const base = tex ? DK().floor(o.theme || 'tas', W, H, S, dpr, { seed: 20250, torches: [{ x: 34, y: 34 }, { x: W - 34, y: 34 }, { x: 34, y: H - 34 }, { x: W - 34, y: H - 34 }] }) : null;
+        if (base) g.drawImage(base, 0, 0, W, H);
+        if (!base) {
         const sky = g.createLinearGradient(0, 0, 0, H);
         sky.addColorStop(0, '#0d1730');
         sky.addColorStop(1, '#070b16');
@@ -169,6 +181,7 @@ const Gfx25 = (() => {
         vg.addColorStop(1, 'rgba(0,0,6,0.5)');
         g.fillStyle = vg;
         g.fillRect(0, 0, W, H);
+        }
 
         // Duvara temas gölgesi (AO)
         const ao = (x0, y0, x1, y1, rx, ry, rw, rh) => {
@@ -183,7 +196,7 @@ const Gfx25 = (() => {
         ao(W - 8, 0, W - 22, 0, W - 22, 0, 14, H); // sağ
         ao(0, H - 6, 0, H - 20, 0, H - 20, W, 14); // alt
 
-        drawFrame(g, o);
+        drawFrame(g, o, !!base);
         return c;
     }
 
@@ -200,14 +213,24 @@ const Gfx25 = (() => {
     }
 
     // Yükseltilmiş taş duvar: üst yüzey + ön (iç) yüz
-    function drawFrame(g, o) {
-        const W = o.W, H = o.H;
+    function drawFrame(g, o, tex) {
+        const W = o.W, H = o.H, th = o.theme || 'tas';
+        const wp = tex ? DK().pattern(g, 'wall.' + th, dpr) : null;
+        // kaya dokusu + yönlü gölgeleme (üst yüz aydınlık, ön yüz alta doğru karanlık)
+        const texRect = (x, y, w, h, stops, horiz) => {
+            if (!wp) return;
+            g.fillStyle = wp; g.fillRect(x, y, w, h);
+            const gr = horiz ? g.createLinearGradient(x, 0, x + w, 0) : g.createLinearGradient(0, y, 0, y + h);
+            stops.forEach(s => gr.addColorStop(s[0], s[1]));
+            g.fillStyle = gr; g.fillRect(x, y, w, h);
+        };
         const R = rng(777);
         const stone = '#5a6384', stoneDark = '#2d3350';
         const TOP = 4, FACE = 8, SIDE = 5, BOT = 5;
 
         // üst (uzak) duvar: ön yüz + üst yüzey
         stoneFace(g, 0, TOP, W, FACE, stoneDark, R);
+        texRect(0, TOP, W, FACE, [[0, 'rgba(0,0,10,0.05)'], [1, 'rgba(0,0,12,0.62)']]);
         g.strokeStyle = 'rgba(0,0,10,0.45)';
         g.lineWidth = 1;
         g.beginPath();
@@ -223,6 +246,7 @@ const Gfx25 = (() => {
         tg.addColorStop(1, tone(stone, 0.1));
         g.fillStyle = tg;
         g.fillRect(0, 0, W, TOP);
+        texRect(0, 0, W, TOP, [[0, 'rgba(255,255,255,0.2)'], [1, 'rgba(255,255,255,0.04)']]);
         g.fillStyle = 'rgba(255,255,255,0.28)';
         g.fillRect(0, 0, W, 1);
 
@@ -233,6 +257,7 @@ const Gfx25 = (() => {
             gr.addColorStop(inner ? 0 : 1, tone(stone, -0.05));
             g.fillStyle = gr;
             g.fillRect(x, TOP, SIDE, H - TOP - BOT);
+            texRect(x, TOP, SIDE, H - TOP - BOT, inner ? [[0, 'rgba(0,0,10,0.3)'], [1, 'rgba(255,255,255,0.12)']] : [[0, 'rgba(255,255,255,0.14)'], [1, 'rgba(0,0,10,0.25)']], true);
             g.fillStyle = 'rgba(0,0,10,0.4)';
             g.fillRect(inner ? x : x + SIDE - 1.5, TOP + FACE, 1.5, H - TOP - FACE - BOT);
         };
@@ -249,6 +274,7 @@ const Gfx25 = (() => {
         bg.addColorStop(1, tone(stone, -0.15));
         g.fillStyle = bg;
         g.fillRect(0, H - BOT, W, BOT);
+        texRect(0, H - BOT, W, BOT, [[0, 'rgba(255,255,255,0.14)'], [1, 'rgba(0,0,10,0.35)']]);
         g.fillStyle = 'rgba(255,255,255,0.22)';
         g.fillRect(0, H - BOT, W, 1);
 
@@ -262,6 +288,7 @@ const Gfx25 = (() => {
             pg.addColorStop(1, tone(stone, 0.05));
             g.fillStyle = pg;
             g.fillRect(x, y, w, w - hgt + 2);              // üst yüz
+            texRect(x, y, w, w - hgt + 2, [[0, 'rgba(255,255,255,0.28)'], [1, 'rgba(0,0,10,0.12)']]);
             g.strokeStyle = 'rgba(255,208,100,0.7)';
             g.lineWidth = 1.2;
             g.beginPath();
@@ -270,16 +297,24 @@ const Gfx25 = (() => {
         };
         pillar(8, 9); pillar(W - 8, 9); pillar(8, H - 8); pillar(W - 8, H - 8);
 
-        // altın iç çizgi
-        g.strokeStyle = 'rgba(255,208,100,0.22)';
+        // iç çizgi (temaya göre: altın / yosun / buz / köz)
+        const acc = { tas: 'rgba(255,208,100,0.22)', kaya: 'rgba(150,210,130,0.2)', buz: 'rgba(170,225,255,0.34)', lav: 'rgba(255,120,50,0.42)' }[th] || 'rgba(255,208,100,0.22)';
+        if (th === 'lav') { g.save(); g.shadowColor = 'rgba(255,90,20,0.8)'; g.shadowBlur = 6; }
+        g.strokeStyle = acc;
         g.lineWidth = 1;
         g.strokeRect(SIDE + 0.5, TOP + FACE + 0.5, W - SIDE * 2 - 1, H - TOP - FACE - BOT - 1);
+        if (th === 'lav') g.restore();
     }
 
     function drawBackground(ctx, now, o) {
         setDpr(ctx);
-        const key = dpr + ':' + o.W + 'x' + o.H;
-        if (!bgCache.c || bgCache.key !== key) { bgCache.c = buildFloor(o); bgCache.key = key; }
+        const th = o.theme || 'tas';
+        curTheme = th; curCb = !!o.cb;
+        const dk = DK();
+        const tex = !!(dk && dk.pump(th, dpr));   // her karede en fazla bir makro doku üretir (≤ ~40 ms)
+        curTex = tex;
+        const key = dpr + ':' + o.W + 'x' + o.H + ':' + th + ':' + (tex ? 1 : 0);
+        if (!bgCache.c || bgCache.key !== key) { bgCache.c = buildFloor(o, tex); bgCache.key = key; }
         ctx.drawImage(bgCache.c, 0, 0, o.W, o.H);
         if (!o.reduced) {
             // hareketli yumuşak ortam ışığı
@@ -307,10 +342,10 @@ const Gfx25 = (() => {
         else { g.moveTo(cx, cy - 4); g.lineTo(cx, cy + 4); g.moveTo(cx - 4, cy - 1); g.lineTo(cx, cy - 4); g.lineTo(cx + 4, cy - 1); }
     }
 
-    function blockSprite(color, ember, v, S) {
+    function blockSprite(color, ember, v, S, th, tex, cb) {
         const H = BLOCK_H, PAD = 8, SD = 3;
         const w = S + PAD * 2 + SD, h = S + H + PAD * 2;
-        return sprite('blk|' + color + '|' + ember + '|' + v, w, h, PAD, PAD + H, g => {
+        return sprite('blk|' + color + '|' + ember + '|' + v + '|' + th + '|' + (tex ? 1 : 0) + '|' + (cb ? 1 : 0), w, h, PAD, PAD + H, g => {
             // yere gölge (yumuşak, sağ-aşağı)
             g.save();
             g.shadowColor = 'rgba(0,0,6,0.42)';
@@ -327,6 +362,19 @@ const Gfx25 = (() => {
             fg.addColorStop(1, ember ? '#6a1d00' : tone(color, -0.7));
             g.fillStyle = fg;
             g.fillRect(0, S - H, tw, H);
+            // gerçek doku: taş/lav yüzeyi, alta doğru karanlık (extrude ön yüz)
+            const kn = ember ? 'block.ember' : 'block.' + th;
+            const bp = tex ? DK().pattern(g, kn, dpr, v * 41, v * 27) : null;
+            const texFill = (x, y, ww, hh, a0, a1, tintA) => {
+                if (!bp) return;
+                g.fillStyle = bp; g.fillRect(x, y, ww, hh);
+                const sg = g.createLinearGradient(x, y, x + ww * 0.6, y + hh);
+                sg.addColorStop(0, a0); sg.addColorStop(1, a1);
+                g.fillStyle = sg; g.fillRect(x, y, ww, hh);
+                if (tintA) { g.fillStyle = rgba(color, tintA); g.fillRect(x, y, ww, hh); }
+            };
+            const tA = ember ? 0 : (cb ? 0.5 : 0.1);
+            texFill(0, S - H, tw, H, 'rgba(0,0,10,0.28)', 'rgba(0,0,10,0.72)', tA);
             // harç/taş derzi
             g.strokeStyle = 'rgba(0,0,0,0.35)';
             g.lineWidth = 1;
@@ -343,12 +391,18 @@ const Gfx25 = (() => {
             g.fill();
             g.fillStyle = 'rgba(0,0,0,0.22)';
             g.fill();
+            if (bp) {
+                g.save(); g.clip();
+                texFill(tw, -H, SD + 1, S + H, 'rgba(0,0,10,0.5)', 'rgba(0,0,10,0.75)', tA);
+                g.restore();
+            }
             // üst yüz
             const tg = g.createLinearGradient(0, -H, tw, S - H);
             tg.addColorStop(0, ember ? '#ffc36a' : tone(color, 0.5));
             tg.addColorStop(1, ember ? '#e0600a' : tone(color, 0.08));
             g.fillStyle = tg;
             g.fillRect(0, -H, tw, S);
+            texFill(0, -H, tw, S, 'rgba(255,255,255,0.2)', 'rgba(0,0,12,0.2)', tA);
             // ışık kenarları
             g.fillStyle = 'rgba(255,255,255,0.4)';
             g.fillRect(0, -H, tw, 1.5);
@@ -370,10 +424,10 @@ const Gfx25 = (() => {
         });
     }
 
-    function drawBlock(ctx, x, y, color, ember, t, S) {
+    function drawBlock(ctx, x, y, color, ember, t, S, cb) {
         const v = ((x * 7 + y * 13) % 4 + 4) % 4;
-        const sp = blockSprite(color, !!ember, v, S);
-        blit(ctx, sp, x * S, y * S);
+        if (ember && !cb && SP('block_ember')) Sprites.draw(ctx, 'block_ember', ((x * 7 + y * 13) % 6 + 6) % 6, x * S + S / 2, y * S + S / 2 + 1, S / 20);
+        else blit(ctx, blockSprite(color, !!ember, v, S, curTheme, curTex, curCb), x * S, y * S);
         if (ember) {
             const a = 0.28 + 0.12 * Math.sin(t * 5 + x);
             glow(ctx, x * S + S / 2 - 1, y * S + S / 2 - BLOCK_H, 'rgb(255,110,20)', 26, a);
@@ -382,14 +436,14 @@ const Gfx25 = (() => {
 
     // Ressam sırası: y artan (üst yüzler arkadaki ön yüzleri örter)
     let sortBuf = [];
-    function drawBlocks(ctx, list, color, ember, t, S, floorXY) {
+    function drawBlocks(ctx, list, color, ember, t, S, floorXY, cb) {
         setDpr(ctx);
         sortBuf.length = 0;
         for (let i = 0; i < list.length; i++) sortBuf.push(list[i]);
         sortBuf.sort((a, b) => (floorXY ? Math.floor(a.y) - Math.floor(b.y) : a.y - b.y));
         for (let i = 0; i < sortBuf.length; i++) {
             const o = sortBuf[i];
-            drawBlock(ctx, floorXY ? Math.floor(o.x) : o.x, floorXY ? Math.floor(o.y) : o.y, color, ember, t, S);
+            drawBlock(ctx, floorXY ? Math.floor(o.x) : o.x, floorXY ? Math.floor(o.y) : o.y, color, ember, t, S, cb);
         }
     }
 
@@ -479,6 +533,32 @@ const Gfx25 = (() => {
         const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2 - LIFT;
         const prev = o.all && o.all[idx - 1];
         const pk = bodyPalette(k, o.cb, o.pal);
+        const sfx = o.cb ? '_cb' : '';
+        if (SP('seg' + sfx) && SP('linkh' + sfx) && SP('linkv' + sfx)) {
+            // 3B pişmiş gövde: önce bir öncekine giden pullu tüp, sonra küre (ya da kuyruk ucu)
+            const tone = Math.min(3, Math.round(k * 3));
+            const sc = r / SEG_PX;
+            const gx = pos.x * S + S / 2, gy = pos.y * S + S / 2;
+            const adj = prev && Math.abs(prev.x - pos.x) + Math.abs(prev.y - pos.y) <= 1.5;
+            if (adj) {
+                const dx = prev.x - pos.x, dy = prev.y - pos.y;
+                const mx = gx + dx * S / 2, my = gy + dy * S / 2;
+                if (Math.abs(dy) < 0.02) Sprites.drawCrop(ctx, 'linkh' + sfx, tone, mx, my, sc, Math.abs(dx) * S + 1, null);
+                else if (Math.abs(dx) < 0.02) Sprites.drawCrop(ctx, 'linkv' + sfx, tone, mx, my, sc, null, Math.abs(dy) * S + 1, -LINK_LIFT * sc);
+                else {
+                    // köşe dönüşü sırasında çapraz ara konum: düz tüp
+                    ctx.lineCap = 'round';
+                    ctx.strokeStyle = pk.lo; ctx.lineWidth = r * 1.6;
+                    ctx.beginPath(); ctx.moveTo(gx, gy - LINK_LIFT * sc); ctx.lineTo(mx * 2 - gx, my * 2 - gy - LINK_LIFT * sc); ctx.stroke();
+                    ctx.strokeStyle = pk.mid; ctx.lineWidth = r * 1.1;
+                    ctx.beginPath(); ctx.moveTo(gx, gy - LINK_LIFT * sc - r * 0.2); ctx.lineTo(mx * 2 - gx, my * 2 - gy - LINK_LIFT * sc - r * 0.2); ctx.stroke();
+                }
+            }
+            if (idx === total - 1 && total > 2 && adj && SP('tail' + sfx)) {
+                Sprites.draw(ctx, 'tail' + sfx, dirIx(pos.x - prev.x, pos.y - prev.y), gx, gy, sc * 1.15);
+            } else Sprites.draw(ctx, 'seg' + sfx, tone * 2 + (idx % 3 === 1 ? 1 : 0), gx, gy, sc);
+            return;
+        }
         if (prev && Math.abs(prev.x - pos.x) + Math.abs(prev.y - pos.y) <= 1.5) {
             const px = prev.x * S + S / 2, py = prev.y * S + S / 2 - LIFT;
             ctx.lineCap = 'round';
@@ -506,6 +586,12 @@ const Gfx25 = (() => {
         setDpr(ctx);
         if (!shadowsDone) shadowPass(ctx, [pos], S);
         shadowsDone = false;
+        const hn = o.cb ? 'head_cb' : 'head';
+        if (SP(hn)) {
+            const tongue = (t * 2.2) % 1 < 0.35 ? 1 : 0;
+            Sprites.draw(ctx, hn, dirIx(dir.x, dir.y) * 2 + tongue, pos.x * S + S / 2, pos.y * S + S / 2, 1.2);
+            return;
+        }
         const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2 - LIFT;
         const th = Math.atan2(dir.y, dir.x);
         const cs = Math.cos(th), sn = Math.sin(th);
@@ -693,7 +779,7 @@ const Gfx25 = (() => {
                 ctx.beginPath(); ctx.arc(cx - 4 + i * 4, cy - 8 - ph * 14, 2 + ph * 3, 0, TAU); ctx.fill();
             }
             ctx.globalAlpha = 1;
-            blit(ctx, appleSprite(true), cx, cy);
+            if (!SP('apple_rot') || !Sprites.draw(ctx, 'apple_rot', 0, cx, cy + 4, 0.95)) blit(ctx, appleSprite(true), cx, cy);
             if (o.cb) {
                 ctx.strokeStyle = o.pal.curuk; ctx.lineWidth = 3; ctx.lineCap = 'round';
                 ctx.beginPath(); ctx.moveTo(cx - 5, cy - 5); ctx.lineTo(cx + 5, cy + 5); ctx.moveTo(cx + 5, cy - 5); ctx.lineTo(cx - 5, cy + 5); ctx.stroke();
@@ -713,15 +799,25 @@ const Gfx25 = (() => {
             ctx.translate(cx, cy);
             // dikey eksende dönen yıldız: 2.5D madalyon
             const sx = o.reduced ? 1 : (0.35 + 0.65 * Math.abs(Math.cos(t * 1.6)));
-            ctx.scale(sx * pulse, pulse);
-            blit(ctx, starSprite(), 0, 0);
-            ctx.restore();
+            if (SP('star')) {
+                ctx.restore();
+                Sprites.draw(ctx, 'star', o.reduced ? 0 : Math.floor(t * 9), cx, cy + 5, pulse);
+            } else {
+                ctx.scale(sx * pulse, pulse);
+                blit(ctx, starSprite(), 0, 0);
+                ctx.restore();
+            }
         } else {
             ctx.save();
             ctx.translate(cx, cy);
-            ctx.scale(pulse, pulse);
-            blit(ctx, appleSprite(false), 0, 0);
-            ctx.restore();
+            if (SP('apple')) {
+                ctx.restore();
+                Sprites.draw(ctx, 'apple', 0, cx, cy + 4, pulse);
+            } else {
+                ctx.scale(pulse, pulse);
+                blit(ctx, appleSprite(false), 0, 0);
+                ctx.restore();
+            }
         }
         if (!o.reduced) {
             ctx.fillStyle = isSuper ? '#ffdd00' : (o.cb ? o.pal.yem : '#ffbf2e');
@@ -768,6 +864,14 @@ const Gfx25 = (() => {
         const col = o.colors[p.type];
         const cx = gx, cy = gy - h;
         glow(ctx, cx, cy, col, 17 + Math.sin(t * 6) * 2, 0.55);
+        if (SP('crystal_' + p.type)) {
+            Sprites.draw(ctx, 'crystal_' + p.type, o.reduced ? 0 : Math.floor(t * 8), cx, cy + 6, 1.05);
+            ctx.save(); ctx.globalAlpha = 0.9;
+            ctx.translate(cx + 7, cy - 6); ctx.scale(0.62, 0.62);
+            powerGlyph(ctx, p.type, 0, 0);
+            ctx.restore();
+            return;
+        }
         // rün taşı: döner elmas, iki tonlu yüzeyler
         ctx.save();
         ctx.translate(cx, cy);
@@ -822,6 +926,6 @@ const Gfx25 = (() => {
         });
     }
 
-    return { drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H };
+    return { dirIx, drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H };
 })();
 if (typeof window !== 'undefined') window.Gfx25 = Gfx25;

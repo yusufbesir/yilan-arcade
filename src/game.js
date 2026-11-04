@@ -2012,7 +2012,7 @@ const SnakeGame = (() => {
         drawBackground(nowT);
         
         // Static obstacles
-        if (G25()) G25().drawBlocks(ctx, obstacles, settings.cb ? PALET.engel : C.obstacle, false, nowT / 1000, CELL, false);
+        if (G25()) G25().drawBlocks(ctx, obstacles, settings.cb ? PALET.engel : C.obstacle, false, nowT / 1000, CELL, false, settings.cb);
         else obstacles.forEach(o => drawBlock(o.x, o.y, settings.cb ? PALET.engel : C.obstacle, '#55557a'));
         
         // Moving obstacles
@@ -2114,7 +2114,7 @@ const SnakeGame = (() => {
     }
 
     function gfxOpts() {
-        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, all: renderPos };
+        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, all: renderPos, theme: (typeof Doku !== 'undefined') ? Doku.themeFor(state.mode, state.level) : 'tas' };
     }
     function drawBackground(now) {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
