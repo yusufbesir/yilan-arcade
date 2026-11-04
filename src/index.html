@@ -849,9 +849,22 @@
         .mode-text h3 { font-size: 11px; letter-spacing: 1px; margin-bottom: 6px; }
         .mode-text p { font-size: 7px; line-height: 1.7; color: #9fb4c7; }
 
-        /* ===== Logo ===== */
+        /* ===== Logo ve amblem (Canva) ===== */
         .logo { display: flex; align-items: center; justify-content: center; gap: 14px; }
         .logo svg { width: clamp(44px, 7vw, 64px); height: auto; filter: drop-shadow(0 0 10px rgba(232,196,106,0.45)); }
+        .logo .emblem { width: clamp(52px, 8vw, 76px); height: auto; border-radius: 50%; filter: drop-shadow(0 0 12px rgba(232,196,106,0.5)); }
+        .logo .emblem[hidden], .logo svg[hidden] { display: none; }
+        body.menu-acik .arcade-cabinet { background: rgba(12, 20, 34, 0.42); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+        body.menu-acik .mode-card { background: linear-gradient(135deg, rgba(10,18,32,0.55), rgba(10,18,32,0.35)); }
+        /* ===== Anahtar görsel: menüde belirgin, oyunda soluk ===== */
+        .key-art { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+            background: url('img/menu-bg.jpg') center / cover no-repeat;
+            opacity: 0; transition: opacity 600ms var(--nors-yay); }
+        .key-art::after { content: ''; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(10,18,32,0.15), rgba(10,18,32,0.45) 70%, rgba(10,18,32,0.85)); }
+        body.menu-acik .key-art { opacity: 1; }
+        body.oyun-acik .key-art { opacity: 0.25; }
+        @media (prefers-reduced-motion: reduce) { .key-art { transition: none; } }
         /* ===== Menü düğmeleri ===== */
         .menu-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 4px; }
         .menu-btn { font-family: inherit; font-size: 8px; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--nors-cizgi); background: rgba(255,255,255,0.06); color: var(--nors-buz); cursor: pointer; letter-spacing: 1px; transition: background var(--nors-sure), transform var(--nors-sure) var(--nors-yay); }
@@ -892,11 +905,12 @@
 </head>
 <body>
     <div class="grid-bg"></div>
+    <div class="key-art" aria-hidden="true"></div>
     
     <div class="container">
         <div class="arcade-cabinet">
             <div class="title-area">
-                <h1 class="main-title"><span class="logo"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7CFF6B"/><stop offset="1" stop-color="#1f8a5a"/></linearGradient></defs><path d="M14 46c-8-6-6-18 4-20 10-2 16 6 22 6 6 0 10-5 6-10-3-4-10-3-10 1" fill="none" stroke="url(#lg)" stroke-width="7" stroke-linecap="round"/><path d="M14 46c-8-6-6-18 4-20 10-2 16 6 22 6 6 0 10-5 6-10-3-4-10-3-10 1" fill="none" stroke="#e8c46a" stroke-width="1.2" stroke-dasharray="2 5" stroke-linecap="round" opacity="0.8"/><ellipse cx="18" cy="48" rx="9" ry="6" fill="#2fbf71"/><circle cx="14" cy="47" r="1.7" fill="#e8c46a"/><path d="M9 49l-5 1 4 2" stroke="#ff5e5e" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="52" cy="14" r="4" fill="#e8c46a" opacity="0.9"/></svg><span>TWILIGHT OF<br>THE SERPENTS</span></span></h1>
+                <h1 class="main-title"><span class="logo"><img class="emblem" id="emblem" src="img/emblem.png" alt="" onerror="this.hidden=true;this.nextElementSibling.removeAttribute('hidden')" onload="this.nextElementSibling.setAttribute('hidden','')"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7CFF6B"/><stop offset="1" stop-color="#1f8a5a"/></linearGradient></defs><path d="M14 46c-8-6-6-18 4-20 10-2 16 6 22 6 6 0 10-5 6-10-3-4-10-3-10 1" fill="none" stroke="url(#lg)" stroke-width="7" stroke-linecap="round"/><path d="M14 46c-8-6-6-18 4-20 10-2 16 6 22 6 6 0 10-5 6-10-3-4-10-3-10 1" fill="none" stroke="#e8c46a" stroke-width="1.2" stroke-dasharray="2 5" stroke-linecap="round" opacity="0.8"/><ellipse cx="18" cy="48" rx="9" ry="6" fill="#2fbf71"/><circle cx="14" cy="47" r="1.7" fill="#e8c46a"/><path d="M9 49l-5 1 4 2" stroke="#ff5e5e" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="52" cy="14" r="4" fill="#e8c46a" opacity="0.9"/></svg><span>TWILIGHT OF<br>THE SERPENTS</span></span></h1>
                 <p class="subtitle">A R C A D E &nbsp; E D I T I O N</p>
             </div>
             
@@ -1283,6 +1297,7 @@
         function init() {
             canvas = document.getElementById('gameCanvas');
             ctx = canvas.getContext('2d');
+            document.body.classList.add('menu-acik');
             fitDpr = () => {
                 const cssW = canvas.getBoundingClientRect().width || CONFIG.WIDTH;
                 const nd = Math.min(3, Math.max(1, (window.devicePixelRatio || 1) * Math.max(1, cssW / CONFIG.WIDTH)));
@@ -1313,6 +1328,8 @@
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
+            document.body.classList.toggle('menu-acik', id === 'menuScreen');
+            document.body.classList.toggle('oyun-acik', id !== 'menuScreen');
         }
         
         function showMenu() {

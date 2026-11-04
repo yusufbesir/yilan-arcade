@@ -1,6 +1,6 @@
 {
   "name": "yilan-arcade",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Twilight of the Serpents",
   "main": "main.js",
   "author": "Yusuf",
@@ -9,7 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win nsis",
-    "test": "node test/bullet-mode.test.js && node test/tailgun-mode.test.js && node test/survivor-mode.test.js && node test/new-modes.test.js && node test/font-csp.test.js && node test/sound.test.js && node test/settings-ach.test.js && node test/migrate.test.js"
+    "test": "node test/bullet-mode.test.js && node test/tailgun-mode.test.js && node test/survivor-mode.test.js && node test/new-modes.test.js && node test/font-csp.test.js && node test/sound.test.js && node test/settings-ach.test.js && node test/migrate.test.js && node test/gorsel.test.js"
   },
   "devDependencies": {
     "electron": "33.2.1",
