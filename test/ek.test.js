@@ -37,7 +37,7 @@ const assert = require('assert');
   const baslat = async (act) => {
     await page.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
     await page.waitForTimeout(250);
-    await page.evaluate(a => document.querySelector('[data-act=' + a + ']').click(), act);
+    await page.evaluate(a => { if (a === 'startCampaign') SnakeGame.startCampaign(1); else document.querySelector('[data-act=' + a + ']').click(); }, act);
     await page.waitForTimeout(120);
     await page.evaluate(() => { window.T = () => { const st = SnakeGame._debug.get().state; st.paused = false; SnakeGame._debug.tick(); st.paused = true; }; window.T(); });
   };
@@ -115,6 +115,52 @@ const assert = require('assert');
     t.gapN = 29; T(); return t.gaps.size;
   });
   assert.ok(r.tizbos >= 2, 'iz boşluğu açılmadı');
+
+  // 8) Kuyruk Silahı av payı: 3. vuruşta halka geri gelir
+  await baslat('startTailgun');
+  r.avpayi = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(), h = g.snake[0];
+    g.state.avSay = 2; g.enemies.length = 0;
+    g.enemies.push({ x: h.x + 2, y: h.y, hp: 1, max: 1 });
+    g.playerShots.length = 0; g.playerShots.push({ x: h.x + 1.2, y: h.y, dx: 1, dy: 0 });
+    const n0 = d.get().snake.length; T(); return d.get().snake.length - n0;
+  });
+  assert.ok(r.avpayi >= 1, 'av payı halkası gelmedi: ' + r.avpayi);
+  // 9) Survivor: gövde dikeni + elit sandık
+  await baslat('startSurvivor');
+  r.diken = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get();
+    for (let i = 0; i < 6; i++) g.snake.push({ x: g.snake[0].x - 3 - i, y: g.snake[0].y });
+    g.enemies.length = 0; const b = g.snake[5];
+    g.enemies.push({ x: b.x, y: b.y, hp: 1, max: 1, spd: 0 });
+    T(); return d.get().enemies.length === 0 || d.get().enemies[0].hp < 1;
+  });
+  assert.ok(r.diken, 'gövde dikeni hasar vermedi');
+  r.elit = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(), h = g.snake[0];
+    g.state.svKill = 19; g.enemies.length = 0; g.gems.length = 0;
+    g.enemies.push({ x: h.x + 4, y: h.y, hp: 1, max: 1 });
+    g.playerShots.length = 0; g.playerShots.push({ x: h.x + 3.2, y: h.y, dx: 1, dy: 0, dmg: 5 });
+    T(); return d.get().gems.some(x => x.elit) || d.get().state.svKill >= 20;
+  });
+  assert.ok(r.elit, 'elit sandık düşmedi');
+  // 10) Portal soğuyan portal
+  await baslat('startPortal');
+  r.soguyan = await page.evaluate(() => {
+    const d = SnakeGame._debug, ex = d.extra(), h = d.get().snake[0];
+    ex.portals.length = 0; ex.portals.push({ a: { x: h.x + 1, y: h.y }, b: { x: 30, y: 3 }, color: '#f90', cool: 0 });
+    T(); const p = ex.portals[0]; return p.cool;
+  });
+  assert.ok(r.soguyan > 0, 'portal soğumaya girmedi: ' + r.soguyan);
+  // 11) Bölüm süre yıldızı: hızlı bitiriş +1
+  await baslat('startCampaign');
+  r.par = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get();
+    g.state.bolumTik = 1; g.state.score = g.state.target - 1;
+    const h = g.snake[0], f = d.extra().food; f.x = h.x + 1; f.y = h.y; f.type = 'normal';
+    T(); return document.getElementById('levelEndScore').textContent;
+  });
+  assert.ok(/HIZLI/.test(r.par), 'hızlı bitiriş yok: ' + r.par);
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();

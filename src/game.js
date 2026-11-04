@@ -108,6 +108,11 @@ const SnakeGame = (() => {
         ['cekim', 'ÇEKİM YEMİ', 'Kaos: nadir mor yem, yenince yem 1 sn başa doğru kayar'],
         ['kivrim', 'KIVRIM BONUSU', 'Günlük: son 3 hareket farklı yöndeyse yem x2'],
         ['tizbos', 'İZ BOŞLUĞU', 'Tron: iz duvarında periyodik küçük geçit açılır'],
+        ['avpayi', 'AV PAYI', 'Kuyruk Silahı: her 3. vuruşta harcanan kuyruk halkası geri gelir'],
+        ['diken', 'GÖVDE DİKENİ', 'Hayatta Kalma: gövdeye değen düşman yavaş yavaş hasar alır'],
+        ['soguyan', 'SOĞUYAN PORTAL', 'Portal: kullanılan çift 8 tik uyur (solar), art arda sıçrama olmaz'],
+        ['par', 'SÜRE YILDIZI', 'Bölüm: hedefi hızlı bitirirsen yıldız +1 (en çok 3)'],
+        ['elit', 'ELİT SANDIK', 'Hayatta Kalma: her 20. öldürmede tam seviyelik altın elmas düşer'],
     ];
     const ek = id => settings.ek[id] !== false;
     let turnQ = [];
@@ -615,8 +620,9 @@ const SnakeGame = (() => {
         tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0, gaps: new Set(), gapN: 0 };
         chaos = { rule: null, left: 0, next: 120, saved: 0, pending: null, kisa: '' };
         state.timeLeft = 60;
-        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.yemSay = 0; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
+        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
         document.getElementById('hudTarget').classList.remove('ragnarok');
+        state.bolumTik = 0;
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
         
         powers = { shield: false, speed: false, invincible: false };
@@ -737,6 +743,7 @@ const SnakeGame = (() => {
             updateHUD();
         }
         
+        if (state.mode === 'campaign') state.bolumTik++;
         if (!Tema.kaymaBekle(dir, nextDir)) { // Buzul: dönüş bir tik gecikir
             dir = { ...nextDir };
             if (turnQ.length) { const q = turnQ.shift(); if (!(q.x === -dir.x && q.y === -dir.y)) nextDir = q; } // dönüş tamponu: sıradaki dönüş bir sonraki tikte
@@ -749,9 +756,11 @@ const SnakeGame = (() => {
         };
         
         if (state.mode === 'portal') {
+            for (const p of portals) if (p.cool > 0) p.cool--; // soğuyan portal: kullanılan çift 8 tik uyur
             for (const p of portals) {
-                if (head.x === p.a.x && head.y === p.a.y) { head = { ...p.b }; playSound('powerup'); break; }
-                if (head.x === p.b.x && head.y === p.b.y) { head = { ...p.a }; playSound('powerup'); break; }
+                if (p.cool > 0 && ek('soguyan')) continue;
+                if (head.x === p.a.x && head.y === p.a.y) { head = { ...p.b }; playSound('powerup'); if (ek('soguyan')) p.cool = 8; break; }
+                if (head.x === p.b.x && head.y === p.b.y) { head = { ...p.a }; playSound('powerup'); if (ek('soguyan')) p.cool = 8; break; }
             }
         }
         
@@ -1469,6 +1478,9 @@ const SnakeGame = (() => {
             state.score += 2;
             updateHUD();
             playSound('eat');
+            if (ek('avpayi') && ++state.avSay % 3 === 0) { // av payı: her 3. vuruşta bir kuyruk halkası geri gelir
+                snake.push({ ...snake[snake.length - 1] }); showBanner('AV PAYI +1', false, 1000, 'soluk');
+            }
         });
         enemies = enemies.filter(e => e.hp > 0);
         
@@ -1564,10 +1576,14 @@ const SnakeGame = (() => {
         moveShots(enemy => {
             state.score += 2;
             updateHUD();
-            SvCore.addGem(gems, enemy.x, enemy.y); // 80 üstünde eski elmas XP'siyle birleşir, silinmez
+            if (ek('elit') && ++state.svKill % 20 === 0) { // elit sandık: tam seviyelik altın elmas
+                gems.push({ x: enemy.x, y: enemy.y, v: Math.max(1, sv.need - sv.xp), elit: true });
+                showBanner('ELİT SANDIK!', false, 1200, 'altin');
+            } else SvCore.addGem(gems, enemy.x, enemy.y); // 80 üstünde eski elmas XP'siyle birleşir, silinmez
         });
 
         SvCore.moveEnemies(enemies, head, espd);
+        if (ek('diken')) govdeDikeni();
 
         gems = SvCore.collectGems(gems, head, sv, levelUp, () => {
             document.getElementById('hudTarget').textContent = sv.xp + '/' + sv.need;
@@ -1583,6 +1599,21 @@ const SnakeGame = (() => {
         }
     }
     
+    // Gövde dikeni: baştan 3 halka sonrası gövdeye değen düşman tikte 0,2 hasar alır; ölürse elmas bırakır
+    function govdeDikeni() {
+        let oldu = false;
+        for (const e of enemies) {
+            if (e.hp <= 0) continue;
+            for (let i = 3; i < snake.length; i++) {
+                if (Math.abs(snake[i].x - e.x) < 0.75 && Math.abs(snake[i].y - e.y) < 0.75) {
+                    e.hp -= 0.2;
+                    if (e.hp <= 0) { oldu = true; state.score += 2; SvCore.addGem(gems, e.x, e.y); burst(e.x + 0.5, e.y + 0.5, '#7CFF6B', 6, 0.8); }
+                    break;
+                }
+            }
+        }
+        if (oldu) { enemies = enemies.filter(e => e.hp > 0); updateHUD(); }
+    }
     function levelUp() {
         SvCore.levelUpStats(sv, Math.random);
         document.getElementById('hudLevel').textContent = sv.level;
@@ -1615,10 +1646,12 @@ const SnakeGame = (() => {
     function drawSurvivorLayer() {
         const CELL = CONFIG.CELL;
         gems.forEach(g => {
-            ctx.shadowColor = '#7CFF6B';
-            ctx.shadowBlur = 8;
-            ctx.fillStyle = '#7CFF6B';
-            ctx.fillRect(g.x * CELL + 7, g.y * CELL + 7, 6, 6);
+            const ec = g.elit ? '#ffd45e' : '#7CFF6B';
+            ctx.shadowColor = ec;
+            ctx.shadowBlur = g.elit ? 16 : 8;
+            ctx.fillStyle = ec;
+            if (g.elit) { ctx.fillRect(g.x * CELL + 3, g.y * CELL + 3, 14, 14); ctx.fillStyle = '#fff6cf'; ctx.fillRect(g.x * CELL + 7, g.y * CELL + 7, 6, 6); } // büyük altın elmas
+            else ctx.fillRect(g.x * CELL + 7, g.y * CELL + 7, 6, 6);
             ctx.shadowBlur = 0;
         });
         drawTailgunLayer();
@@ -1926,6 +1959,8 @@ const SnakeGame = (() => {
         let stars = 1;
         if (ratio >= 1.35) stars = 3;
         else if (ratio >= 1.12) stars = 2;
+        const hizli = ek('par') && state.bolumTik <= state.target * 14; // süre yıldızı: par = hedef x 14 tik
+        if (hizli && stars < 3) stars++;
         
         // Save progress
         if (!progress.stars[state.level] || progress.stars[state.level] < stars) {
@@ -1942,7 +1977,7 @@ const SnakeGame = (() => {
         
         document.getElementById('starsDisplay').innerHTML = yildizlar(stars, 3);
         document.getElementById('starsDisplay').setAttribute('aria-label', stars + ' yıldız');
-        document.getElementById('levelEndScore').textContent = state.score;
+        document.getElementById('levelEndScore').textContent = state.score + (hizli ? ' · HIZLI BİTİRİŞ' : '');
         mirasVer('kulMsgWin', true, true);
         document.getElementById('completeOverlay').classList.add('active');
     }
@@ -2838,6 +2873,10 @@ const SnakeGame = (() => {
     }
 
     function drawPortal(p) {
+        if (p.cool > 0 && ek('soguyan')) { ctx.save(); ctx.globalAlpha = 0.3; drawPortalAsil(p); ctx.restore(); return; }
+        drawPortalAsil(p);
+    }
+    function drawPortalAsil(p) {
         if (G25()) { G25().drawPortal(ctx, p, performance.now() / 1000, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const t = performance.now() / 1000;
