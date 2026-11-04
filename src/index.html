@@ -476,7 +476,11 @@
         .hud-value.level { color: #00ccff; }
         .hud-value.lives { color: #ff3366; font-size: 14px; }
         .hud-value.target { color: #ff9900; }
-        
+        /* Günlük: dünkü skor geçilince DÜN kutusu kalıcı yeşile döner, kısa bir parıltı atar */
+        .hud-value.target.gecildi { color: #00ff66; animation: dunGecildi 0.9s ease-out 1; }
+        @keyframes dunGecildi { 0% { transform: scale(1); text-shadow: 0 0 15px currentColor; } 35% { transform: scale(1.35); text-shadow: 0 0 28px #fff, 0 0 40px currentColor; } 100% { transform: scale(1); text-shadow: 0 0 15px currentColor; } }
+        html.reduced .hud-value.target.gecildi { animation: none; }
+
         .canvas-container {
             position: relative;
             line-height: 0;
@@ -841,6 +845,16 @@
         html.buyuk-hud .hud-value { font-size: 24px; }
         html.buyuk-hud .hud-value.lives { font-size: 20px; }
         html.buyuk-hud .hud-section { gap: 18px; }
+        /* Dar ekran (telefon): 4 kutulu HUD + büyük HUD taşmasın; sığmazsa alt satıra kırılsın */
+        .game-hud { flex-wrap: wrap; row-gap: 6px; }
+        @media (max-width: 480px) {
+            html.buyuk-hud .hud-label { font-size: 8px; }
+            html.buyuk-hud .hud-value { font-size: 20px; }
+            html.buyuk-hud .hud-value.lives { font-size: 16px; }
+            html.buyuk-hud .hud-section { gap: 10px; }
+        }
+        /* Ekran kutusu kabin iç genişliğini aşmasın (390px'te 4px taşıyordu) */
+        .arcade-cabinet .screen { max-width: 100%; }
         /* Tron kartı içi 2 oyuncu düğmesi */
         .tron-2p { font-family: inherit; font-size: 7px; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--nors-cizgi); background: rgba(255,255,255,0.06); color: #cfe0ec; cursor: pointer; letter-spacing: 1px; }
         .tron-2p.on { background: rgba(255,153,0,0.22); color: #ffb347; border-color: #ff9900; }

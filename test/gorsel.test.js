@@ -37,10 +37,38 @@ const fs = require('fs');
     em.src = 'img/yok.png';
   }));
   await page.screenshot({ path: path.join(require('os').tmpdir(), 'twilight-gorsel-menu.png') }).catch(() => {});
+  // Dar ekran (390x844) taşma denetimi: menü, ayarlar ve 4 kutulu HUD (HIZ+DÜN) büyük HUD açık/kapalı; yatay taşma olmamalı
+  const dar = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await dar.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
+  await dar.waitForTimeout(600);
+  const tasma = await dar.evaluate(() => {
+    const de = document.documentElement;
+    const olc = () => {
+      const hud = document.querySelector('.game-hud');
+      return de.scrollWidth <= de.clientWidth && hud.scrollWidth <= hud.clientWidth && [...document.querySelectorAll('.hud-item')].every(e => e.getBoundingClientRect().right <= innerWidth);
+    };
+    const out = {};
+    out.menu = olc();
+    SnakeGame.openSettings(); const pn = document.querySelector('#settingsPanel .panel'); out.ayar = olc() && pn.getBoundingClientRect().right <= innerWidth; SnakeGame.closeSettings();
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    SnakeGame._debug.extra().records.dailyPrev = { d: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'), s: 1230 };
+    for (const b of [false, true]) {
+      SnakeGame.setSetting('bigHud', b);
+      SnakeGame.startClassic(); document.getElementById('hudScore').textContent = '12340'; document.getElementById('hudHigh').textContent = '99990';
+      out['klasik' + (b ? 'Buyuk' : '')] = olc();
+      SnakeGame.startDaily(); document.getElementById('hudScore').textContent = '12340'; document.getElementById('hudHigh').textContent = '99990';
+      out['gunluk' + (b ? 'Buyuk' : '')] = olc() && document.getElementById('hudTargetLabel').textContent === 'DÜN';
+    }
+    SnakeGame.setSetting('bigHud', false); SnakeGame.showMenu();
+    return out;
+  });
+  await dar.screenshot({ path: path.join(require('os').tmpdir(), 'twilight-gorsel-dar.png') }).catch(() => {});
+  await dar.close();
+  const darOk = Object.values(tasma).every(Boolean);
   await browser.close();
   const files = ['src/img/emblem.png', 'src/img/menu-bg.jpg', 'build/icon.png'].map(f => fs.existsSync(path.join(__dirname, '..', f)));
-  const ok = res.emblemLoaded && res.svgHidden && res.bgUrl && res.menuOpacity === '1' && res.menuClass && res.gameClass && res.backToMenu && gameOpacity === '0.25' && fallback && files.every(Boolean) && errors.length === 0;
-  console.log(JSON.stringify({ ...res, gameOpacity, fallback, files, errors, bad }, null, 1));
+  const ok = darOk && res.emblemLoaded && res.svgHidden && res.bgUrl && res.menuOpacity === '1' && res.menuClass && res.gameClass && res.backToMenu && gameOpacity === '0.25' && fallback && files.every(Boolean) && errors.length === 0;
+  console.log(JSON.stringify({ ...res, gameOpacity, fallback, files, errors, bad, tasma }, null, 1));
   console.log(ok ? 'GORSEL TEST: GECTI' : 'GORSEL TEST: KALDI');
   process.exit(ok ? 0 : 1);
 })();

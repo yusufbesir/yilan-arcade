@@ -58,8 +58,44 @@ const path = require('path');
     SnakeGame.setSetting('tron2p', false);
     SnakeGame.startTron();
     o.single = T().twoP === false && document.getElementById('hudTargetBox').style.display === 'none';
+    // Tek oyuncu rakibi: 200 tikte boş komşusu varken duvara/kuyruğa çarpmaz (oyuncu güvenli sürülür)
+    {
+      const COLS = 33, ROWS = 24, D4 = [[1,0],[-1,0],[0,1],[0,-1]];
+      const blocked = (x, y) => x < 0 || x >= COLS || y < 0 || y >= ROWS || D.get().snake.some(c => c.x === x && c.y === y) || T().ai.some(c => c.x === x && c.y === y);
+      let bad = 0, ticks = 0;
+      for (let i = 0; i < 200 && !D.get().state.over; i++) {
+        const s = D.get().snake, pd = { x: s[0].x - s[1].x, y: s[0].y - s[1].y };
+        const safe = D4.filter(([dx, dy]) => !(dx === -pd.x && dy === -pd.y) && !blocked(s[0].x + dx, s[0].y + dy));
+        const keep = safe.find(([dx, dy]) => dx === pd.x && dy === pd.y);
+        const pick = keep || safe[0];
+        if (pick) SnakeGame.input(pick[0], pick[1]);
+        const pNext = pick ? { x: s[0].x + pick[0], y: s[0].y + pick[1] } : null;
+        const a = T().ai[0], ad = T().aiDir;
+        const aiFree = D4.filter(([dx, dy]) => !(dx === -ad.x && dy === -ad.y) && !blocked(a.x + dx, a.y + dy) && !(pNext && a.x + dx === pNext.x && a.y + dy === pNext.y)).length;
+        const score = D.get().state.score, len = T().ai.length;
+        D.tick(); ticks++;
+        const aiDied = D.get().state.score > score || T().ai.length < len;
+        if (aiDied && aiFree > 0) bad++;
+      }
+      o.aiNoInstantCrash = bad === 0;
+      o.aiRan = ticks >= 30; // oyuncu erken ölürse bile rakip en az 30 tik sürüldü
+      SnakeGame.showMenu(); SnakeGame.startTron(); // gamepad bölümü taze oyun bekler
+    }
     return o;
   });
+  // Renk körü paleti: Okabe-Ito sabitleri ve cb açıkken yılanın canvas'ta mavi çizilmesi
+  const palet = await page.evaluate(() => new Promise(r => {
+    const P = SnakeGame._debug.extra().palet;
+    const okabe = P.yilan === '#0072B2' && P.yem === '#E69F00' && P.curuk === '#D55E00' && P.dusman === '#CC79A7' && P.engel === '#CC79A7' && P.tron === '#F0E442';
+    SnakeGame.showMenu(); SnakeGame.setSetting('cb', true); SnakeGame.startClassic();
+    setTimeout(() => {
+      const cv = document.getElementById('gameCanvas'); const data = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      let mavi = 0, yesil = 0; // cb açıkken yılan mavi baskın pikseller çizer; varsayılan yeşil palet yeşil baskın olur
+      for (let i = 0; i < data.length; i += 4) { const R = data[i], G = data[i + 1], B = data[i + 2]; if (B > 120 && B > R + 60 && B > G + 20 && R < 80) mavi++; else if (G > 150 && G > R + 80 && G > B + 30) yesil++; }
+      SnakeGame.showMenu(); SnakeGame.setSetting('cb', false); SnakeGame.startTron(); // gamepad adımı tek oyunculu Tron bekler
+      r({ okabe, cbBlue: mavi > 100 }); // #0072B2: mavi baskın
+    }, 250);
+  }));
   // Gamepad: pad 0 sol çubuk yukarı → ok yukarı eşlemesi (tek oyuncuda P1'i döndürür)
   const pad = await page.evaluate(() => new Promise(r => {
     const D = SnakeGame._debug;
@@ -85,7 +121,7 @@ const path = require('path');
     return { gapIgnored, picked: sv.choosing === false };
   });
   await browser.close();
-  const all = { ...out, ...pad, ...card, errors };
+  const all = { ...out, ...palet, ...pad, ...card, errors };
   const ok = Object.entries(all).every(([k, v]) => k === 'errors' ? v.length === 0 : v === true);
   console.log(JSON.stringify(all, null, 1));
   console.log(ok ? 'TUR4 TEST: GECTI' : 'TUR4 TEST: KALDI');

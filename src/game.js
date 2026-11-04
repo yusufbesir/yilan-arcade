@@ -27,6 +27,24 @@ const SnakeGame = (() => {
         }
     };
     
+    // Renk körü paleti (settings.cb): Okabe & Ito (2008) / Wong (2011, Nature Methods 8:441) kesin hex değerleri.
+    // Tek kaynak; eski hsl/hex değerleri kullanıldıkları satırlarda yorumda bırakıldı. Kaynak notu: CREDITS.md.
+    const PALET = {
+        yilan: '#0072B2',    // mavi
+        yem: '#E69F00',      // turuncu
+        yemHalka: '#FFFFFF', // şekil ipucu: beyaz halka
+        curuk: '#D55E00',    // kızıl turuncu X
+        dusman: '#CC79A7',   // kızıl mor
+        engel: '#CC79A7',    // kızıl mor
+        tron: '#F0E442',     // sarı
+        // k < 0 koyultur, k > 0 açar (gövde gradyanı için)
+        ton(hex, k) {
+            const n = parseInt(hex.slice(1), 16);
+            const ch = v => Math.max(0, Math.min(255, Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k)));
+            return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`;
+        }
+    };
+
     const COLS = Math.floor(CONFIG.WIDTH / CONFIG.CELL);
     const ROWS = Math.floor(CONFIG.HEIGHT / CONFIG.CELL);
     
@@ -124,6 +142,9 @@ const SnakeGame = (() => {
         refreshMenuStats();
         
         document.addEventListener('keydown', onKey);
+        // Odak kaybı: pencere arka plana düşerse oyun kendini duraklatır; dönüşte kullanıcı devam eder (P/Esc)
+        window.addEventListener('blur', autoPause);
+        document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
         setInterval(pollPads, 60);
         // Tıklamalar: satır içi onclick yok (CSP script-src 'self'); data-act ile tek dinleyici
         document.addEventListener('click', e => {
@@ -335,17 +356,18 @@ const SnakeGame = (() => {
         if (records.daily > 0 && records.dailyDate) records.dailyPrev = { d: records.dailyDate, s: records.daily };
         records.dailyDate = t; records.daily = 0;
     }
-    function dunkuSkor() {
+    function dunkuSkor() { // "dün" = oyunun başladığı güne göre (gece yarısını aşan oyunda hedef değişmez)
         const p = records.dailyPrev;
         if (!p || !(p.s > 0)) return 0;
-        const d = new Date(); d.setDate(d.getDate() - 1);
-        const dunKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const ref = (state.mode === 'daily' && state.dailyKey) ? state.dailyKey : todayKey();
+        const [y, m, g] = ref.split('-').map(Number);
+        const dunKey = dateKey(new Date(y, m - 1, g - 1)); // yerel saat; UTC (toISOString) kullanılmaz
         return p.d === dunKey ? p.s : 0;
     }
-    function todayKey() {
-        const d = new Date();
+    function dateKey(d) {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
+    function todayKey() { return dateKey(new Date()); }
     
     function seededRand(key) {
         let h = 1779033703 ^ key.length;
@@ -407,6 +429,7 @@ const SnakeGame = (() => {
         startSimple('daily', CONFIG.BASE_SPEED, { high: records.daily, levelLabel: 'HIZ', targetLabel: dun ? 'DÜN' : undefined });
         document.getElementById('hudLevel').textContent = '1';
         if (dun) document.getElementById('hudTarget').textContent = dun;
+        document.getElementById('hudTarget').classList.remove('gecildi');
         state.pacerDone = false;
         showBanner('GÜNLÜK HARİTA ' + state.dailyKey.slice(5) + (dun ? ' · DÜN: ' + dun : ''));
         const midY = Math.floor(ROWS / 2);
@@ -575,6 +598,7 @@ const SnakeGame = (() => {
     // ======================== GAME LOOP ========================
     function beginLoop() {
         stopGame();
+        state.running = true; // stopGame bayrağı düşürüyordu; döngü başlarken oyun gerçekten çalışıyor
         if (typeof fitDpr === 'function') fitDpr();
         loopInterval = setInterval(tick, effSpeed());
         renderFrame();
@@ -777,7 +801,10 @@ const SnakeGame = (() => {
         if (state.mode === 'portal' && state.score % 5 === 0) placePortals();
         if (state.mode === 'daily' && !state.pacerDone) {
             const dun = dunkuSkor();
-            if (dun && state.score > dun) { state.pacerDone = true; showBanner('DÜNKÜ SKORU GEÇTİN!'); burst(food.x + 0.5, food.y + 0.5, '#e8c46a', 30, 1.8); playSound('ach'); }
+            if (dun && state.score > dun) {
+                state.pacerDone = true; showBanner('DÜNKÜ SKORU GEÇTİN!', true); burst(food.x + 0.5, food.y + 0.5, '#e8c46a', 30, 1.8); playSound('ach');
+                document.getElementById('hudTarget').classList.add('gecildi'); // HUD'daki DÜN kutusu kalıcı yeşile döner (reduced: animasyonsuz)
+            }
         }
         updateHUD();
         playSound(food.type === 'super' ? 'supereat' : 'eat');
@@ -806,8 +833,9 @@ const SnakeGame = (() => {
     }
     
     // ======================== BULLETS ========================
-    function showBanner(text) {
-        banner = { text, until: performance.now() + 1600 };
+    function showBanner(text, onemli) { // onemli: süresi dolana dek sıradan bir afiş (ör. 'HIZ 2') üstüne yazamaz
+        if (!onemli && banner.onemli && performance.now() < banner.until) return;
+        banner = { text, until: performance.now() + 1600, onemli: !!onemli };
     }
     
     function rnd(a, b) { return a + Math.random() * (b - a); }
@@ -1254,9 +1282,10 @@ const SnakeGame = (() => {
         });
         enemies.forEach(e => {
             const px = e.x * CELL, py = e.y * CELL;
-            ctx.shadowColor = '#ff3355';
+            ctx.shadowColor = settings.cb ? PALET.dusman : '#ff3355';
             ctx.shadowBlur = 10;
-            ctx.fillStyle = e.hp > 1 ? '#ff7a00' : '#ff3355';
+            // cb: düşman tek renk (#CC79A7), dayanıklı olan açık tonu
+            ctx.fillStyle = settings.cb ? (e.hp > 1 ? PALET.ton(PALET.dusman, 0.35) : PALET.dusman) : (e.hp > 1 ? '#ff7a00' : '#ff3355');
             ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
             ctx.fillStyle = '#fff';
             ctx.fillRect(px + 5, py + 6, 3, 3);
@@ -1718,7 +1747,9 @@ const SnakeGame = (() => {
     const padPrev = {};
     function padKeys(gp, idx) {
         const out = [];
-        const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+        let ax = Number(gp.axes[0]) || 0, ay = Number(gp.axes[1]) || 0;
+        // Ölü bölge 0.5; çapraz itişte yalnız baskın eksen sayılır (iki yön birden gönderilip biri yutulmasın)
+        if (Math.abs(ax) >= Math.abs(ay)) ay = 0; else ax = 0;
         const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
         const twoP = state.mode === 'tron' && tron.twoP;
         const arrows = !(twoP && idx === 0);
@@ -1734,13 +1765,18 @@ const SnakeGame = (() => {
     }
     function pollPads() {
         if (!navigator.getGamepads) return;
-        const pads = Array.from(navigator.getGamepads() || []).filter(Boolean);
+        const slots = Array.from(navigator.getGamepads() || []);
+        const count = slots.filter(Boolean).length;
         const info = document.getElementById('padInfo');
-        if (info) info.textContent = pads.length ? pads.length + ' KOL BAĞLI' : 'BAĞLI DEĞİL';
-        pads.slice(0, 2).forEach((gp, idx) => {
+        if (info) info.textContent = count ? count + ' KOL BAĞLI' : 'BAĞLI DEĞİL';
+        // Yuva sırası korunur: 1. kol çıkınca 2. kol P1 olmaz; boş yuvanın önceki durumu silinir
+        for (let i = 0; i < 2; i++) if (!slots[i]) delete padPrev[i]; // dizi kısalırsa (kol çıkınca) eski durum da silinir
+        slots.slice(0, 2).forEach((gp, idx) => {
+            if (!gp) return;
             const now = padKeys(gp, idx);
             const prev = padPrev[idx] || [];
-            now.forEach(k => { if (!prev.includes(k) && document.body.classList.contains('oyun-acik') && !state.over) onKey({ key: k, preventDefault() {} }); });
+            const live = document.body.classList.contains('oyun-acik') && !state.over;
+            now.forEach(k => { if (!prev.includes(k) && live) onKey({ key: k, preventDefault() {} }); });
             padPrev[idx] = now;
         });
     }
@@ -1762,7 +1798,13 @@ const SnakeGame = (() => {
         document.getElementById('pauseOverlay').classList.toggle('active', state.paused);
         if (!state.paused) renderFrame();
     }
-    
+
+    // Odak kaybında otomatik duraklat: yalnız oyun çalışıyorken ve henüz duraklı değilken (Tron 2P dahil). Otomatik devam yok.
+    function autoPause() {
+        if (!state.running || state.paused || state.over || state.complete) return;
+        togglePause();
+    }
+
     // ======================== HUD ========================
     function updateHUD() {
         document.getElementById('hudScore').textContent = state.score;
@@ -1798,7 +1840,7 @@ const SnakeGame = (() => {
         drawBackground(nowT);
         
         // Static obstacles
-        obstacles.forEach(o => drawBlock(o.x, o.y, C.obstacle, '#55557a'));
+        obstacles.forEach(o => drawBlock(o.x, o.y, settings.cb ? PALET.engel : C.obstacle, '#55557a'));
         
         // Moving obstacles
         movingObs.forEach(o => drawBlock(Math.floor(o.x), Math.floor(o.y), C.movingObs, '#ffaa44', true));
@@ -1837,7 +1879,7 @@ const SnakeGame = (() => {
         if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
         if (powers.shield) drawAura(snake[0], '#00ccff', 22);
         
-        if (['bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron'].includes(state.mode)) drawBanner();
+        if (['bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron', 'daily'].includes(state.mode)) drawBanner(); // daily eksikti: Günlük afişleri hiç çizilmiyordu
         drawParticles();
         drawVignette();
         if (state.mode === 'survivor' && sv.choosing) drawLevelUp();
@@ -1995,11 +2037,12 @@ const SnakeGame = (() => {
             ctx.stroke();
         }
 
-        ctx.shadowColor = '#00ffaa';
+        ctx.shadowColor = settings.cb ? PALET.yilan : '#00ffaa';
         ctx.shadowBlur = 18;
         const g = ctx.createRadialGradient(cx - fx * 2, cy - fy * 2, 1, cx, cy, 11);
-        g.addColorStop(0, '#9dffd0');
-        g.addColorStop(1, '#13c27a');
+        // eski (cb dahil): '#9dffd0' → '#13c27a'
+        g.addColorStop(0, settings.cb ? PALET.ton(PALET.yilan, 0.45) : '#9dffd0');
+        g.addColorStop(1, settings.cb ? PALET.yilan : '#13c27a');
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.ellipse(cx + fx * 1.5, cy + fy * 1.5, fx ? 10.5 : 9.5, fy ? 10.5 : 9.5, 0, 0, Math.PI * 2);
@@ -2036,7 +2079,8 @@ const SnakeGame = (() => {
         const S = CONFIG.CELL;
         const k = total > 1 ? idx / (total - 1) : 0;
         const r = Math.max(5.2, 8.6 - k * 3.2);
-        const col = settings.cb ? `hsl(${208 - 10 * k} ${90 - 10 * k}% ${58 - 22 * k}%)` : `hsl(${158 - 16 * k} ${88 - 14 * k}% ${50 - 22 * k}%)`;
+        // eski cb: `hsl(${208 - 10 * k} ${90 - 10 * k}% ${58 - 22 * k}%)`
+        const col = settings.cb ? PALET.ton(PALET.yilan, -0.4 * k) : `hsl(${158 - 16 * k} ${88 - 14 * k}% ${50 - 22 * k}%)`;
         const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2;
         const prev = renderPos[idx - 1];
         ctx.fillStyle = col;
@@ -2090,7 +2134,7 @@ const SnakeGame = (() => {
         ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(cx, cy - 8); ctx.lineTo(cx + 2, cy - 12); ctx.stroke();
         if (settings.cb) {
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+            ctx.strokeStyle = PALET.curuk; ctx.lineWidth = 3; // eski: '#ffffff', 2
             ctx.beginPath(); ctx.moveTo(cx - 5, cy - 5); ctx.lineTo(cx + 5, cy + 5); ctx.moveTo(cx + 5, cy - 5); ctx.lineTo(cx - 5, cy + 5); ctx.stroke();
         }
         ctx.restore();
@@ -2102,15 +2146,16 @@ const SnakeGame = (() => {
         const cx = food.x * S + S / 2, cy = food.y * S + S / 2;
         const pulse = 1 + Math.sin(t * 5) * 0.1;
         if (food.type === 'curuk') { drawRottenFood(cx, cy, t); return; }
-        const col = isSuper ? '#ffdd00' : '#ffbf2e';
+        const col = isSuper ? '#ffdd00' : (settings.cb ? PALET.yem : '#ffbf2e');
 
         const halo = ctx.createRadialGradient(cx, cy, 2, cx, cy, 20 * pulse);
-        halo.addColorStop(0, isSuper ? 'rgba(255,221,0,0.45)' : 'rgba(255,191,46,0.38)');
+        // cb: PALET.yem (#E69F00) = rgb(230,159,0); eski 'rgba(255,191,46,0.38)'
+        halo.addColorStop(0, isSuper ? 'rgba(255,221,0,0.45)' : (settings.cb ? 'rgba(230,159,0,0.38)' : 'rgba(255,191,46,0.38)'));
         halo.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = halo;
         ctx.fillRect(cx - 22, cy - 22, 44, 44);
         if (settings.cb) { // şekil ipucu: beyaz halka
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.setLineDash(isSuper ? [3, 3] : []);
+            ctx.strokeStyle = PALET.yemHalka; /* eski: '#ffffff' */ ctx.lineWidth = 2; ctx.setLineDash(isSuper ? [3, 3] : []);
             ctx.beginPath(); ctx.arc(cx, cy, 11 * pulse, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
         }
 
@@ -2379,8 +2424,9 @@ const SnakeGame = (() => {
             const cx = c.x * S + S / 2, cy = c.y * S + S / 2;
             const k = tron.ai.length > 1 ? i / (tron.ai.length - 1) : 0;
             const r = i === 0 ? 9 : Math.max(5, 8 - k * 3);
-            ctx.fillStyle = i === 0 ? '#ffd27a' : `hsl(${28 - 8 * k} 90% ${52 - 20 * k}%)`;
-            if (i === 0) { ctx.shadowColor = '#ff8a00'; ctx.shadowBlur = 12; }
+            // cb: Tron rakibi sarı (#F0E442); eski '#ffd27a' / `hsl(${28 - 8 * k} 90% ${52 - 20 * k}%)`
+            ctx.fillStyle = settings.cb ? (i === 0 ? PALET.ton(PALET.tron, 0.3) : PALET.ton(PALET.tron, -0.4 * k)) : (i === 0 ? '#ffd27a' : `hsl(${28 - 8 * k} 90% ${52 - 20 * k}%)`);
+            if (i === 0) { ctx.shadowColor = settings.cb ? PALET.tron : '#ff8a00'; ctx.shadowBlur = 12; }
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.fill();
@@ -2431,15 +2477,25 @@ const SnakeGame = (() => {
             .map(d => ({ d, ok: !tronBlocked(h.x + d.x, h.y + d.y) }))
             .filter(o => o.ok);
         if (!opts.length) return tron.aiDir;
+        // Oyuncunun bir sonraki başı: kafa kafaya (berabere) hücresinden kaçın
+        const pn = { x: snake[0].x + nextDir.x, y: snake[0].y + nextDir.y };
         const dumb = Math.max(0.02, 0.2 - wins * 0.03);
-        if (Math.random() < dumb) return opts[Math.floor(Math.random() * opts.length)].d;
-        let best = opts[0], bestN = -1;
+        if (Math.random() < dumb) {
+            // "Dalgın" hamle: yine de boş ve kafa kafaya olmayan bir yön
+            const pool = opts.filter(o => !(h.x + o.d.x === pn.x && h.y + o.d.y === pn.y));
+            const src = pool.length ? pool : opts;
+            return src[Math.floor(Math.random() * src.length)].d;
+        }
+        let best = [], bestN = -Infinity;
         opts.forEach(o => {
-            let n = floodCount(h.x + o.d.x, h.y + o.d.y);
+            const nx = h.x + o.d.x, ny = h.y + o.d.y;
+            let n = floodCount(nx, ny);
             if (o.d.x === tron.aiDir.x && o.d.y === tron.aiDir.y) n += 0.5;
-            if (n > bestN) { bestN = n; best = o; }
+            if (nx === pn.x && ny === pn.y) n -= 1000;
+            if (n > bestN) { bestN = n; best = [o]; }
+            else if (n === bestN) best.push(o); // eşitlik: rastgele seç
         });
-        return best.d;
+        return best[Math.floor(Math.random() * best.length)].d;
     }
     
     function tronWin() {
@@ -2735,11 +2791,12 @@ const SnakeGame = (() => {
             const data = JSON.parse(localStorage.getItem('pixelSnakeArcade'));
             if (data && typeof data === 'object') {
                 const r = data.records && typeof data.records === 'object' ? data.records : {};
-                Object.keys(records).forEach(k => { if (k !== 'top' && k !== 'dailyDate' && typeof r[k] === 'number' && isFinite(r[k])) records[k] = r[k]; });
+                const skor = v => typeof v === 'number' && isFinite(v) && v >= 0 && v <= 1e9; // fuzz: negatif/aşırı büyük skor reddedilir
+                Object.keys(records).forEach(k => { if (k !== 'top' && k !== 'dailyDate' && skor(r[k])) records[k] = r[k]; });
                 if (typeof r.dailyDate === 'string') records.dailyDate = r.dailyDate;
                 if (r.dailyPrev && typeof r.dailyPrev.d === 'string' && typeof r.dailyPrev.s === 'number' && isFinite(r.dailyPrev.s)) records.dailyPrev = { d: r.dailyPrev.d, s: r.dailyPrev.s };
                 records.top = {};
-                if (r.top && typeof r.top === 'object') Object.keys(r.top).forEach(m => { if (Array.isArray(r.top[m])) records.top[m] = r.top[m].filter(t => t && typeof t.s === 'number').slice(0, 5); });
+                if (r.top && typeof r.top === 'object') Object.keys(r.top).forEach(m => { if (m !== '__proto__' && Array.isArray(r.top[m])) records.top[m] = r.top[m].filter(t => t && skor(t.s)).slice(0, 5); }); // fuzz: __proto__ anahtarı prototipi bozmasın
                 const pr = data.progress && typeof data.progress === 'object' ? data.progress : {};
                 progress.unlocked = Math.min(30, Math.max(1, parseInt(pr.unlocked, 10) || 1));
                 progress.stars = {};
@@ -2775,7 +2832,7 @@ const SnakeGame = (() => {
         openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic,
         // Test API'si (_debug, _ach) yalnız ?test=1 ile açılan sayfada; paketli oyunda yok.
         ...(TEST_MODE ? { _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
-        _debug: { tick, get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records }) } } : {})
+        _debug: { tick, get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
     };
     return PUBLIC;
 })();
