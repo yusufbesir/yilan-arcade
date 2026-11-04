@@ -7,7 +7,7 @@ const assert = require('assert');
 (async () => {
   const kok = path.resolve(__dirname, '..');
   // Kaynak dosyalar diskte var
-  ['PavingStones138', 'Rock064', 'Rock058', 'Tiles141', 'Lava004', 'Moss002'].forEach(id => ['Color', 'NormalGL', 'Roughness'].forEach(h => {
+  ['PavingStones138', 'Rock064', 'Rock058', 'Tiles141', 'Lava004', 'Moss002', 'Ground068', 'Leather008'].forEach(id => ['Color', 'NormalGL', 'Roughness'].forEach(h => {
     assert(fs.existsSync(path.join(kok, 'src/img/tex', id, id + '_' + h + '.jpg')), id + '_' + h);
   }));
   assert(fs.existsSync(path.join(kok, 'src/img/tex/pack.js')), 'pack.js');
@@ -34,7 +34,7 @@ const assert = require('assert');
   // Makro doku bütçesi: her biri < 150 ms (dpr 2)
   sonuc.sure = await page.evaluate(() => {
     const out = {};
-    ['tas', 'kaya', 'buz', 'lav'].forEach(t => {
+    ['tas', 'kaya', 'buz', 'lav', 'bat', 'run'].forEach(t => {
       let worst = 0, n = 0;
       while (!Doku.ready(t, 2) && n++ < 12) { const a = performance.now(); Doku.pump(t, 2); worst = Math.max(worst, performance.now() - a); }
       out[t] = { ok: Doku.ready(t, 2), ms: Math.round(worst) };
@@ -47,6 +47,7 @@ const assert = require('assert');
   sonuc.cizim = {};
   for (const [ad, fn] of shots) {
     await page.evaluate(fn);
+    await page.evaluate(() => Tema.sifirla()); // Kaya karanlık kuralı zemini örtmesin: bu test yalnız doku okunurluğunu ölçer
     await page.waitForTimeout(1200);
     await page.locator('#gameCanvas').screenshot({ path: '/tmp/doku-' + ad + '.png' });
     // zemin ortalama parlaklığı orta-koyu (okunabilirlik) ve boş değil

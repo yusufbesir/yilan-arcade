@@ -25,9 +25,9 @@ const fs = require('fs');
     const dir1 = JSON.stringify(SnakeGame._debug.get().nextDir);
     return { changed: dir0 !== dir1 && dir1 === '{"x":0,"y":-1}', cspv: window.__cspv, hasPress: document.getElementById('fireBtn').dataset.press === 'fire' };
   });
-  await page.evaluate(() => SnakeGame.showMenu());
+  await page.evaluate(() => SnakeGame.showModes()); // Tron 2P düğmesi Modlar ekranında
   await page.click('#tron2pBtn');
-  const tronBtn = await page.evaluate(() => SnakeGame.getSettings().tron2p === true && document.body.classList.contains('menu-acik'));
+  const tronBtn = await page.evaluate(() => SnakeGame.getSettings().tron2p === true && document.getElementById('modesScreen').classList.contains('active') && document.body.classList.contains('menu-acik'));
   await page.evaluate(() => { SnakeGame.setSetting('tron2p', false); SnakeGame.openSettings(); });
   await page.click('#setShake');
   const shakeBtn = await page.evaluate(() => SnakeGame.getSettings().shake === false);

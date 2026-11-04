@@ -26,7 +26,7 @@ const path = require('path');
   await page.waitForTimeout(150);
   r.enter = await page.evaluate(() => document.body.classList.contains('oyun-acik'));
   // Tron 2P düğmesi kart başlatmamalı (klavyede Space)
-  await page.evaluate(() => SnakeGame.showMenu());
+  await page.evaluate(() => SnakeGame.showModes());
   await page.focus('#tron2pBtn');
   await page.keyboard.press('Enter'); await page.waitForTimeout(150);
   r.tronNoStart = await page.evaluate(() => document.body.classList.contains('menu-acik') && SnakeGame.getSettings().tron2p === true);

@@ -11,7 +11,9 @@ const LISTE = {
     Rock058: ['Color', 'NormalGL', 'Roughness'],
     Tiles141: ['Color', 'NormalGL', 'Roughness'],
     Lava004: ['Color', 'NormalGL', 'Roughness'],
-    Moss002: ['Color', 'NormalGL', 'Roughness']
+    Moss002: ['Color', 'NormalGL', 'Roughness'],
+    Ground068: ['Color', 'NormalGL', 'Roughness'],
+    Leather008: ['Color', 'NormalGL', 'Roughness']
 };
 const pack = {};
 Object.keys(LISTE).forEach(id => LISTE[id].forEach(h => {

@@ -978,9 +978,510 @@
         .subtitle { letter-spacing: 0.5em; padding-left: 0.5em; text-align: center; margin-top: 4px; font-size: 7px; }
         body.menu-acik .arcade-cabinet { padding: clamp(8px, 1.4vw, 18px); }
         body.menu-acik .title-area { margin-bottom: 8px; }
+
+    /* =====================================================================
+       Nors cam kart arayüzü (0.9.3): oyun içi HUD, kutular, paneller, seviye ızgarası
+       Tipografi ölçeği (Press Start 2P 8px ızgarasında): 8 / 10 / 12 / 16 / 24 / 32 px
+       Boşluk ızgarası: 8 / 16 / 24 / 32 px. Başlıklar Georgia italik altın.
+       Menü seçicilerine (.menu-container, .mode-card, .menu-actions, .controls-help, .subtitle) dokunulmaz.
+       ===================================================================== */
+    :root {
+        --yz: #e8f0f7;
+        --yz2: #b9c9d8;
+        --yz3: #93a8bb;
+        --yuzey: rgba(14, 22, 36, 0.9);
+        --yuzey-hafif: rgba(255, 255, 255, 0.05);
+        --altin-cizgi: rgba(232, 196, 106, 0.4);
+        --altin-ink: #1b1407;
+        --gul: #ff8f9a;
+        --nane: #8fe3a8;
+        --serif: Georgia, 'Times New Roman', serif;
+    }
+    .ikon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .ik { width: 16px; height: 16px; flex: none; fill: currentColor; vertical-align: -3px; pointer-events: none; }
+
+    /* ---------- HUD ---------- */
+    .game-hud {
+        display: flex; flex-wrap: wrap; justify-content: space-between; align-items: stretch;
+        gap: 8px 16px; padding: 8px 16px;
+        background: var(--yuzey);
+        border: 1px solid var(--nors-cizgi); border-bottom: none; border-radius: 16px 16px 0 0;
+        box-shadow: inset 0 1px 0 rgba(232, 196, 106, 0.18);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+    .hud-section { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+    .hud-item {
+        display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px;
+        min-width: 88px; padding: 8px 16px; text-align: left;
+        background: var(--yuzey-hafif); border: 1px solid var(--nors-cizgi); border-radius: 12px;
+    }
+    .hud-head { display: flex; align-items: center; gap: 6px; color: var(--yz3); }
+    .hud-head .ik { width: 12px; height: 12px; vertical-align: 0; }
+    .hud-label { font-size: 8px; line-height: 1; letter-spacing: 1px; color: #a8bbcd; margin: 0; white-space: nowrap; }
+    .hud-value { font-size: 16px; line-height: 1.2; text-shadow: 0 0 10px color-mix(in srgb, currentColor 35%, transparent); font-variant-numeric: tabular-nums; }
+    .hud-value.score { color: var(--nors-altin); }
+    .hud-value.high { color: var(--nors-buz); }
+    .hud-value.level { color: #7fe0d0; }
+    .hud-value.target { color: #ffb86b; }
+    .hud-value.target.gecildi { color: #00ff66; } /* gunluk.test: dünkü skor geçildi = saf yeşil */
+    .hud-value.lives { display: flex; align-items: center; gap: 4px; min-height: 19px; text-shadow: none; }
+    .hud-value .kalp { width: 16px; height: 16px; color: #ff6f8e; vertical-align: 0; filter: drop-shadow(0 0 4px rgba(255, 111, 142, 0.5)); }
+    .hud-value .kalp.bos { color: #46566b; filter: none; }
+    .hud-skor .hud-head { color: var(--nors-altin); }
+    .hud-rekor .hud-head { color: var(--nors-buz); }
+    .hud-can .hud-head { color: #ff6f8e; }
+    .hud-hedef .hud-head { color: #ffb86b; }
+    .hud-seviye .hud-head { color: #7fe0d0; }
+    html.buyuk-hud .hud-head .ik { width: 16px; height: 16px; }
+    html.buyuk-hud .hud-value .kalp { width: 22px; height: 22px; }
+    html.buyuk-hud .hud-item { padding: 8px 16px; }
+    #gameCanvas {
+        border: 1px solid var(--nors-cizgi); border-top: none; border-radius: 0 0 16px 16px;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+    }
+    .game-wrapper { position: relative; }
+
+    /* ---------- Güç göstergeleri ---------- */
+    .powerup-indicators { gap: 8px; margin-top: 16px; min-height: 40px; flex-wrap: wrap; }
+    .power-badge {
+        align-items: center; gap: 8px; padding: 8px 16px; border: 1px solid; border-radius: 999px;
+        font-size: 8px; letter-spacing: 1px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        animation: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    }
+    .power-badge .ik { width: 14px; height: 14px; vertical-align: 0; }
+    .power-badge.shield { border-color: rgba(0, 204, 255, 0.7); color: #7fdcff; background: rgba(0, 204, 255, 0.12); }
+    .power-badge.speed { border-color: rgba(255, 204, 0, 0.7); color: #ffd84d; background: rgba(255, 204, 0, 0.12); }
+    .power-badge.invincible { border-color: rgba(255, 110, 255, 0.7); color: #ff9aff; background: rgba(255, 0, 255, 0.12); }
+    .power-badge.active .ik { animation: guc 0.9s ease-in-out infinite alternate; }
+    @keyframes guc { from { opacity: 0.6; } to { opacity: 1; } }
+
+    /* ---------- Oyun kutuları (duraklat / oyun sonu / bölüm tamam) ---------- */
+    .game-overlay {
+        background: rgba(5, 10, 20, 0.62);
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        border-radius: 0 0 16px 16px; padding: 16px; overflow-y: auto; align-items: safe center;
+    }
+    .overlay-box {
+        width: min(440px, 100%); padding: 24px 32px; line-height: normal;
+        background: var(--yuzey); border: 1px solid var(--nors-cizgi); border-radius: 20px;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(232, 196, 106, 0.08), inset 0 1px 0 rgba(232, 196, 106, 0.2);
+        animation: norsGir var(--nors-sure) var(--nors-yay);
+    }
+    .ov-ikon {
+        display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; margin-bottom: 16px;
+        border-radius: 50%; border: 1px solid currentColor; background: color-mix(in srgb, currentColor 14%, transparent);
+    }
+    .ov-ikon .ik { width: 28px; height: 28px; vertical-align: 0; }
+    .ov-ikon.gameover { color: var(--gul); }
+    .ov-ikon.paused { color: var(--nors-buz); }
+    .overlay-title {
+        font-family: var(--serif); font-style: italic; font-weight: 400;
+        font-size: clamp(24px, 5vw, 32px); line-height: 1.2; letter-spacing: 2px; margin: 0 0 8px; animation: none;
+    }
+    .overlay-title.gameover { color: var(--gul); text-shadow: 0 0 24px rgba(255, 143, 154, 0.35); }
+    .overlay-title.complete { color: var(--nors-altin); text-shadow: 0 0 24px rgba(232, 196, 106, 0.4); }
+    .overlay-title.paused { color: var(--nors-buz); text-shadow: 0 0 24px rgba(169, 214, 240, 0.35); }
+    .overlay-score { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 16px 0; font-size: 10px; text-shadow: none; }
+    .os-label { font-size: 8px; letter-spacing: 2px; color: var(--yz3); }
+    .os-val { font-size: 32px; line-height: 1; color: var(--nors-altin); text-shadow: 0 0 18px rgba(232, 196, 106, 0.45); font-variant-numeric: tabular-nums; }
+    .overlay-message { font-size: 10px; line-height: 1.8; color: var(--yz2); margin: 8px 0; }
+    .overlay-message .key-hint { display: inline-block; padding: 4px 8px; margin: 0 4px; color: var(--nors-buz); background: rgba(169, 214, 240, 0.12); border: 1px solid rgba(169, 214, 240, 0.4); border-radius: 6px; }
+    .rekor-msg {
+        display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--nors-altin); letter-spacing: 2px;
+        animation: kulGir 0.5s var(--nors-yay) both;
+    }
+    .rekor-msg .ik { width: 16px; height: 16px; vertical-align: 0; }
+    /* Kül kazancı vurgusu */
+    .kul-msg {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        margin: 8px 0; padding: 8px 24px; border-radius: 999px; font-size: 12px; letter-spacing: 1px; line-height: 1.4; color: #ffd9a8;
+        background: linear-gradient(135deg, rgba(255, 138, 61, 0.3), rgba(232, 196, 106, 0.16));
+        border: 1px solid rgba(255, 138, 61, 0.65);
+        box-shadow: 0 0 28px rgba(255, 138, 61, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        animation: kulGir 0.5s var(--nors-yay) 0.15s both;
+    }
+    .kul-msg:empty { display: none; }
+    @keyframes kulGir { from { opacity: 0; transform: translateY(8px) scale(0.92); } to { opacity: 1; transform: none; } }
+    .top-list {
+        display: block; width: min(240px, 100%); margin: 16px auto 0; padding: 8px 16px; list-style: none;
+        font-size: 10px; line-height: 1; text-align: left; color: var(--yz2);
+        background: var(--yuzey-hafif); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px;
+    }
+    .top-list::before { content: 'EN İYİ 5'; display: block; padding: 8px 0; font-size: 8px; letter-spacing: 2px; color: var(--yz3); }
+    .top-list li { padding: 8px 8px; margin: 0 -8px; border-radius: 8px; font-variant-numeric: tabular-nums; }
+    .top-list li.me { color: var(--altin-ink); background: linear-gradient(180deg, #f0d283, #d9ae48); }
+    .star-rating { display: flex; justify-content: center; align-items: flex-end; gap: 8px; margin: 16px 0; font-size: 0; letter-spacing: 0; }
+    .star-rating .yildiz { width: 40px; height: 40px; color: rgba(255, 255, 255, 0.16); vertical-align: 0; }
+    .star-rating .yildiz.on { color: #f2cf73; filter: drop-shadow(0 0 8px rgba(232, 196, 106, 0.6)); animation: yildizGir 0.5s var(--nors-yay) both; }
+    .star-rating .yildiz:nth-child(2) { width: 48px; height: 48px; }
+    .star-rating .yildiz.on:nth-child(2) { animation-delay: 0.12s; }
+    .star-rating .yildiz.on:nth-child(3) { animation-delay: 0.24s; }
+    @keyframes yildizGir { from { opacity: 0; transform: scale(0.4) rotate(-20deg); } to { opacity: 1; transform: none; } }
+    .overlay-buttons { gap: 16px 8px; margin-top: 24px; }
+    .overlay-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 24px;
+        font-size: 10px; letter-spacing: 1px; border: 1px solid var(--nors-cizgi); border-radius: 999px; cursor: pointer;
+        transition: background var(--nors-sure), color var(--nors-sure), box-shadow var(--nors-sure), transform var(--nors-sure) var(--nors-yay), filter var(--nors-sure);
+    }
+    .overlay-btn .ik { width: 16px; height: 16px; vertical-align: 0; }
+    .overlay-btn.primary {
+        background: linear-gradient(180deg, #f0d283, #d9ae48); border-color: #f3dc9a; color: var(--altin-ink);
+        box-shadow: 0 6px 18px rgba(232, 196, 106, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+    .overlay-btn.primary:hover { background: linear-gradient(180deg, #f6dd96, #e2b84f); color: var(--altin-ink); box-shadow: 0 10px 26px rgba(232, 196, 106, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5); transform: translateY(-2px); }
+    .overlay-btn.secondary { background: var(--yuzey-hafif); border-color: var(--nors-cizgi); color: #d6e4ef; }
+    .overlay-btn.secondary:hover { background: rgba(169, 214, 240, 0.14); border-color: rgba(169, 214, 240, 0.55); color: #fff; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35); transform: translateY(-2px); }
+    .overlay-btn:active, .overlay-btn.primary:active, .overlay-btn.secondary:active { transform: translateY(0) scale(0.97); }
+
+    /* ---------- Seviye seçimi ---------- */
+    .level-header { margin-bottom: 16px; }
+    .level-header h2 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 32px; letter-spacing: 1px; color: var(--nors-altin); text-shadow: 0 0 18px rgba(232, 196, 106, 0.4); margin: 0 0 8px; }
+    .level-header p { font-size: 10px; line-height: 1.8; color: var(--yz2); }
+    .level-legend { list-style: none; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 24px; margin-top: 8px; font-size: 8px; color: var(--yz3); }
+    .level-legend li { display: inline-flex; align-items: center; gap: 8px; }
+    .lg-dot { width: 10px; height: 10px; border-radius: 4px; border: 1px solid; }
+    .lg-dot.cur { border-color: var(--nors-buz); background: rgba(169, 214, 240, 0.3); }
+    .lg-dot.done { border-color: var(--nors-altin); background: rgba(232, 196, 106, 0.3); }
+    .lg-ik { width: 12px; height: 12px; vertical-align: 0; }
+    .levels-grid {
+        grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px; padding: 8px; margin-bottom: 16px;
+        max-height: min(60vh, 520px); overflow-y: auto; overflow-x: hidden;
+        background: rgba(255, 255, 255, 0.03); border: 1px solid var(--nors-cizgi); border-radius: 16px;
+        scrollbar-width: thin; scrollbar-color: rgba(232, 196, 106, 0.55) transparent;
+    }
+    .levels-grid::-webkit-scrollbar { width: 8px; }
+    .levels-grid::-webkit-scrollbar-track { background: transparent; }
+    .levels-grid::-webkit-scrollbar-thumb { background: rgba(232, 196, 106, 0.5); border-radius: 999px; }
+    .level-btn {
+        aspect-ratio: 1 / 1.1; min-width: 0; padding: 4px; gap: 4px;
+        font-size: 16px; line-height: 1; color: var(--yz);
+        background: var(--yuzey-hafif); border: 1px solid var(--nors-cizgi); border-radius: 12px;
+        transition: transform var(--nors-sure) var(--nors-yay), box-shadow var(--nors-sure), border-color var(--nors-sure), background var(--nors-sure);
+    }
+    .level-btn:hover:not(.locked) {
+        background: rgba(232, 196, 106, 0.16); color: #fff; border-color: var(--nors-altin);
+        transform: translateY(-3px); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(232, 196, 106, 0.35); z-index: 1;
+    }
+    .level-btn:active:not(.locked) { transform: translateY(0) scale(0.97); }
+    .level-btn.completed { color: #f4dc95; border-color: rgba(232, 196, 106, 0.5); background: linear-gradient(180deg, rgba(232, 196, 106, 0.16), rgba(232, 196, 106, 0.04)); }
+    .level-btn.completed:hover { background: rgba(232, 196, 106, 0.22); color: #fff; box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(232, 196, 106, 0.35); }
+    .level-btn.current { color: #fff; border-color: var(--nors-buz); background: linear-gradient(180deg, rgba(169, 214, 240, 0.2), rgba(169, 214, 240, 0.06)); box-shadow: 0 0 0 1px rgba(169, 214, 240, 0.3), 0 0 22px rgba(169, 214, 240, 0.22); animation: norsNabiz 2.4s ease-in-out infinite; }
+    @keyframes norsNabiz { 50% { box-shadow: 0 0 0 1px rgba(169, 214, 240, 0.5), 0 0 30px rgba(169, 214, 240, 0.38); } }
+    .level-btn.locked { color: #8da1b5; border: 1px dashed rgba(160, 205, 235, 0.22); background: rgba(0, 0, 0, 0.28); cursor: not-allowed; }
+    .level-btn .kilit { width: 20px; height: 20px; vertical-align: 0; }
+    .level-stars { display: flex; gap: 2px; font-size: 0; letter-spacing: 0; }
+    .level-stars .yildiz { width: 10px; height: 10px; color: rgba(255, 255, 255, 0.2); vertical-align: 0; }
+    .level-stars .yildiz.on { color: #f2cf73; }
+    .level-diff { gap: 2px; margin-top: 0; }
+    .diff-pip { width: 8px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); }
+    .diff-pip.active { background: var(--nors-buz); }
+    .level-btn.completed .diff-pip.active { background: var(--nors-altin); }
+    .back-button {
+        display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 24px; margin: 0 auto;
+        background: var(--yuzey-hafif); border: 1px solid var(--nors-cizgi); border-radius: 999px; color: #d6e4ef;
+        font-size: 10px; letter-spacing: 1px;
+        transition: background var(--nors-sure), color var(--nors-sure), border-color var(--nors-sure), transform var(--nors-sure) var(--nors-yay);
+    }
+    .back-button:hover { background: rgba(169, 214, 240, 0.14); border-color: rgba(169, 214, 240, 0.55); color: #fff; box-shadow: none; transform: translateY(-2px); }
+    .back-button:active { transform: scale(0.97); }
+    .back-button .ik { width: 16px; height: 16px; vertical-align: 0; }
+
+    /* ---------- Paneller (ayarlar / başarımlar / Miras) ---------- */
+    .panel-overlay { background: rgba(5, 10, 20, 0.72); }
+    .panel {
+        display: flex; flex-direction: column; width: min(600px, 100%); max-height: min(88vh, 780px); padding: 0; overflow: hidden;
+        background: var(--yuzey); border: 1px solid var(--nors-cizgi); border-radius: 20px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(232, 196, 106, 0.2);
+    }
+    .panel h2 {
+        display: flex; align-items: center; gap: 16px; margin: 0; padding: 24px 24px 16px;
+        font-size: 32px; line-height: 1.1; letter-spacing: 1px; color: var(--nors-altin); text-shadow: 0 0 18px rgba(232, 196, 106, 0.35);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .panel h2 .ik { width: 24px; height: 24px; vertical-align: 0; filter: drop-shadow(0 0 6px rgba(232, 196, 106, 0.5)); }
+    .panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 24px 16px; scrollbar-width: thin; scrollbar-color: rgba(232, 196, 106, 0.55) transparent; }
+    .panel-body { border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+    .panel-body::-webkit-scrollbar { width: 8px; }
+    .panel-body::-webkit-scrollbar-thumb { background: rgba(232, 196, 106, 0.5); border-radius: 999px; }
+    .panel .close {
+        flex: none; display: flex; align-items: center; justify-content: center; width: auto; min-height: 44px; margin: 16px 24px 24px; padding: 8px 24px;
+        font-size: 10px; letter-spacing: 2px; color: #d6e4ef; border-radius: 999px;
+    }
+    .panel .close:hover { background: rgba(169, 214, 240, 0.14); border-color: rgba(169, 214, 240, 0.55); color: #fff; transform: none; }
+    .panel .close:active { transform: scale(0.98); }
+    .panel .row { gap: 8px 16px; padding: 16px 0; }
+    .panel .row:last-child { border-bottom: none; }
+    .panel label { font-size: 10px; line-height: 1.6; letter-spacing: 1px; color: var(--yz); }
+    .panel label small { margin-top: 4px; font-size: 8px; line-height: 1.8; letter-spacing: 0; color: var(--yz3); }
+    .panel .val { font-size: 10px; min-width: 48px; font-variant-numeric: tabular-nums; }
+    .panel input[type=range] { -webkit-appearance: none; appearance: none; height: 24px; margin: 0; background: transparent; cursor: pointer; }
+    .panel input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); }
+    .panel input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px; border-radius: 50%; background: var(--nors-altin); border: 2px solid var(--altin-ink); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); transition: transform var(--nors-sure) var(--nors-yay); }
+    .panel input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.15); }
+    .panel input[type=range]::-moz-range-track { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); }
+    .panel input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--nors-altin); border: 2px solid var(--altin-ink); }
+    .panel .toggle {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 104px; min-height: 40px; padding: 8px 16px;
+        font-size: 8px; letter-spacing: 1px; color: #d6e4ef; border-radius: 999px;
+        transition: background var(--nors-sure), color var(--nors-sure), border-color var(--nors-sure), transform var(--nors-sure) var(--nors-yay);
+    }
+    .panel .toggle::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #71859a; flex: none; transition: background var(--nors-sure), box-shadow var(--nors-sure); }
+    .panel .toggle.on::before { background: var(--nors-altin); box-shadow: 0 0 8px var(--nors-altin); }
+    .panel .toggle:hover:not(:disabled) { background: rgba(169, 214, 240, 0.14); border-color: rgba(169, 214, 240, 0.5); color: #fff; }
+    .panel .toggle.on:hover:not(:disabled) { background: rgba(232, 196, 106, 0.3); color: #fff; border-color: var(--nors-altin); }
+    .panel .toggle:active:not(:disabled) { transform: scale(0.96); }
+
+    /* Başarımlar */
+    .ach-sum { display: flex; align-items: center; gap: 16px; margin: 8px 0 16px; font-size: 10px; letter-spacing: 1px; color: var(--yz2); white-space: nowrap; }
+    .ach-sum b { color: var(--nors-altin); font-size: 16px; font-weight: 400; }
+    .ach-bar { flex: 1; height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+    .ach-bar div { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #b8742a, var(--nors-altin)); box-shadow: 0 0 10px rgba(232, 196, 106, 0.5); }
+    .ach-list { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+    .ach {
+        display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 16px; align-items: center; padding: 16px; opacity: 1;
+        border-radius: 14px; background: var(--yuzey-hafif); border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .ach.on { border-color: rgba(232, 196, 106, 0.5); background: linear-gradient(135deg, rgba(232, 196, 106, 0.14), rgba(232, 196, 106, 0.04)); }
+    .ach .ic { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; font-size: 20px; border-radius: 50%; background: rgba(232, 196, 106, 0.14); border: 1px solid rgba(232, 196, 106, 0.4); }
+    .ach:not(.on) .ic { color: #8da1b5; background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.1); }
+    .ach .ic .ik { width: 18px; height: 18px; vertical-align: 0; }
+    .ach b { margin-bottom: 8px; font-size: 10px; font-weight: 400; line-height: 1.4; color: var(--nors-altin); }
+    .ach:not(.on) b { color: var(--yz2); }
+    .ach div span { display: block; font-size: 8px; line-height: 1.8; color: var(--yz2); }
+    .ach:not(.on) div span { color: var(--yz3); }
+
+    /* Miras */
+    .miras-head { align-items: flex-end; margin: 8px 0 16px; font-size: 8px; letter-spacing: 2px; color: var(--yz2); }
+    .miras-head b { margin-left: 8px; font-family: var(--serif); font-style: italic; font-weight: 400; letter-spacing: 0; vertical-align: -2px; }
+    .mh-sv b { font-size: 32px; color: var(--nors-altin); text-shadow: 0 0 16px rgba(232, 196, 106, 0.4); }
+    .mh-kul { display: inline-flex; align-items: center; gap: 8px; }
+    .mh-kul b { margin-left: 0; }
+    .mh-kul .ik { width: 20px; height: 20px; color: #ff8a3d; vertical-align: 0; align-self: center; filter: drop-shadow(0 0 6px rgba(255, 138, 61, 0.6)); }
+    .mh-kul b { font-size: 24px; color: #ffb27a; margin-left: 0; }
+    .miras-bar { height: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.06); }
+    .miras-bar div { background: linear-gradient(90deg, #b8742a, var(--nors-altin)); box-shadow: 0 0 12px rgba(232, 196, 106, 0.55); transition: width 0.5s var(--nors-yay); }
+    .miras-bartxt { margin: 8px 0 16px; font-size: 8px; letter-spacing: 1px; color: var(--yz3); }
+    .miras-list { gap: 8px; }
+    .miras-card { grid-template-columns: 48px minmax(0, 1fr) auto; gap: 16px; padding: 16px; border-radius: 14px; transition: border-color var(--nors-sure), background var(--nors-sure); }
+    .miras-card .ic { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; font-size: 24px; border-radius: 50%; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .miras-card.on .ic { background: rgba(232, 196, 106, 0.14); border-color: rgba(232, 196, 106, 0.45); }
+    .miras-card b { margin-bottom: 8px; font-size: 10px; font-weight: 400; line-height: 1.4; }
+    .miras-card .pips { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; vertical-align: 1px; font-style: normal; }
+    .miras-card b .pip { display: inline-block; width: 8px; height: 8px; margin: 0; border-radius: 50%; border: 1px solid rgba(232, 196, 106, 0.7); background: transparent; }
+    .miras-card b .pip.on { background: var(--nors-altin); box-shadow: 0 0 6px rgba(232, 196, 106, 0.6); }
+    .miras-card .mi span { font-size: 8px; line-height: 1.8; color: var(--yz2); }
+    .miras-card .mi .now { margin-top: 4px; color: var(--yz); }
+    .miras-card .toggle.buy { min-width: 88px; padding: 8px 16px; gap: 8px; font-size: 10px; }
+    .miras-card .toggle.buy::before { display: none; }
+    .miras-card .toggle.buy .ik { width: 14px; height: 14px; vertical-align: 0; }
+    .miras-card .toggle.buy.can { background: linear-gradient(180deg, #f0d283, #d9ae48); border-color: #f3dc9a; color: var(--altin-ink); box-shadow: 0 4px 14px rgba(232, 196, 106, 0.22); }
+    .miras-card .toggle.buy.can:hover:not(:disabled) { background: linear-gradient(180deg, #f6dd96, #e2b84f); color: var(--altin-ink); transform: translateY(-2px); }
+    .miras-card .toggle.buy.tam { color: var(--nane); border-color: rgba(143, 227, 168, 0.5); background: rgba(143, 227, 168, 0.1); }
+    .miras-card .toggle:disabled { opacity: 1; color: #8da1b5; cursor: default; }
+    .miras-card .toggle.buy.tam:disabled { color: var(--nane); }
+
+    /* Bildirim */
+    .toast {
+        bottom: 24px; width: max-content; max-width: calc(100vw - 32px); padding: 16px 24px; border-radius: 16px; text-align: center; white-space: normal; line-height: 1.6;
+        font-size: 10px; letter-spacing: 1px; color: var(--nors-altin);
+        background: var(--yuzey); border: 1px solid var(--altin-cizgi);
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(232, 196, 106, 0.08);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+
+    /* ---------- Dokunmatik yön tuşları ---------- */
+    .dpad-btn {
+        background: var(--yuzey-hafif); border: 1px solid var(--nors-cizgi); border-radius: 14px; color: var(--nors-buz);
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        transition: background var(--nors-sure), color var(--nors-sure), transform 0.1s;
+    }
+    .dpad-btn .ik { width: 24px; height: 24px; vertical-align: 0; }
+    .dpad-btn:active { background: var(--nors-buz); color: #0a1220; transform: scale(0.94); }
+    .dpad-btn.center { border-color: var(--altin-cizgi); color: var(--nors-altin); }
+    .dpad-btn.center:active { background: var(--nors-altin); color: var(--altin-ink); }
+    .dpad-btn.fire { border-color: rgba(255, 143, 154, 0.5); color: var(--gul); }
+    .dpad-btn.fire:active { background: var(--gul); color: #2a0a10; }
+
+    /* ---------- Duyarlılık ---------- */
+    @media (max-width: 700px) {
+        .levels-grid, .levels-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        .game-overlay { padding: 8px; }
+        .overlay-box { padding: 12px 16px; border-radius: 16px; }
+        .ov-ikon { display: none; }
+        .overlay-title { font-size: 20px; margin-bottom: 4px; letter-spacing: 1px; }
+        .overlay-score { flex-direction: row; justify-content: center; align-items: baseline; gap: 8px; margin: 4px 0; }
+        .os-val { font-size: 24px; }
+        .overlay-message { margin: 4px 0; }
+        .kul-msg { padding: 4px 16px; font-size: 10px; margin: 4px 0; }
+        .top-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 8px; width: fit-content; max-width: 100%; margin: 8px auto 0; padding: 4px 8px; }
+        .top-list::before { display: none; }
+        .top-list li { padding: 4px 8px; margin: 0; }
+        .overlay-buttons { margin-top: 8px; gap: 8px; }
+        .overlay-btn { min-height: 40px; padding: 8px 16px; }
+        .star-rating { margin: 4px 0; }
+        .star-rating .yildiz { width: 24px; height: 24px; }
+        .star-rating .yildiz:nth-child(2) { width: 32px; height: 32px; }
+        .level-header h2 { font-size: 24px; }
+        .panel h2 { font-size: 24px; padding: 16px 16px 8px; }
+        .panel-body { padding: 8px 16px 16px; }
+        .panel .close { margin: 16px 16px 16px; }
+        .game-hud { padding: 8px; gap: 8px; }
+        .hud-section { flex: 1 1 auto; gap: 8px; }
+        .hud-item { flex: 1 1 0; min-width: 0; padding: 8px; }
+        .hud-value { font-size: 16px; }
+        .miras-card { grid-template-columns: 40px minmax(0, 1fr); gap: 8px 16px; padding: 16px; }
+        .miras-card .ic { width: 40px; height: 40px; font-size: 20px; }
+        .miras-card .toggle.buy { grid-column: 2; justify-self: start; }
+        .ach { padding: 16px; }
+    }
+    @media (max-width: 480px) {
+        .hud-head .ik { display: none; }
+        .hud-label { font-size: 8px; letter-spacing: 0; }
+        .hud-value { font-size: 14px; }
+        .hud-value .kalp { width: 14px; height: 14px; }
+        .hud-value.lives { min-height: 17px; }
+        .panel .row { grid-template-columns: minmax(0, 1fr) auto; }
+        .level-btn { font-size: 12px; }
+        .level-stars .yildiz { width: 8px; height: 8px; }
+        .toast { bottom: 16px; }
+    }
+    @media (min-width: 1000px) {
+        .level-btn { font-size: 24px; gap: 8px; }
+        .level-stars .yildiz { width: 12px; height: 12px; }
+        .diff-pip { width: 10px; height: 4px; }
+    }
+    @media (min-width: 1500px) {
+        .panel { width: min(680px, 100%); }
+        .hud-item { min-width: 104px; }
+    }
+    @media (max-height: 640px) {
+        .panel { max-height: 94vh; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .overlay-box, .kul-msg, .rekor-msg, .star-rating .yildiz.on, .level-btn.current, .power-badge.active .ik { animation: none; }
+        .miras-bar div, .level-btn, .overlay-btn, .back-button, .panel .toggle, .dpad-btn { transition: none; }
+    }
+    html.reduced .level-btn:hover:not(.locked), html.reduced .overlay-btn:hover, html.reduced .back-button:hover { transform: none; }
+
+    /* =====================================================================
+       Menü yeniden tasarımı (0.9.3): Hades / Hollow Knight esinli kısa dikey liste.
+       Tek vurgu rengi altın, serif italik başlıklar, çizimli tek renkli ikonlar.
+       Ana menüde 5 büyük seçenek; tüm modlar "Modlar" ekranında gruplu ızgarada.
+       ===================================================================== */
+    #menuScreen { width: min(94vw, 640px); }
+    .menu-container { display: flex; flex-direction: column; gap: 14px; padding: 4px; }
+    .menu-list { display: flex; flex-direction: column; gap: 8px; }
+    .menu-container .mode-card, .modes-wrap .mode-card {
+        display: flex; flex-direction: row; align-items: center; gap: 14px; min-width: 0;
+        border: 1px solid rgba(232,196,106,0.18); border-left: 3px solid rgba(232,196,106,0.45); border-radius: 12px;
+        background: linear-gradient(90deg, rgba(10,18,32,0.62), rgba(10,18,32,0.34));
+        padding: 12px 16px; margin: 0; cursor: pointer;
+        transition: background .15s, border-color .15s, transform .15s;
+    }
+    .menu-container .mode-card:hover, .menu-container .mode-card:focus-visible,
+    .modes-wrap .mode-card:hover, .modes-wrap .mode-card:focus-visible {
+        background: linear-gradient(90deg, rgba(232,196,106,0.20), rgba(232,196,106,0.06));
+        border-color: #e8c46a; transform: translateX(4px); outline: none;
+    }
+    .menu-container .mode-card.classic { padding: 20px 20px; border-left-width: 4px; border-color: #e8c46a; background: linear-gradient(90deg, rgba(232,196,106,0.26), rgba(232,196,106,0.07)); }
+    .menu-container .mode-card.classic .mi-tx b { font-size: 34px; }
+    .menu-container .mode-card.classic .mi-ik { width: 40px; height: 40px; }
+    .mi-ik { flex: none; width: 28px; height: 28px; color: #e8c46a; display: inline-flex; }
+    .mi-ik .ik { width: 100%; height: 100%; fill: currentColor; stroke: none; }
+    .mi-tx { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
+    .mi-tx b { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 22px; letter-spacing: .5px; color: #f1dca0; line-height: 1.15; }
+    .mi-tx em { font-family: var(--serif); font-style: normal; font-size: 13px; color: var(--yz3); line-height: 1.3; }
+    .mi-sag { flex: none; font-family: var(--serif); font-size: 13px; color: var(--yz3); white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
+    .menu-container .mode-card .mi-sag { font-size: 14px; color: #e8c46a; }
+    .menu-container .menu-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
+    .menu-container .menu-btn { font-family: var(--serif); font-size: 13px; padding: 10px 6px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; min-width: 0; letter-spacing: 0; text-transform: none; }
+    .menu-container .menu-btn .ik { width: 14px; height: 14px; fill: currentColor; }
+    .menu-container .controls-help { opacity: .55; font-size: 10px; margin-top: 2px; }
+    .modes-wrap { display: flex; flex-direction: column; gap: 18px; width: 100%; margin: 0 auto 16px; }
+    .modes-wrap .mi-sag { flex-direction: column; align-items: flex-end; gap: 4px; }
+    #modesScreen { width: min(94vw, 860px); }
+    .mod-grup h3 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 18px; color: #e8c46a; letter-spacing: 2px; margin: 0 0 8px 4px; padding-bottom: 6px; border-bottom: 1px solid rgba(232,196,106,0.25); }
+    .mod-izgara { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 8px; }
+    .modes-wrap .mi-tx b { font-size: 18px; }
+    .modes-wrap .mode-card .tron-2p { font-family: var(--serif); font-size: 11px; padding: 3px 8px; }
+    @media (max-width: 520px) { .menu-container .menu-actions { grid-template-columns: repeat(2, 1fr); } .mi-tx b { font-size: 19px; } .menu-container .mode-card.classic .mi-tx b { font-size: 28px; } }
+    html.reduced .menu-container .mode-card, html.reduced .modes-wrap .mode-card { transition: none; }
+    html.reduced .menu-container .mode-card:hover, html.reduced .modes-wrap .mode-card:hover { transform: none; }
+    /* Market (0.9.3): kostüm kartları; tek vurgu altın + nadirlik renkleri */
+    .menu-container .mode-card .mi-sag .kul-ik { width: 16px; height: 16px; fill: currentColor; color: #ff8a3d; }
+    .market-msg { font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--yz2); margin: 0 0 8px; }
+    .market-msg:empty { display: none; }
+    .market-panel { width: min(880px, 100%); }
+    .market-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 8px 0 16px; }
+    .market-head .mh-ac { font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--yz2); }
+    .market-head .mh-kul { font-family: var(--serif); font-size: 14px; letter-spacing: 2px; color: var(--yz2); }
+    .mk-grup { margin: 0 0 20px; }
+    .mk-grup h3 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 20px; letter-spacing: 2px; margin: 0 0 12px 2px; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+    .mk-izgara { display: grid; grid-template-columns: repeat(auto-fill, minmax(236px, 1fr)); gap: 12px; }
+    .mk-kart { display: flex; flex-direction: column; gap: 8px; padding: 10px 10px 12px; border-radius: 14px; background: rgba(8, 14, 26, 0.55); border: 1px solid rgba(255, 255, 255, 0.08); border-top: 3px solid var(--nd, #9aa3ad); transition: border-color .15s, background .15s; }
+    .mk-kart[data-nadir="efsane"] { background: linear-gradient(180deg, rgba(232, 196, 106, 0.12), rgba(8, 14, 26, 0.55)); box-shadow: 0 0 18px rgba(232, 196, 106, 0.14); }
+    .mk-kart.on { border-color: rgba(232, 196, 106, 0.55); border-top-color: var(--nd, #e8c46a); background: rgba(232, 196, 106, 0.08); }
+    .mk-onizle { display: block; width: 100%; aspect-ratio: 208 / 76; border-radius: 10px; background: radial-gradient(ellipse at 50% 60%, rgba(40, 62, 96, 0.55), rgba(5, 9, 18, 0.9)); }
+    .mk-alt { display: flex; flex-direction: column; gap: 8px; flex: 1; justify-content: space-between; }
+    .mk-bilgi { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .mk-bilgi b { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 19px; line-height: 1.2; color: #f1dca0; }
+    .mk-nadir { font-family: var(--serif); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--nd, #9aa3ad); }
+    .mk-bilgi em { font-family: var(--serif); font-style: normal; font-size: 13px; line-height: 1.4; color: var(--yz3); }
+    .mk-kart .toggle.buy { align-self: stretch; min-width: 0; justify-content: center; padding: 8px 14px; gap: 8px; font-family: var(--serif); font-size: 15px; letter-spacing: 1px; }
+    .mk-kart .toggle.buy::before { display: none; }
+    .mk-kart .toggle.buy .ik { width: 14px; height: 14px; vertical-align: 0; }
+    .mk-kart .toggle.buy.can { background: linear-gradient(180deg, #f0d283, #d9ae48); border-color: #f3dc9a; color: var(--altin-ink); box-shadow: 0 4px 14px rgba(232, 196, 106, 0.22); }
+    .mk-kart .toggle.buy.can:hover:not(:disabled) { background: linear-gradient(180deg, #f6dd96, #e2b84f); color: var(--altin-ink); transform: translateY(-2px); }
+    .mk-kart .toggle.buy.giyili { color: var(--nane); border-color: rgba(143, 227, 168, 0.5); background: rgba(143, 227, 168, 0.1); }
+    .mk-kart .toggle:disabled { opacity: 1; color: #8da1b5; cursor: default; }
+    .mk-kart .toggle.buy.giyili:disabled { color: var(--nane); }
+    @media (max-width: 520px) { .mk-izgara { grid-template-columns: 1fr; } }
+    /* Market sekmeleri (Skinler / Temalar) */
+    .mk-sekmeler { display: flex; gap: 8px; margin: 0 0 14px; }
+    .mk-sek { font-family: var(--serif); font-size: 16px; letter-spacing: 2px; padding: 8px 20px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(8, 14, 26, 0.55); color: var(--yz3); cursor: pointer; }
+    .mk-sek:hover { color: var(--yz2); border-color: rgba(232, 196, 106, 0.4); }
+    .mk-sek.on { color: #f1dca0; border-color: rgba(232, 196, 106, 0.6); background: rgba(232, 196, 106, 0.1); }
+    .mk-tema.on { border-top-color: #e8c46a; }
+    .mk-tema .mk-bilgi em { min-height: 2.8em; }
 </style>
 </head>
 <body>
+    <svg class="ikon-sprite" width="0" height="0" aria-hidden="true" focusable="false">
+        <defs>
+            <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21.2l-1.5-1.3C5.4 15.400 2 12.300 2 8.500 2 5.400 4.400 3 7.500 3c1.700 0 3.400.8 4.500 2.100C13.100 3.800 14.800 3 16.500 3 19.600 3 22 5.400 22 8.500c0 3.800-3.400 6.900-8.500 11.400L12 21.200z"/></symbol>
+            <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.600l2.900 6 6.600.9-4.800 4.600 1.200 6.500L12 17.500l-5.900 3.100 1.200-6.500L2.500 9.500l6.600-.9z"/></symbol>
+            <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.500"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"/></symbol>
+            <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M10.300 3h3.400l.5 2.400c.6.2 1.200.5 1.700.9l2.300-.8 1.700 3-1.800 1.600c.1.600.1 1.300 0 1.900l1.800 1.600-1.700 3-2.300-.8c-.5.400-1.100.7-1.700.9l-.5 2.400h-3.400l-.5-2.400c-.6-.2-1.200-.5-1.700-.9l-2.300.8-1.700-3 1.800-1.600a5 5 0 010-1.900L4.100 8.500l1.700-3 2.300.8c.5-.4 1.100-.7 1.700-.9l.5-2.400z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+            <symbol id="i-trophy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 01-10 0V4z"/><path d="M7 6H4v1.500A3.500 3.500 0 007.500 11M17 6h3v1.500a3.500 3.500 0 01-3.500 3.500M12 14v4M8 21h8M10 18h4"/></g></symbol>
+            <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12.200 2C12.900 6 18 8.300 18 13.800a6 6 0 01-12 0c0-2.300 1-3.900 2.400-5.200.2 1.700 1 2.800 2.100 3C10.800 8.400 10.700 4.800 12.200 2z"/></symbol>
+            <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.400l8 2.900v6.200c0 4.800-3.300 8.700-8 10.100-4.700-1.400-8-5.300-8-10.100V5.300l8-2.900z"/></symbol>
+            <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.500 2L4.500 13.500H11L10 22l9.500-12H13l.5-8z"/></symbol>
+            <symbol id="i-target" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.500"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6" fill="currentColor"/></g></symbol>
+            <symbol id="i-layers" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17l6-6 6 6M6 11l6-6 6 6"/></g></symbol>
+            <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.500 11.500L12 4l8.500 7.500M6 10v10h4.500v-6h3v6H18V10"/></g></symbol>
+            <symbol id="i-retry" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 11-2.400-5.700M20 4v4.500h-4.500"/></g></symbol>
+            <symbol id="i-next" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></g></symbol>
+            <symbol id="i-back" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5M11 6l-6 6 6 6"/></g></symbol>
+            <symbol id="i-grid" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.500" height="6.500" rx="1.500"/><rect x="13.500" y="4" width="6.500" height="6.500" rx="1.500"/><rect x="4" y="13.500" width="6.500" height="6.500" rx="1.500"/><rect x="13.500" y="13.500" width="6.500" height="6.500" rx="1.500"/></g></symbol>
+            <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4.500" width="4" height="15" rx="1"/><rect x="14" y="4.500" width="4" height="15" rx="1"/></symbol>
+            <symbol id="i-skull" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a8 8 0 00-8 8c0 2.700 1.300 4.300 3.200 5.400V20h9.600v-3.600C18.700 15.300 20 13.700 20 11a8 8 0 00-8-8z"/><path d="M10 20v-2.500M14 20v-2.500"/></g><circle cx="9" cy="11.500" r="1.800"/><circle cx="15" cy="11.500" r="1.800"/></symbol>
+            <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 8l4.500 4L12 5l4.500 7L21 8l-2 11H5L3 8z"/></symbol>
+            <symbol id="i-chev-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+            <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+            <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+            <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+            <symbol id="i-fire" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></g></symbol>
+            <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+
+            <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.500l13 7.500-13 7.500z"/></symbol>
+            <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 8.500V13l3 2M9.500 3h5"/></g></symbol>
+            <symbol id="i-gem" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><path d="M6.500 4h11l4 5.500L12 21 2.500 9.500z"/><path d="M2.500 9.500h19M9 4L7 9.500 12 21l5-11.500L15 4"/></g></symbol>
+            <symbol id="i-temple" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.500L12 4l9 5.500zM5 20h14M6.500 11.500v6M12 11.500v6M17.500 11.500v6"/></g></symbol>
+            <symbol id="i-portal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500a4.500 4.500 0 104.500 4.500"/></g></symbol>
+            <symbol id="i-calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><rect x="3.500" y="5" width="17" height="15" rx="2"/><path d="M3.500 10h17M8 3v4M16 3v4"/></g></symbol>
+            <symbol id="i-trail" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18h9V9h9"/><path d="M17 5l4 4-4 4"/></g></symbol>
+        </defs>
+    </svg>
     <div class="grid-bg"></div>
     <div class="key-art" aria-hidden="true"></div>
     
@@ -994,202 +1495,122 @@
             <!-- ==================== MENU SCREEN ==================== -->
             <div class="screen active" id="menuScreen">
                 <div class="menu-container">
-                    <div class="mode-card classic" tabindex="0" role="button" data-act="startClassic">
-                        <div class="mode-header">
-                            <span class="mode-icon">🎮</span>
-                            <div class="mode-text">
-                                <h3>KLASİK MOD</h3>
-                                <p>Orijinal yılan deneyimi. Ye, büyü ve hayatta kal!</p>
-                            </div>
+                    <nav class="menu-list" aria-label="Ana menü">
+                        <div class="mode-card classic menu-item" tabindex="0" role="button" data-act="startClassic">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-play"/></svg></span>
+                            <span class="mi-tx"><b>Oyna</b><em>Klasik yılan, sonsuz</em></span>
+                            <span class="mi-sag"><span class="rk">Rekor <span id="menuClassicHigh">0</span></span></span>
                         </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuClassicHigh">0</span></span>
-                            <span class="mode-badge">∞ SONSUZ</span>
+                        <div class="mode-card campaign menu-item" tabindex="0" role="button" data-act="showLevels">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg></span>
+                            <span class="mi-tx"><b>Bölümler</b><em>30 bölüm, artan zorluk</em></span>
+                            <span class="mi-sag"><span id="menuProgress">0</span>/30</span>
                         </div>
-                    </div>
-                    
-                    <div class="mode-card bullet" tabindex="0" role="button" data-act="startBullet">
-                        <div class="mode-header">
-                            <span class="mode-icon">💥</span>
-                            <div class="mode-text">
-                                <h3>MERMİ MANYAĞI</h3>
-                                <p>Desenli mermi dalgaları, lazerler ve patronlar!</p>
-                            </div>
+                        <div class="mode-card modes menu-item" tabindex="0" role="button" data-act="showModes">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-grid"/></svg></span>
+                            <span class="mi-tx"><b>Modlar</b><em>8 farklı oyun biçimi</em></span>
+                            <span class="mi-sag">&rsaquo;</span>
                         </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuBulletHigh">0</span></span>
-                            <!-- eski: 💀 SURVIVOR --><span class="mode-badge">💀 PATRON</span>
+                        <div class="mode-card tapinak menu-item" tabindex="0" role="button" data-act="startTapinak">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-temple"/></svg></span>
+                            <span class="mi-tx"><b>Tapınak</b><em>Oda oda keşif ve savaş</em></span>
+                            <span class="mi-sag"><span class="rk">Rekor <span id="menuTapinakHigh">0</span></span></span>
                         </div>
-                    </div>
-                    
-                    <div class="mode-card tailgun" tabindex="0" role="button" data-act="startTailgun">
-                        <div class="mode-header">
-                            <span class="mode-icon">🔫</span>
-                            <div class="mode-text">
-                                <h3>KUYRUK SİLAHI</h3>
-                                <p>Kuyruğunu mermi yap, düşman sürüsünü vur!</p>
-                            </div>
+                        <div class="mode-card market menu-item" tabindex="0" role="button" data-act="openMarket">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-gem"/></svg></span>
+                            <span class="mi-tx"><b>Market</b><em>Kostümler ve efektler</em></span>
+                            <span class="mi-sag"><svg class="ik kul-ik" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg><span id="marketInfo">0</span></span>
                         </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuTailHigh">0</span></span>
-                            <span class="mode-badge">🎯 NİŞAN</span>
+                        <div class="mode-card miras menu-item" tabindex="0" role="button" data-act="openMiras">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg></span>
+                            <span class="mi-tx"><b>Miras</b><em>Kalıcı yetenekler</em></span>
+                            <span class="mi-sag"><span id="mirasInfo">Sv.1 · 0</span></span>
                         </div>
-                    </div>
-                    
-                    <div class="mode-card survivor" tabindex="0" role="button" data-act="startSurvivor">
-                        <div class="mode-header">
-                            <span class="mode-icon">🧟</span>
-                            <div class="mode-text">
-                                <!-- eski: SURVIVOR --><h3>HAYATTA KALMA</h3>
-                                <p>Otomatik ateş, XP topla, seviye atla, güçlen!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuSurvHigh">0</span></span>
-                            <span class="mode-badge">⬆ YÜKSELT</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card timeattack" tabindex="0" role="button" data-act="startTimeAttack">
-                        <div class="mode-header">
-                            <span class="mode-icon">⏱️</span>
-                            <div class="mode-text">
-                                <h3>ZAMANA KARŞI</h3>
-                                <p>60 saniye! Her yem süre kazandırır.</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuTimeHigh">0</span></span>
-                            <span class="mode-badge">⚡ HIZLI</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card portal" tabindex="0" role="button" data-act="startPortal">
-                        <div class="mode-header">
-                            <span class="mode-icon">🌀</span>
-                            <div class="mode-text">
-                                <h3>PORTAL VE BULMACA</h3>
-                                <p>Duvarlar, boşluklar ve ışınlanan portallar.</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuPortalHigh">0</span></span>
-                            <span class="mode-badge">🧩 BULMACA</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card tron" tabindex="0" role="button" data-act="startTron">
-                        <div class="mode-header">
-                            <span class="mode-icon">🏍️</span>
-                            <div class="mode-text">
-                                <h3>TRON DÜELLOSU</h3>
-                                <p>Yapay zekâyı iz bırakarak kıstır!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuTronHigh">0</span></span>
-                            <button class="tron-2p" id="tron2pBtn" data-act="toggle" data-key="tron2p">👤 2P: KAPALI</button>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card chaos" tabindex="0" role="button" data-act="startChaos">
-                        <div class="mode-header">
-                            <span class="mode-icon">🌪️</span>
-                            <div class="mode-text">
-                                <h3>KAOS</h3>
-                                <p>Kurallar durmadan değişir: ters kontrol, hız, hayalet…</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuChaosHigh">0</span></span>
-                            <span class="mode-badge">🎲 ŞANS</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card daily" tabindex="0" role="button" data-act="startDaily">
-                        <div class="mode-header">
-                            <span class="mode-icon">📅</span>
-                            <div class="mode-text">
-                                <h3 style="line-height:1.6">GÜNLÜK MEYDAN OKUMA</h3>
-                                <p>Herkese aynı gün aynı harita. Bugünün rekoru!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuDailyHigh">0</span></span>
-                            <span class="mode-badge">🗓 GÜNLÜK</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card tapinak" tabindex="0" role="button" data-act="startTapinak">
-                        <div class="mode-header">
-                            <span class="mode-icon">🏛️</span>
-                            <div class="mode-text">
-                                <h3>TAPINAK</h3>
-                                <p>Oda oda savaş, armağan seç, Kül Jarlı'nı yen. Yetenekler kalıcı!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">🏆 REKOR: <span id="menuTapinakHigh">0</span></span>
-                            <span class="mode-badge">🗝 KEŞİF</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card campaign" tabindex="0" role="button" data-act="showLevels">
-                        <div class="mode-header">
-                            <span class="mode-icon">🏆</span>
-                            <div class="mode-text">
-                                <h3>BÖLÜM MODU</h3>
-                                <p>30 bölüm, artan zorluk. Ustalaşabilir misin?</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">📊 İLERLEME: <span id="menuProgress">0</span>/30</span>
-                            <span class="mode-badge">🎯 30 BÖLÜM</span>
-                        </div>
-                    </div>
-                    
-                    <div class="mode-card miras" tabindex="0" role="button" data-act="openMiras">
-                        <div class="mode-header">
-                            <span class="mode-icon">🔥</span>
-                            <div class="mode-text">
-                                <h3>MİRAS</h3>
-                                <p>Her ölüm Kül kazandırır. Kalıcı yetenekler al!</p>
-                            </div>
-                        </div>
-                        <div class="mode-stats">
-                            <span class="high-score">⭐ SEVİYE: <span id="mirasInfo">Sv.1 · 0</span></span>
-                            <span class="mode-badge">🔓 KALICI</span>
-                        </div>
-                    </div>
-
+                    </nav>
                     <div class="menu-actions">
-                        <button class="menu-btn" data-act="openSettings">⚙ AYARLAR</button>
-                        <button class="menu-btn" data-act="openAchievements">🏅 BAŞARIMLAR <span id="achCount">0/0</span></button>
+                        <button class="menu-btn" data-act="openSettings"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg>Ayarlar</button>
+                        <button class="menu-btn" data-act="openAchievements"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-star"/></svg>Başarımlar <span id="achCount">0/0</span></button>
                         <button id="soundBtn" class="menu-btn" data-act="toggleSound">🔊 SES: AÇIK</button>
                         <button id="musicBtn" class="menu-btn" data-act="toggleMusic">🎵 MÜZİK: AÇIK</button>
                     </div>
                     <div class="controls-help">
                         <span><span class="key-hint">WASD</span><span class="key-hint">← ↑ ↓ →</span>Hareket</span>
                         <span><span class="key-hint">P</span>Duraklat</span>
-                        <span><span class="key-hint">R</span>Yeniden</span>
                         <span><span class="key-hint">M</span>Menü</span>
-                        <span><span class="key-hint">N</span>Ses</span>
-                        <span><span class="key-hint">B</span>Müzik</span>
                         <span><span class="key-hint">Boşluk</span>Ateş</span>
                     </div>
                 </div>
             </div>
-            
+
+            <!-- ==================== MODLAR ==================== -->
+            <div class="screen" id="modesScreen">
+                <div class="level-header"><h2>Modlar</h2><p>Hepsi aynı yılan, farklı kurallar.</p></div>
+                <div class="modes-wrap">
+                    <section class="mod-grup"><h3>Aksiyon</h3><div class="mod-izgara">
+                            <div class="mode-card bullet" tabindex="0" role="button" data-act="startBullet">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-fire"/></svg></span>
+                                <span class="mi-tx"><b>Mermi Manyağı</b><em>Mermi dalgaları, lazerler, patronlar</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuBulletHigh">0</span></span></span>
+                            </div>
+                            <div class="mode-card tailgun" tabindex="0" role="button" data-act="startTailgun">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-target"/></svg></span>
+                                <span class="mi-tx"><b>Kuyruk Silahı</b><em>Kuyruğunu mermi yap, sürüyü vur</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuTailHigh">0</span></span></span>
+                            </div>
+                            <div class="mode-card survivor" tabindex="0" role="button" data-act="startSurvivor">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-skull"/></svg></span>
+                                <span class="mi-tx"><b>Hayatta Kalma</b><em>Otomatik ateş, XP topla, güçlen</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuSurvHigh">0</span></span></span>
+                            </div>
+                    </div></section>
+                    <section class="mod-grup"><h3>Zihin</h3><div class="mod-izgara">
+                            <div class="mode-card portal" tabindex="0" role="button" data-act="startPortal">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-portal"/></svg></span>
+                                <span class="mi-tx"><b>Portal ve Bulmaca</b><em>Duvarlar, boşluklar, portallar</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuPortalHigh">0</span></span></span>
+                            </div>
+                            <div class="mode-card chaos" tabindex="0" role="button" data-act="startChaos">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg></span>
+                                <span class="mi-tx"><b>Kaos</b><em>Kurallar durmadan değişir</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuChaosHigh">0</span></span></span>
+                            </div>
+                    </div></section>
+                    <section class="mod-grup"><h3>Meydan Okuma</h3><div class="mod-izgara">
+                            <div class="mode-card timeattack" tabindex="0" role="button" data-act="startTimeAttack">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-clock"/></svg></span>
+                                <span class="mi-tx"><b>Zamana Karşı</b><em>60 saniye, her yem süre verir</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuTimeHigh">0</span></span></span>
+                            </div>
+                            <div class="mode-card tron" tabindex="0" role="button" data-act="startTron">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-trail"/></svg></span>
+                                <span class="mi-tx"><b>Tron Düellosu</b><em>Yapay zekâyı iz bırakarak kıstır</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuTronHigh">0</span></span><button class="tron-2p" id="tron2pBtn" data-act="toggle" data-key="tron2p">👤 2P: KAPALI</button></span>
+                            </div>
+                            <div class="mode-card daily" tabindex="0" role="button" data-act="startDaily">
+                                <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-calendar"/></svg></span>
+                                <span class="mi-tx"><b>Günlük Meydan Okuma</b><em>Herkese aynı gün aynı harita</em></span>
+                                <span class="mi-sag"><span class="rk">Rekor <span id="menuDailyHigh">0</span></span></span>
+                            </div>
+                    </div></section>
+                </div>
+                <button class="back-button" data-act="showMenu"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-back"/></svg><span>ANA MENÜ</span></button>
+            </div>
+
             <!-- ==================== LEVEL SELECT ==================== -->
             <div class="screen" id="levelScreen">
                 <div class="level-header">
-                    <h2>BÖLÜM SEÇ</h2>
-                    <p>Her bölüm daha zor • 3 yıldız topla!</p>
+                    <h2>Bölüm Seç</h2>
+                    <p>Her bölüm daha zor. 3 yıldız topla!</p>
+                    <ul class="level-legend" aria-hidden="true">
+                        <li><span class="lg-dot cur"></span>Sıradaki</li>
+                        <li><span class="lg-dot done"></span>Bitti</li>
+                        <li><svg class="ik lg-ik" aria-hidden="true" focusable="false"><use href="#i-lock"/></svg>Kilitli</li>
+                    </ul>
                 </div>
                 
                 <div class="levels-grid" id="levelsGrid"></div>
                 
-                <button class="back-button" data-act="showMenu">← ANA MENÜ</button>
+                <button class="back-button" data-act="showMenu"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-back"/></svg><span>ANA MENÜ</span></button>
             </div>
             
             <!-- ==================== GAME SCREEN ==================== -->
@@ -1197,53 +1618,56 @@
                 <div class="game-wrapper">
                     <div class="game-hud">
                         <div class="hud-section">
-                            <div class="hud-item">
-                                <div class="hud-label">SKOR</div>
+                            <div class="hud-item hud-skor">
+                                <div class="hud-head"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-star"/></svg><div class="hud-label">SKOR</div></div>
                                 <div class="hud-value score" id="hudScore">0</div>
                             </div>
-                            <div class="hud-item" id="hudHighBox">
-                                <div class="hud-label">REKOR</div>
+                            <div class="hud-item hud-rekor" id="hudHighBox">
+                                <div class="hud-head"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg><div class="hud-label">REKOR</div></div>
                                 <div class="hud-value high" id="hudHigh">0</div>
                             </div>
                         </div>
                         <div class="hud-section">
-                            <div class="hud-item" id="hudLevelBox" style="display:none;">
-                                <div class="hud-label" id="hudLevelLabel">BÖLÜM</div>
+                            <div class="hud-item hud-seviye" id="hudLevelBox" style="display:none;">
+                                <div class="hud-head"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-layers"/></svg><div class="hud-label" id="hudLevelLabel">BÖLÜM</div></div>
                                 <div class="hud-value level" id="hudLevel">1</div>
                             </div>
-                            <div class="hud-item" id="hudTargetBox" style="display:none;">
-                                <div class="hud-label" id="hudTargetLabel">HEDEF</div>
+                            <div class="hud-item hud-hedef" id="hudTargetBox" style="display:none;">
+                                <div class="hud-head"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-target"/></svg><div class="hud-label" id="hudTargetLabel">HEDEF</div></div>
                                 <div class="hud-value target" id="hudTarget">0/10</div>
                             </div>
-                            <div class="hud-item" id="hudLivesBox" style="display:none;">
-                                <div class="hud-label">CAN</div>
-                                <div class="hud-value lives" id="hudLives" aria-label="Can: 3">❤️❤️❤️</div>
+                            <div class="hud-item hud-can" id="hudLivesBox" style="display:none;">
+                                <div class="hud-head"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-heart"/></svg><div class="hud-label">CAN</div></div>
+                                <div class="hud-value lives" id="hudLives" role="img" aria-label="Can: 3"><svg class="ik kalp" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg><svg class="ik kalp" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg><svg class="ik kalp" aria-hidden="true" focusable="false"><use href="#i-heart"/></svg></div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="canvas-container">
                         <canvas id="gameCanvas" width="960" height="640" role="img" aria-label="Oyun alanı"></canvas>
                         
                         <!-- Pause Overlay -->
                         <div class="game-overlay" id="pauseOverlay" role="dialog" aria-modal="true" aria-labelledby="pauseOverlayTitle">
                             <div class="overlay-box">
-                                <h2 class="overlay-title paused" id="pauseOverlayTitle">⏸️ DURAKLATILDI</h2>
-                                <p class="overlay-message">Devam: P tuşu ya da ❚❚</p>
+                                <span class="ov-ikon paused"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-pause"/></svg></span>
+                                <h2 class="overlay-title paused" id="pauseOverlayTitle">DURAKLATILDI</h2>
+                                <p class="overlay-message">Devam etmek için <span class="key-hint">P</span> tuşuna bas.</p>
                             </div>
                         </div>
                         
                         <!-- Game Over Overlay -->
                         <div class="game-overlay" id="gameoverOverlay" role="dialog" aria-modal="true" aria-labelledby="gameoverTitle">
                             <div class="overlay-box">
-                                <!-- eski: 💀 GAME OVER --><h2 class="overlay-title gameover" id="gameoverTitle">💀 OYUN BİTTİ</h2>
-                                <div class="overlay-score"><span id="finalLabel">SKOR:</span> <span id="finalScore">0</span></div>
-                                <p class="overlay-message" id="newRecordMsg" style="display:none;">🎉 YENİ REKOR! 🎉</p>
+                                <span class="ov-ikon gameover"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-skull"/></svg></span>
+                                <!-- eski: 💀 GAME OVER --><h2 class="overlay-title gameover" id="gameoverTitle">OYUN BİTTİ</h2>
+                                <div class="overlay-score"><span class="os-label" id="finalLabel">SKOR:</span> <span class="os-val" id="finalScore">0</span></div>
+                                <p class="overlay-message rekor-msg" id="newRecordMsg" style="display:none;"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg><span>YENİ REKOR!</span></p>
                                 <p class="overlay-message kul-msg" id="kulMsg"></p>
+                                <p class="overlay-message market-msg" id="kulMsgMarket"></p>
                                 <ol class="top-list" id="topList"></ol>
                                 <div class="overlay-buttons">
-                                    <button class="overlay-btn primary" data-act="restart">🔄 TEKRAR</button>
-                                    <button class="overlay-btn secondary" data-act="showMenu">🏠 MENÜ</button>
+                                    <button class="overlay-btn primary" data-act="restart"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-retry"/></svg><span>TEKRAR</span></button>
+                                    <button class="overlay-btn secondary" data-act="showMenu"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>MENÜ</span></button>
                                 </div>
                             </div>
                         </div>
@@ -1251,34 +1675,35 @@
                         <!-- Level Complete Overlay -->
                         <div class="game-overlay" id="completeOverlay" role="dialog" aria-modal="true" aria-labelledby="completeOverlayTitle">
                             <div class="overlay-box">
-                                <h2 class="overlay-title complete" id="completeOverlayTitle">✨ TAMAMLANDI!</h2>
-                                <div class="star-rating" id="starsDisplay">⭐⭐⭐</div>
-                                <div class="overlay-score">SKOR: <span id="levelEndScore">0</span></div>
+                                <h2 class="overlay-title complete" id="completeOverlayTitle">TAMAMLANDI!</h2>
+                                <div class="star-rating" id="starsDisplay" role="img" aria-label="3 yıldız"><svg class="ik yildiz on" aria-hidden="true" focusable="false"><use href="#i-star"/></svg><svg class="ik yildiz on" aria-hidden="true" focusable="false"><use href="#i-star"/></svg><svg class="ik yildiz on" aria-hidden="true" focusable="false"><use href="#i-star"/></svg></div>
+                                <div class="overlay-score"><span class="os-label">SKOR:</span> <span class="os-val" id="levelEndScore">0</span></div>
                                 <p class="overlay-message kul-msg" id="kulMsgWin"></p>
+                                <p class="overlay-message market-msg" id="kulMsgWinMarket"></p>
                                 <div class="overlay-buttons">
-                                    <button class="overlay-btn primary" data-act="nextLevel">➡️ SONRAKİ</button>
-                                    <button class="overlay-btn secondary" data-act="showLevels">📋 BÖLÜMLER</button>
+                                    <button class="overlay-btn primary" data-act="nextLevel"><span>SONRAKİ</span><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-next"/></svg></button>
+                                    <button class="overlay-btn secondary" data-act="showLevels"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-grid"/></svg><span>BÖLÜMLER</span></button>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="powerup-indicators">
-                        <div class="power-badge shield" id="powerShield">🛡️ KALKAN</div>
-                        <div class="power-badge speed" id="powerSpeed">⚡ HIZ</div>
-                        <div class="power-badge invincible" id="powerInvincible">🌟 ÖLÜMSÜZ</div>
+                        <div class="power-badge shield" id="powerShield"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-shield"/></svg><span>KALKAN</span></div>
+                        <div class="power-badge speed" id="powerSpeed"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg><span>HIZ</span></div>
+                        <div class="power-badge invincible" id="powerInvincible"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-star"/></svg><span>ÖLÜMSÜZ</span></div>
                     </div>
                 </div>
                 
                 <!-- Touch Controls -->
                 <div class="touch-pad">
                     <div class="dpad">
-                        <button class="dpad-btn up" data-act="input" data-dx="0" data-dy="-1">▲</button>
-                        <button class="dpad-btn left" data-act="input" data-dx="-1" data-dy="0">◀</button>
-                        <button class="dpad-btn center" data-act="togglePause">❚❚</button>
-                        <button class="dpad-btn fire" id="fireBtn" style="display:none" data-press="fire">🔫</button>
-                        <button class="dpad-btn right" data-act="input" data-dx="1" data-dy="0">▶</button>
-                        <button class="dpad-btn down" data-act="input" data-dx="0" data-dy="1">▼</button>
+                        <button class="dpad-btn up" data-act="input" data-dx="0" data-dy="-1" aria-label="Yukarı"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-chev-up"/></svg></button>
+                        <button class="dpad-btn left" data-act="input" data-dx="-1" data-dy="0" aria-label="Sol"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg></button>
+                        <button class="dpad-btn center" data-act="togglePause" aria-label="Duraklat"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-pause"/></svg></button>
+                        <button class="dpad-btn fire" id="fireBtn" style="display:none" data-press="fire" aria-label="Ateş"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-fire"/></svg></button>
+                        <button class="dpad-btn right" data-act="input" data-dx="1" data-dy="0" aria-label="Sağ"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-chev-right"/></svg></button>
+                        <button class="dpad-btn down" data-act="input" data-dx="0" data-dy="1" aria-label="Aşağı"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-chev-down"/></svg></button>
                     </div>
                 </div>
             </div>
@@ -1287,7 +1712,8 @@
 
     <div class="panel-overlay" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
         <div class="panel">
-            <h2 id="settingsTitle">AYARLAR</h2>
+            <h2 id="settingsTitle"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-gear"/></svg><span>Ayarlar</span></h2>
+            <div class="panel-body">
             <div class="row"><label>OYUN HIZI<small>Tüm modlarda hız çarpanı</small></label><span class="val" id="valSpeed">1.0x</span><input type="range" id="setSpeed" min="0.7" max="1.5" step="0.05" value="1"></div>
             <div class="row"><label>EFEKT YOĞUNLUĞU<small>Parçacık ve kıvılcım miktarı</small></label><span class="val" id="valFx">100%</span><input type="range" id="setFx" min="0" max="1.5" step="0.1" value="1"></div>
             <div class="row"><label>SES SEVİYESİ<small>Efektler ve müzik</small></label><span class="val" id="valVol">60%</span><input type="range" id="setVol" min="0" max="1" step="0.05" value="0.6"></div>
@@ -1297,33 +1723,56 @@
             <div class="row"><label>BÜYÜK HUD<small>Skor, rekor ve bölüm yazıları daha büyük</small></label><button class="toggle" id="setBigHud" data-act="toggle" data-key="bigHud">KAPALI</button></div>
             <div class="row"><label>RENK KÖRÜ PALETİ<small>Yılan mavi, yem halkalı; kırmızı-yeşil ayrımına bağlı kalmaz</small></label><button class="toggle" id="setCb" data-act="toggle" data-key="cb">KAPALI</button></div>
             <div class="row"><label>GAMEPAD<small>Sol çubuk / yön tuşları hareket, A ateş, Start duraklat. 2 oyuncuda ikinci kol P2.</small></label><span class="val" id="padInfo">BAĞLI DEĞİL</span></div>
+            </div>
             <button class="menu-btn close" data-act="closeSettings">KAPAT</button>
         </div>
     </div>
     <div class="panel-overlay" id="achPanel" role="dialog" aria-modal="true" aria-labelledby="achTitle">
         <div class="panel">
-            <h2 id="achTitle">BAŞARIMLAR</h2>
-            <div class="ach-list" id="achList"></div>
+            <h2 id="achTitle"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg><span>Başarımlar</span></h2>
+            <div class="panel-body">
+                <div class="ach-sum" id="achSum"></div>
+                <div class="ach-list" id="achList"></div>
+            </div>
             <button class="menu-btn close" data-act="closeAchievements">KAPAT</button>
         </div>
     </div>
-    <div class="panel-overlay" id="mirasPanel">
+    <div class="panel-overlay" id="mirasPanel" role="dialog" aria-modal="true" aria-labelledby="mirasTitle">
         <div class="panel">
-            <h2>Miras</h2>
-            <div class="miras-head"><span>SEVİYE <b id="mirasLevel">1</b></span><span>KÜL <b id="mirasKul">0</b></span></div>
-            <div class="miras-bar"><div id="mirasBar"></div></div>
-            <div class="miras-bartxt" id="mirasBarTxt">0 / 40</div>
-            <div class="miras-list" id="mirasList"></div>
+            <h2 id="mirasTitle"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-flame"/></svg><span>Miras</span></h2>
+            <div class="panel-body">
+                <div class="miras-head"><span class="mh-sv">SEVİYE <b id="mirasLevel">1</b></span><span class="mh-kul"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KÜL <b id="mirasKul">0</b></span></div>
+                <div class="miras-bar" role="progressbar" aria-labelledby="mirasTitle" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="mirasBarWrap"><div id="mirasBar"></div></div>
+                <div class="miras-bartxt" id="mirasBarTxt">0 / 40</div>
+                <div class="miras-list" id="mirasList"></div>
+            </div>
             <button class="menu-btn close" data-act="closeMiras">KAPAT</button>
+        </div>
+    </div>
+    <div class="panel-overlay" id="marketPanel" role="dialog" aria-modal="true" aria-labelledby="marketTitle">
+        <div class="panel market-panel">
+            <h2 id="marketTitle"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-gem"/></svg><span>Market</span></h2>
+            <div class="panel-body">
+                <div class="market-head"><span class="mh-ac">Kostümler, efektler ve harita temaları</span><span class="mh-kul"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KÜL <b id="marketKul">0</b></span></div>
+                <div class="mk-sekmeler" role="tablist" aria-label="Market bölümleri">
+                    <button class="mk-sek on" role="tab" id="mkSekSkin" aria-selected="true" data-act="marketSekme" data-id="skin">Skinler</button>
+                    <button class="mk-sek" role="tab" id="mkSekTema" aria-selected="false" data-act="marketSekme" data-id="tema">Temalar</button>
+                </div>
+                <div id="marketList"></div>
+            </div>
+            <button class="menu-btn close" data-act="closeMarket">KAPAT</button>
         </div>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     
     <script src="miras.js"></script>
+    <script src="tema.js"></script>
+    <script src="market.js"></script>
     <script src="doku.js"></script>
     <script src="sprite-map.js"></script>
     <script src="sprites.js"></script>
     <script src="gfx25.js"></script>
+    <script src="isik.js"></script>
     <script src="tapinak.js"></script>
     <script src="game.js"></script>
 </body>
