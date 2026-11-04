@@ -91,7 +91,7 @@
   // ---------- Miras (kalıcı ilerleme) ----------
   function mirasBos() {
     const s = {}; for (const k in MIRAS) s[k] = 0;
-    return { kul: 0, seviye: s, yetenek: { kirik: false, sicrama: false }, kosu: 0, enIyi: 0, zafer: 0, bossOldu: 0 };
+    return { kul: 0, seviye: s, yetenek: { kirik: false, sicrama: false }, kosu: 0, enIyi: 0, zafer: 0, bossOldu: 0, gunluk: { gun: 0, enIyi: 0 } };
   }
   function mirasYukle(depo) {
     const m = mirasBos();
@@ -102,6 +102,8 @@
       for (const k in m.seviye) { const v = o.seviye && o.seviye[k]; if (Number.isInteger(v) && v >= 0 && v <= MIRAS[k].maks) m.seviye[k] = v; }
       for (const k in m.yetenek) m.yetenek[k] = !!(o.yetenek && o.yetenek[k]);
       for (const k of ['kosu', 'enIyi', 'zafer', 'bossOldu']) if (Number.isInteger(o[k]) && o[k] >= 0 && o[k] < 1e6) m[k] = o[k];
+      const g = o.gunluk;
+      if (g && Number.isInteger(g.gun) && g.gun >= 0 && g.gun < 1e8 && Number.isInteger(g.enIyi) && g.enIyi >= 0 && g.enIyi <= 99) m.gunluk = { gun: g.gun, enIyi: g.enIyi };
     } catch (e) { /* bozuk kayıt: boş başla */ }
     return m;
   }
@@ -115,6 +117,19 @@
     if (m.kul < c) return false;
     m.kul -= c; m.seviye[id] = n + 1;
     return true;
+  }
+
+  // Günlük Koşu: tohum yerel tarihten (YYYYMMDD); herkes aynı gün aynı odaları görür. Mühür yok, kurallar sabit.
+  function gunNo(d) { d = d || new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
+  function gunlukKosu(meta, d) {
+    const gun = gunNo(d), s = yeniKosu((gun * 2654435761) >>> 0, meta, null);
+    s.gunluk = gun;
+    return s;
+  }
+  function gunlukKaydet(meta, s) {
+    if (!s.gunluk) return;
+    const g = meta.gunluk && meta.gunluk.gun === s.gunluk ? meta.gunluk : { gun: s.gunluk, enIyi: 0 };
+    g.enIyi = Math.max(g.enIyi, Math.min(99, s.derinlik)); meta.gunluk = g;
   }
 
   // ---------- Oda şablonları ----------
@@ -789,5 +804,5 @@
     return true;
   }
 
-  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, armaganAcik, ARMAGAN_SIRA, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
+  return { W, H, T, KAPI_X, SON_DERINLIK, BIYOMLAR, ARMAGANLAR, NADIRLIK, MUHURLER, MIRAS, YETENEKLER, DUSMAN, ETKI, SABLON_ADLARI, KADROLAR, biyomOf, bolumOf, bossMu, mulberry, mirasBos, mirasYukle, mirasKaydet, mirasAl, odaUret, onizle, gunNo, gunlukKosu, gunlukKaydet, armaganAcik, ARMAGAN_SIRA, yeniKosu, adim, secimYap, armaganAl, ilerle, hucre, carpisir, savur, kozAt, atilim, dusmanHasar, dalgaBaslat, hasarCarpan, sivriDurum, ulasilir, KEY };
 });

@@ -234,4 +234,17 @@ ok('sade başlangıç: Armağanlar boss yenildikçe açılır', () => {
   const s = TK.yeniKosu(5, m);
   for (let i = 0; i < 50; i++) for (const o of Object.keys(s.armagan)) assert.ok(TK.armaganAcik(s).includes(o));
 });
+ok('Günlük Koşu: aynı gün aynı odalar, farklı gün farklı; en iyi derinlik kaydedilir', () => {
+  const g1 = new Date(2026, 10, 4), g2 = new Date(2026, 10, 5);
+  const a = TK.gunlukKosu(TK.mirasBos(), g1), b = TK.gunlukKosu(TK.mirasBos(), g1), c = TK.gunlukKosu(TK.mirasBos(), g2);
+  assert.strictEqual(a.gunluk, 20261104);
+  assert.deepStrictEqual(a.oda.grid, b.oda.grid);
+  assert.deepStrictEqual(a.oda.dalgalar, b.oda.dalgalar);
+  assert.notStrictEqual(a.seed, c.seed);
+  assert.deepStrictEqual(Object.keys(a.muhur), []);
+  const m = TK.mirasBos(); a.derinlik = 5; TK.gunlukKaydet(m, a);
+  a.derinlik = 3; TK.gunlukKaydet(m, a);
+  assert.deepStrictEqual(m.gunluk, { gun: 20261104, enIyi: 5 });
+  const d = depo(); TK.mirasKaydet(d, m); assert.deepStrictEqual(TK.mirasYukle(d).gunluk, m.gunluk);
+});
 console.log(n + ' test geçti');

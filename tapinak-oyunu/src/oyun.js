@@ -15,7 +15,7 @@
   function menuYenile() {
     $('menuKul').textContent = 'Kül: ' + meta.kul + ' · Koşu: ' + meta.kosu + ' · Zafer: ' + meta.zafer + ' · En derin oda: ' + meta.enIyi;
     const y = []; for (const k in meta.yetenek) if (meta.yetenek[k]) y.push(TK.YETENEKLER[k].ad);
-    muhurYenile();
+    muhurYenile(); gunlukYenile();
     $('menuYet').textContent = y.length ? 'Kalıcı yetenekler: ' + y.join(', ') : 'Kalıcı yetenek yok (boss ve gizli odalar yetenek verir)';
   }
   function mirasYenile() {
@@ -47,7 +47,10 @@
     }
   }
   function basla() { Ses.baslat(); s = TK.yeniKosu((Date.now() ^ (Math.random() * 1e9)) >>> 0, meta, muhurSecili); goster(null); }
+  function gunlukYenile() { const g = meta.gunluk, bugun = TK.gunNo(); $('gunlukYet').textContent = 'Bugünün tohumu ' + bugun + (g && g.gun === bugun ? ' · en iyi: oda ' + g.enIyi : ''); }
+  function gunlukBasla() { Ses.baslat(); s = TK.gunlukKosu(meta); goster(null); }
   function bitis() {
+    TK.gunlukKaydet(meta, s);
     TK.mirasKaydet(depo, meta);
     const z = s.bitti === 'zafer';
     $('sonBaslik').textContent = z ? 'ZAFER' : 'YENİLGİ';
@@ -75,7 +78,7 @@
   $('bNasil').onclick = () => goster('nasil'); $('bNGeri').onclick = () => goster('menu');
   $('bSes').onclick = () => { Ses.baslat(); Ses.sessiz(!Ses.sessizMi()); sesYaz(); };
   $('bCik').onclick = () => { window.close(); };
-  $('bBasla').onclick = basla; $('bTekrar').onclick = basla;
+  $('bBasla').onclick = basla; $('bGunluk').onclick = gunlukBasla; $('bTekrar').onclick = basla;
   $('bMiras').onclick = () => { mirasYenile(); goster('miras'); };
   $('bGeri').onclick = () => { menuYenile(); goster('menu'); };
   $('bMenu').onclick = () => { menuYenile(); goster('menu'); };
