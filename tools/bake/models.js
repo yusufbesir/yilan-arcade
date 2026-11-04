@@ -102,9 +102,11 @@
         iron(c) { return B.mat('iron', { color: c || 0x8d919e, metalness: 0.55, roughness: 0.5, envMapIntensity: 2.0 }, [2, 2]); },
         stone(c, rep, seed) { return B.mat('stone', { color: c || 0xb8bccb, roughness: 0.92, metalness: 0, ns: 1.2 }, rep || [1, 1], seed); },
         bone(c) { return B.mat('bone', { color: c || 0xe8dcc0, roughness: 0.62, ns: 0.8 }, [1, 1]); },
+        fabric(c, rep) { return B.mat('fabric', { color: c, roughness: 0.92, ns: 0.8, sheen: 0.7, sheenColor: new T.Color(0x9098b8), sheenRoughness: 0.6 }, rep || [3, 3]); },
+        granite(c, rep, seed) { return B.mat('granite', { color: c || 0xc8c4c0, roughness: 0.9, metalness: 0, ns: 1.4 }, rep || [1, 1], seed); },
         cloth(c, rep) { return B.mat('cloth', { color: c, roughness: 0.95, ns: 0.7, sheen: 0.6, sheenColor: new T.Color(0x8890a8), sheenRoughness: 0.7 }, rep || [3, 3]); },
         wood(c) { return B.mat('wood', { color: c || 0xb08860, roughness: 0.75 }, [1, 3]); },
-        glow(c, i) { return new T.MeshStandardMaterial({ color: 0x000000, emissive: c, emissiveIntensity: i || 3, roughness: 0.4 }); },
+        glow(c, i) { const m = new T.MeshStandardMaterial({ color: 0x000000, emissive: c, emissiveIntensity: i || 3, roughness: 0.4 }); m.userData.glow = true; return m; },
         dark() { return new T.MeshStandardMaterial({ color: 0x050407, roughness: 0.9 }); },
         add(c, o) { return new T.MeshBasicMaterial({ color: c, transparent: true, opacity: o == null ? 0.6 : o, depthWrite: false }); }
     };
@@ -348,127 +350,312 @@
     }
 
     // ---------------- 5) TAPINAK DÜŞMANLARI ----------------
+    // Her düşman 12 karelik şerit: 0-7 bekleme/yürüme döngüsü, 8-11 saldırı (hazırlık -> vuruş -> toparlanma).
+    // Çizim tarafı (tapinak.js) kareyi zamana ve düşman durumuna göre seçer (map.anim).
+    const ANIM = { bekle: [0, 8], saldiri: [8, 4] };
     function bob(i, n, a) { return Math.sin(i / n * TAU) * (a || 0.04); }
     // Yırtık kenarlı pelerin/cübbe (lathe + alt kenar dişli)
-    function shroud(prof, ragged, seed, seg) {
+    function shroud(prof, ragged, seed, seg, teeth) {
         const geo = lathe(prof, seg || 48);
         const n = B.noiseGen(seed || 1);
         const ymin = Math.min(...prof.map(p => p[1]));
         deform(geo, v => {
             const a = Math.atan2(v.z, v.x) / TAU + 0.5;
             const low = 1 - B.smooth(ymin, ymin + 0.25, v.y);
-            v.y += low * (-ragged * (0.5 + Math.sin(a * TAU * 9) * 0.5) * (0.6 + n.fbm(a, 0.3, 3, 6)));
+            v.y += low * (-ragged * (0.5 + Math.sin(a * TAU * (teeth || 9)) * 0.5) * (0.6 + n.fbm(a, 0.3, 3, 6)));
             const w = 1 + (n.fbm(a, v.y * 0.5 + 0.5, 3, 4) - 0.5) * 0.18;
             v.x *= w; v.z *= w;
         });
         return geo;
     }
+    // Kumaş kıvrımları: yarıçapı açıya göre dalgalandır (aşağı doğru derinleşen kıvrımlar)
+    function folds(geo, k, amp, y0, y1, seed) {
+        const n = B.noiseGen(seed || 2);
+        return deform(geo, v => {
+            const a = Math.atan2(v.z, v.x);
+            const f = B.smooth(y1, y0, v.y);
+            const w = 1 + amp * f * (Math.sin(a * k + n.fbm(a / TAU + 0.5, 0.2, 2, 4) * 3) * 0.7 + (n.fbm(a / TAU + 0.5, v.y, 3, 8) - 0.5));
+            v.x *= w; v.z *= w;
+        });
+    }
+    // Kare başına yeniden biçimlenen geometri (pelerin dalgası): taban konumları saklanır
+    function animGeo(geo) {
+        const base = Float32Array.from(geo.attributes.position.array);
+        const v = new T.Vector3();
+        return fn => {
+            const p = geo.attributes.position;
+            for (let i = 0; i < p.count; i++) { v.set(base[i * 3], base[i * 3 + 1], base[i * 3 + 2]); fn(v, i); p.setXYZ(i, v.x, v.y, v.z); }
+            p.needsUpdate = true;
+            smoothNormals(geo);
+        };
+    }
+    // Işıyan malzeme (bloom geçişinde parlar); kare başına şiddeti değişebilir
+    function glowM(c, i) { const m = M.glow(c, i); m.userData.glow = true; m.userData.base = i; return m; }
+    // Çatlak ağı: kökten dallanan kırık çizgiler (köz ışığı) -> runeStrokes parçaları
+    function crackSegs(seed, n, len) {
+        const R = B.rng(seed), segs = [];
+        const grow = (x, y, a, l, d) => {
+            const x2 = x + Math.cos(a) * l, y2 = y + Math.sin(a) * l;
+            segs.push([x, y, x2, y2]);
+            if (d <= 0) return;
+            grow(x2, y2, a + (R() - 0.5) * 1.1, l * 0.8, d - 1);
+            if (R() < 0.55) grow(x2, y2, a + (R() < 0.5 ? 1 : -1) * (0.6 + R() * 0.6), l * 0.6, d - 2);
+        };
+        for (let k = 0; k < n; k++) grow(0, 0, k / n * TAU + R() * 0.5, len, 3);
+        return segs;
+    }
+    function wispMotes(group, count, col, seed, r0) {
+        const R = B.rng(seed), ms = [];
+        const m = glowM(col, 5);
+        for (let k = 0; k < count; k++) {
+            const me = mesh(sphere(0.018 + R() * 0.014, 8, 6), m, { cast: false, recv: false });
+            me.userData = { a: R() * TAU, r: (r0 || 0.3) * (0.6 + R() * 0.6), y: R(), s: 0.7 + R() * 0.6 };
+            group.add(me); ms.push(me);
+        }
+        return ms;
+    }
 
-    // HORTLAK: kovalayan ruh-iskelet (yeşilimsi kefen, kemik kafatası, buz mavisi göz)
-    function buildHortlak(scene) {
+    // HORTLAK: süzülen kefenli ruh-iskelet. Kambur, öne uzanan pençeler; derin kapüşonda kafatası,
+    // buz mavisi gözler ve kaburgaların ardında ışıyan ruh çekirdeği. Etek yırtık ve dalgalanır.
+    function buildHortlak(scene, st) {
         const root = new T.Group(); scene.add(root);
         const body = new T.Group(); root.add(body);
-        const cloth = M.cloth(new T.Color(0x6a8278), [4, 4]);
+        const cloth = M.fabric(new T.Color(0xa6d6ca), [4, 4]);
         cloth.side = T.DoubleSide;
-        const sh = mesh(shroud([[0.01, 1.05], [0.2, 1.0], [0.3, 0.86], [0.33, 0.6], [0.38, 0.35], [0.46, 0.12], [0.5, 0.02]], 0.18, 3), cloth, { p: [0, 0.14, 0] });
+        cloth.emissive = new T.Color(0x184c46); cloth.emissiveIntensity = 0.7;
+        const clothD = M.fabric(new T.Color(0x5c8079), [4, 4]);
+        clothD.side = T.DoubleSide;
+        // kefen: omuzdan yırtık eteğe; üst kısım öne kambur, hafif asimetrik
+        const prof = [[0.01, 1.0], [0.19, 0.97], [0.29, 0.86], [0.31, 0.7], [0.32, 0.52], [0.36, 0.34], [0.4, 0.16], [0.42, 0.0]];
+        const shG = shroud(prof, 0.3, 3, 72, 7);
+        deform(shG, v => { const h = B.smooth(0.55, 1.0, v.y); v.z += h * 0.12; v.x += Math.sin(v.y * 7) * 0.015; });
+        folds(shG, 7, 0.1, 0.0, 0.8, 5);
+        const shWave = animGeo(shG);
+        const sh = mesh(shG, cloth, { p: [0, 0.1, 0] });
         body.add(sh);
-        // kapüşon
-        const hood = mesh(new T.SphereGeometry(0.27, 40, 24, 0, TAU, 0, Math.PI * 0.55), cloth, { p: [0, 1.0, -0.08], r: [-0.75, 0, 0] });
-        body.add(hood);
-        // kafatası
-        const bone = M.bone();
-        const skullG = deform(ellipsoid(0.17, 0.18, 0.19, 40, 28), v => { if (v.z > 0.05 && v.y < -0.02) { v.x *= 0.85; } });
-        const skull = new T.Group(); skull.position.set(0, 0.97, 0.16); body.add(skull);
-        skull.add(mesh(skullG, bone));
-        skull.add(mesh(ellipsoid(0.11, 0.06, 0.1, 24, 16), bone, { p: [0, -0.15, 0.05] }));
+        // iç karanlık (etek altından görünen boşluk)
+        body.add(mesh(lathe([[0.01, 0.75], [0.25, 0.7], [0.38, 0.25], [0.42, 0.05]], 32), M.dark(), { p: [0, 0.1, 0], s: [0.92, 1, 0.92] }));
+        // omuz atkısı: koyu, yırtık, ikinci katman
+        const scG = shroud([[0.01, 1.04], [0.22, 0.98], [0.34, 0.86], [0.37, 0.74]], 0.12, 4, 56, 11);
+        deform(scG, v => { v.z += B.smooth(0.8, 1.05, v.y) * 0.1; });
+        body.add(mesh(scG, clothD, { p: [0, 0.1, 0] }));
+        // kapüşon: geriye kıvrık sivri uç + yüz çerçevesi
+        const head = new T.Group(); head.position.set(0, 1.04, 0.13); body.add(head);
+        // derin kapüşon: önü açık kubbe (kafatasını çevreler) + geriye kıvrık sivri uç
+        const cowl = new T.SphereGeometry(0.2, 40, 24, Math.PI / 2 + 1.0, TAU - 2.0, 0, Math.PI * 0.72);
+        head.add(mesh(cowl, cloth, { p: [0, 0.0, 0.02], s: [1, 1.1, 1.05], r: [0.15, 0, 0] }));
+        head.add(mesh(ellipsoid(0.15, 0.17, 0.1, 24, 16), M.dark(), { p: [0, -0.02, -0.04], cast: false }));
+        const tipG = deform(new T.ConeGeometry(0.12, 0.3, 24, 8, true), v => { const t = (v.y + 0.15) / 0.3; v.z -= t * t * 0.18; v.x += t * t * 0.04; });
+        head.add(mesh(tipG, cloth, { p: [0, 0.24, -0.1], r: [-0.7, 0, 0] }));
+        // kafatası + çene (saldırıda açılır)
+        const bone = M.bone(0xefe4c8);
+        const skull = new T.Group(); skull.position.set(0, -0.03, 0.09); head.add(skull);
+        skull.add(mesh(deform(ellipsoid(0.11, 0.115, 0.1, 32, 24), v => { if (v.y < -0.02) v.x *= 0.82; if (v.z > 0.05 && Math.abs(v.x) < 0.03 && v.y < 0) v.z -= 0.01; }), bone));
+        const jaw = new T.Group(); jaw.position.set(0, -0.07, 0.02); skull.add(jaw);
+        jaw.add(mesh(ellipsoid(0.07, 0.035, 0.07, 20, 12), bone, { p: [0, -0.02, 0.03] }));
+        for (let k = -2; k <= 2; k++) jaw.add(mesh(new T.BoxGeometry(0.012, 0.022, 0.01), bone, { p: [k * 0.02, 0.0, 0.095], cast: false }));
+        const eyeM = glowM(0x8ff8ff, 9);
+        const eyes = [];
         [-1, 1].forEach(s => {
-            skull.add(mesh(sphere(0.055, 20, 14), M.dark(), { p: [s * 0.065, 0.0, 0.14], cast: false }));
-            skull.add(mesh(sphere(0.04, 16, 10), M.glow(0x9ff4ff, 8), { p: [s * 0.065, 0.0, 0.185], cast: false }));
+            skull.add(mesh(sphere(0.04, 16, 12), M.dark(), { p: [s * 0.045, 0.012, 0.075], cast: false }));
+            const e = mesh(sphere(0.034, 14, 10), eyeM, { p: [s * 0.047, 0.012, 0.1], s: [1.2, 0.85, 0.7], cast: false });
+            skull.add(e); eyes.push(e);
         });
-        skull.add(mesh(new T.ConeGeometry(0.025, 0.05, 3), M.dark(), { p: [0, -0.07, 0.18], r: [Math.PI, 0, 0], cast: false }));
-        // görünen kaburgalar
+        skull.add(mesh(new T.ConeGeometry(0.016, 0.035, 3), M.dark(), { p: [0, -0.04, 0.1], r: [Math.PI, 0, 0], cast: false }));
+        // yırtık göğüs: koyu boşluk, kaburgalar, arkada ruh çekirdeği
+        const chest = new T.Group(); chest.position.set(0, 0.72, 0.31); body.add(chest);
+        chest.add(mesh(ellipsoid(0.11, 0.14, 0.04, 24, 16), M.dark(), { cast: false }));
+        const core = mesh(sphere(0.075, 20, 14), glowM(0x6ffff0, 6), { p: [0, 0.0, 0.0], cast: false });
+        chest.add(core);
+        chest.add(mesh(new T.CylinderGeometry(0.014, 0.014, 0.3, 8), bone, { p: [0, 0, 0.045] }));
         for (let i = 0; i < 4; i++) {
-            const rib = mesh(new T.TorusGeometry(0.17 - i * 0.015, 0.018, 8, 24, Math.PI * 0.9), bone, { p: [0, 0.74 - i * 0.075, 0.2], r: [0.25, 0, Math.PI * 1.05], cast: false });
-            body.add(rib);
+            [-1, 1].forEach(s => chest.add(mesh(new T.TorusGeometry(0.1 - i * 0.008, 0.013, 6, 16, Math.PI * 0.55), bone, { p: [s * 0.006, 0.1 - i * 0.055, 0.02], r: [0, s > 0 ? 0 : Math.PI, s > 0 ? -0.2 : 0.2], s: [1, 0.6, 0.5], cast: false })));
         }
-        body.add(mesh(new T.CylinderGeometry(0.02, 0.02, 0.32, 8), bone, { p: [0, 0.65, 0.17] }));
-        // pençeli kollar (öne uzanan)
+        // kollar: kemik + yırtık yen, uzun pençeler; omuz ekseninde döner
+        const arms = [];
         [-1, 1].forEach(s => {
-            const arm = taperTube([[s * 0.28, 0.78, 0.05], [s * 0.4, 0.62, 0.25], [s * 0.36, 0.55, 0.45]], 0.035, 0.025, 16, 8).geo;
-            body.add(mesh(arm, bone));
+            const arm = new T.Group(); arm.position.set(s * 0.28, 0.86, 0.12); body.add(arm);
+            arm.add(mesh(taperTube([[0, 0, 0], [s * 0.1, -0.14, 0.18], [s * 0.08, -0.2, 0.38]], 0.032, 0.022, 16, 8).geo, bone));
             for (let f = -1; f <= 1; f++) {
-                const cl = taperTube([[s * 0.36, 0.55, 0.45], [s * 0.36 + f * 0.04, 0.5, 0.53], [s * 0.36 + f * 0.05, 0.43, 0.56]], 0.014, 0.003, 8, 6).geo;
-                body.add(mesh(cl, bone, { cast: false }));
+                const cl = taperTube([[s * 0.08, -0.2, 0.38], [s * 0.08 + f * 0.035, -0.23, 0.47], [s * 0.08 + f * 0.05, -0.31, 0.5]], 0.013, 0.002, 8, 6).geo;
+                arm.add(mesh(cl, bone, { cast: false }));
             }
-            // kol yeni
-            body.add(mesh(shroud([[0.01, 0.12], [0.07, 0.06], [0.1, -0.08]], 0.05, 7 + s, 20), cloth, { p: [s * 0.32, 0.72, 0.12], r: [0.9, 0, s * 0.4] }));
+            const slv = shroud([[0.01, 0.1], [0.08, 0.05], [0.12, -0.12]], 0.07, 7 + s, 24, 5);
+            arm.add(mesh(slv, cloth, { p: [s * 0.03, -0.04, 0.06], r: [1.0, 0, s * 0.35] }));
+            arms.push(arm);
         });
-        // ruh izi: altta toplanan soğuk ışık
-        const wisp = mesh(new T.ConeGeometry(0.42, 0.5, 32, 1, true), M.add(0x6fffd8, 0.12), { p: [0, 0.22, 0], r: [Math.PI, 0, 0], cast: false });
+        // ruh izi: altta toplanan soğuk ışık + yükselen kıvılcımlar
+        const wisp = mesh(new T.ConeGeometry(0.4, 0.45, 32, 1, true), M.add(0x6fffd8, 0.22), { p: [0, 0.2, 0], r: [Math.PI, 0, 0], cast: false });
         body.add(wisp);
-        root.rotation.y = 0.35;
+        const motes = wispMotes(body, 7, 0x8ffff0, 17, 0.35);
+        root.rotation.y = 0.4;
+        const ct = st.contact;
         return (i, n) => {
-            body.position.y = 0.06 + bob(i, n, 0.05);
-            body.rotation.z = Math.sin(i / n * TAU) * 0.04;
-            sh.rotation.y = i / n * 0.3;
+            const atk = i >= 8, k = i - 8;
+            const f = i / 8 * TAU;
+            const lift = atk ? [0.1, 0.06, 0.03, 0.08][k] : 0.12 + Math.sin(f) * 0.05;
+            body.position.set(0, lift, atk ? [-0.05, 0.12, 0.2, 0.06][k] : 0);
+            body.rotation.set(atk ? [-0.12, 0.25, 0.38, 0.12][k] : Math.sin(f + 1) * 0.04, 0, atk ? 0 : Math.sin(f) * 0.06);
+            head.rotation.set(-0.45 + (atk ? [-0.25, 0.1, 0.2, 0][k] : Math.sin(f + 0.6) * 0.06), atk ? 0 : Math.sin(f) * 0.1, 0);
+            jaw.rotation.x = atk ? [0.2, 0.45, 0.55, 0.15][k] : 0.06 + Math.max(0, Math.sin(f * 2)) * 0.05;
+            arms.forEach((a, j) => {
+                const s = j ? 1 : -1;
+                a.rotation.x = atk ? [-0.9, -0.2, 0.25, -0.1][k] : Math.sin(f + j * Math.PI) * 0.16;
+                a.rotation.z = atk ? s * [0.35, 0.1, -0.1, 0.05][k] : 0;
+            });
+            const ei = atk ? [11, 15, 16, 11][k] : 8 + Math.sin(f) * 1.5;
+            eyeM.emissiveIntensity = ei;
+            eyes.forEach(e => e.scale.set(1.2, atk ? 1.1 : 0.85, 0.7));
+            core.material.emissiveIntensity = atk ? 7 : 4.5 + Math.sin(f * 2) * 1;
+            core.scale.setScalar(atk ? 1.25 : 1 + Math.sin(f * 2) * 0.1);
+            // pelerin dalgası: etekte açıya bağlı yürüyen dalga
+            const wp = atk ? k * 1.4 + 2 : f;
+            shWave(v => {
+                const a = Math.atan2(v.z, v.x);
+                const low = 1 - B.smooth(-0.3, 0.55, v.y);
+                const dr = low * (0.06 * Math.sin(a * 3 - wp) + 0.035 * Math.sin(a * 5 + wp * 2));
+                const r = Math.hypot(v.x, v.z) || 1;
+                v.x += v.x / r * dr; v.z += v.z / r * dr;
+                v.y += low * 0.04 * Math.sin(a * 4 - wp);
+                if (atk) v.z -= low * 0.12 * [0.3, 0.8, 1, 0.5][k];
+            });
+            motes.forEach(m => {
+                const u = m.userData, tt = (u.y + i / 8) % 1;
+                m.position.set(Math.cos(u.a + tt * 2) * u.r, 0.05 + tt * 0.5, Math.sin(u.a + tt * 2) * u.r * 0.7);
+                m.scale.setScalar(u.s * Math.sin(tt * Math.PI));
+            });
+            if (ct) { const q = 1 - (lift - 0.07) * 1.6; ct.scale.set(0.9 * q, 0.6 * q, 1); ct.material.opacity = 0.55 * q; }
         };
     }
 
-    // RÜN CADISI: kapüşonlu, asalı uzaktan saldıran (mor cübbe, pembe rün ışığı)
-    function buildCadi(scene) {
+    // RÜN CADISI: uzun kıvrık kapüşon, kıvrımlı mor cübbe, etekte ışıyan rün kuşağı, beyaz saç tutamları,
+    // kök pençeli asada pembe rün kristali. Şarjda asa kalkar, kristal büyür, ayak altında rün çemberi açılır.
+    function buildCadi(scene, st) {
         const root = new T.Group(); scene.add(root);
         const body = new T.Group(); root.add(body);
-        const robeM = M.cloth(new T.Color(0x8a3e86), [5, 4]);
+        const robeM = M.fabric(new T.Color(0xc060c8), [5, 4]);
         robeM.side = T.DoubleSide;
-        const robe = mesh(shroud([[0.01, 0.95], [0.16, 0.92], [0.22, 0.75], [0.27, 0.5], [0.36, 0.22], [0.47, 0.02]], 0.08, 11), robeM);
-        body.add(robe);
-        // omuz pelerini
-        const capeM = M.cloth(new T.Color(0x52244e), [5, 3]);
+        robeM.emissive = new T.Color(0x220622); robeM.emissiveIntensity = 0.8;
+        const capeM = M.fabric(new T.Color(0x7a3484), [5, 3]);
         capeM.side = T.DoubleSide;
-        body.add(mesh(shroud([[0.01, 0.98], [0.22, 0.88], [0.32, 0.72], [0.34, 0.6]], 0.06, 12), capeM));
-        // kapüşon: bükük sivri uç
-        const hoodG = deform(new T.ConeGeometry(0.25, 0.62, 40, 12, true), v => {
-            const t = (v.y + 0.31) / 0.62;
-            v.z -= Math.pow(t, 2) * 0.22;
-            v.x *= 1 - t * 0.1;
+        const rprof = [[0.01, 0.95], [0.15, 0.92], [0.2, 0.78], [0.23, 0.55], [0.3, 0.3], [0.4, 0.12], [0.47, 0.0]];
+        const robeG = folds(shroud(rprof, 0.05, 11, 72, 13), 9, 0.12, 0.0, 0.75, 9);
+        const robe = mesh(robeG, robeM);
+        body.add(robe);
+        // etek rün kuşağı (önde görünen yarım halka)
+        const runeM = glowM(0xff6ad8, 4.5);
+        const band = new T.Group(); body.add(band);
+        for (let k = 0; k < 7; k++) {
+            const a = -0.95 + k * 0.32;
+            const rr = runeStrokes(RUNES[k % RUNES.length], runeM, 0.07, 0.04);
+            rr.scale.setScalar(0.085);
+            rr.position.set(Math.sin(a) * 0.43, 0.1, Math.cos(a) * 0.43);
+            rr.rotation.set(-0.35, a, 0);
+            band.add(rr);
+        }
+        body.add(mesh(new T.TorusGeometry(0.44, 0.012, 6, 64), M.gold(), { p: [0, 0.035, 0], r: [Math.PI / 2, 0, 0], s: [1, 1, 1] }));
+        // omuz pelerini (dalgalanır)
+        const capeG = shroud([[0.01, 0.98], [0.22, 0.89], [0.33, 0.72], [0.36, 0.56]], 0.08, 12, 64, 9);
+        const capeWave = animGeo(capeG);
+        body.add(mesh(capeG, capeM));
+        // kapüşon: geriye kıvrık uzun sivri uç (kare başına salınır)
+        const hood = new T.Group(); hood.position.set(0, 0.98, -0.02); body.add(hood);
+        const hoodG = deform(new T.ConeGeometry(0.24, 0.7, 40, 14, true), v => {
+            const t = (v.y + 0.35) / 0.7;
+            v.z -= Math.pow(t, 2) * 0.32;
+            v.x += Math.pow(t, 3) * 0.06;
+            v.x *= 1 - t * 0.12;
         });
-        body.add(mesh(hoodG, capeM, { p: [0, 1.18, -0.04] }));
-        body.add(mesh(new T.SphereGeometry(0.2, 32, 20, 0, TAU, 0, Math.PI * 0.7), capeM, { p: [0, 0.97, -0.02], r: [-0.4, 0, 0] }));
-        // yüz boşluğu + göz
-        body.add(mesh(ellipsoid(0.13, 0.13, 0.06, 24, 16), M.dark(), { p: [0, 0.94, 0.15], cast: false }));
-        [-1, 1].forEach(s => body.add(mesh(sphere(0.022, 12, 8), M.glow(0xff7ae0, 7), { p: [s * 0.045, 0.96, 0.2], cast: false })));
-        // rün kuşağı (altın) + asılı tılsım
-        body.add(mesh(new T.TorusGeometry(0.255, 0.02, 8, 40), M.gold(), { p: [0, 0.52, 0], r: [Math.PI / 2, 0, 0], s: [1, 1.0, 1] }));
-        body.add(mesh(new T.BoxGeometry(0.07, 0.11, 0.02), M.gold(), { p: [0.05, 0.44, 0.27], r: [0.2, 0, 0.1] }));
-        // eller + asa (sağda)
-        const staff = new T.Group(); staff.position.set(0.36, 0, 0.12); body.add(staff);
+        const hoodTip = new T.Group(); hoodTip.position.set(0, 0.2, 0); hood.add(hoodTip);
+        hoodTip.add(mesh(hoodG, capeM, { p: [0, 0.16, -0.03] }));
+        hood.add(mesh(new T.SphereGeometry(0.2, 32, 20, 0, TAU, 0, Math.PI * 0.7), capeM, { r: [-0.45, 0, 0] }));
+        hood.add(mesh(new T.TorusGeometry(0.14, 0.035, 10, 32), robeM, { p: [0, -0.03, 0.13], r: [0.3, 0, 0], s: [1, 1.15, 1] }));
+        hood.add(mesh(ellipsoid(0.13, 0.14, 0.06, 24, 16), M.dark(), { p: [0, -0.04, 0.13], cast: false }));
+        const eyeM = glowM(0xff8ae6, 9);
+        [-1, 1].forEach(s => hood.add(mesh(sphere(0.03, 12, 8), eyeM, { p: [s * 0.048, -0.02, 0.18], s: [1.4, 0.75, 0.7], cast: false })));
+        // beyaz saç tutamları
+        const hair = M.bone(0xd8d4e4);
+        [-1, 1].forEach(s => { for (let k = 0; k < 3; k++) hood.add(mesh(taperTube([[s * (0.08 + k * 0.02), -0.08, 0.12 - k * 0.03], [s * (0.12 + k * 0.025), -0.22, 0.14 - k * 0.03], [s * (0.1 + k * 0.03), -0.38 - k * 0.04, 0.12 - k * 0.04]], 0.016, 0.003, 10, 6).geo, hair, { cast: false })); });
+        // kuşak + tılsımlar
+        body.add(mesh(new T.TorusGeometry(0.245, 0.022, 8, 40), M.gold(), { p: [0, 0.54, 0], r: [Math.PI / 2, 0, 0] }));
+        body.add(mesh(new T.BoxGeometry(0.06, 0.1, 0.02), M.gold(), { p: [0.06, 0.45, 0.27], r: [0.2, 0, 0.1] }));
+        body.add(mesh(sphere(0.03, 12, 8), M.bone(), { p: [-0.08, 0.44, 0.26] }));
+        // asa: omuzdan döner (şarjda kalkar)
+        const arm = new T.Group(); arm.position.set(0.3, 0.78, 0.1); body.add(arm);
+        const staff = new T.Group(); staff.position.set(0.04, -0.76, 0.02); arm.add(staff);
         const wood = M.wood(0x8a6040);
-        const shaft = taperTube([[0, 0.02, 0], [0.02, 0.6, 0], [-0.01, 1.1, 0], [0.03, 1.38, 0]], 0.03, 0.022, 20, 8).geo;
-        staff.add(mesh(shaft, wood));
-        // asa başı: kök pençesi içinde rün taşı
+        staff.add(mesh(taperTube([[0, 0.02, 0], [0.02, 0.6, 0], [-0.01, 1.1, 0], [0.03, 1.38, 0]], 0.03, 0.022, 20, 8).geo, wood));
         for (let k = 0; k < 4; k++) {
             const a = k / 4 * TAU;
-            staff.add(mesh(taperTube([[0.03, 1.36, 0], [0.03 + Math.cos(a) * 0.08, 1.46, Math.sin(a) * 0.08], [0.03 + Math.cos(a) * 0.04, 1.58, Math.sin(a) * 0.04]], 0.018, 0.006, 10, 6).geo, wood));
+            staff.add(mesh(taperTube([[0.03, 1.36, 0], [0.03 + Math.cos(a) * 0.09, 1.46, Math.sin(a) * 0.09], [0.03 + Math.cos(a) * 0.035, 1.6, Math.sin(a) * 0.035]], 0.018, 0.005, 10, 6).geo, wood));
         }
-        const orb = mesh(new T.OctahedronGeometry(0.075, 1), new T.MeshPhysicalMaterial({ color: 0xff5ed1, emissive: 0xff3ac0, emissiveIntensity: 2.4, roughness: 0.1, clearcoat: 1, flatShading: true }), { p: [0.03, 1.48, 0], cast: false });
+        const orbM = new T.MeshPhysicalMaterial({ color: 0xff5ed1, emissive: 0xff3ac0, emissiveIntensity: 3, roughness: 0.1, clearcoat: 1, flatShading: true });
+        orbM.userData.glow = true;
+        const orb = mesh(new T.OctahedronGeometry(0.08, 1), orbM, { p: [0.03, 1.48, 0], cast: false });
         staff.add(orb);
-        const halo = new T.Group();
-        const handM = M.bone(0xb8a8c8);
-        body.add(mesh(sphere(0.045, 16, 12), handM, { p: [0.33, 0.72, 0.13] }));
-        body.add(mesh(sphere(0.045, 16, 12), handM, { p: [-0.18, 0.55, 0.24] }));
-        // kol yenleri
-        body.add(mesh(shroud([[0.01, 0.16], [0.08, 0.08], [0.11, -0.08]], 0.05, 21, 20), robeM, { p: [0.29, 0.8, 0.1], r: [0.3, 0, -0.5] }));
-        body.add(mesh(shroud([[0.01, 0.16], [0.08, 0.08], [0.11, -0.08]], 0.05, 22, 20), robeM, { p: [-0.2, 0.65, 0.18], r: [1.0, 0, 0.5] }));
-        root.rotation.y = 0.3;
+        const orbMotes = wispMotes(staff, 4, 0xffa0ec, 23, 0.16);
+        const handM = M.bone(0xc0b0d0);
+        arm.add(mesh(sphere(0.048, 16, 12), handM, { p: [0.03, -0.06, 0.03] }));
+        arm.add(mesh(shroud([[0.01, 0.16], [0.08, 0.08], [0.115, -0.08]], 0.05, 21, 20), robeM, { p: [0, 0.03, 0], r: [0.25, 0, -0.45] }));
+        // sol el: öne açık avuç (şarjda kıvılcım toplar)
+        const lh = new T.Group(); lh.position.set(-0.2, 0.62, 0.2); body.add(lh);
+        lh.add(mesh(sphere(0.045, 16, 12), handM));
+        lh.add(mesh(shroud([[0.01, 0.16], [0.08, 0.08], [0.11, -0.08]], 0.05, 22, 20), robeM, { p: [0.03, 0.06, -0.05], r: [1.0, 0, 0.5] }));
+        const palm = mesh(sphere(0.035, 12, 8), glowM(0xff9ae8, 6), { p: [0, 0.02, 0.06], cast: false });
+        lh.add(palm);
+        // ayak altı rün çemberi (yalnız şarjda)
+        const circ = new T.Group(); circ.position.y = 0.01; root.add(circ);
+        const cM = glowM(0xff4ec8, 3.5);
+        circ.add(mesh(new T.TorusGeometry(0.62, 0.012, 6, 72), cM, { r: [Math.PI / 2, 0, 0], cast: false, recv: false }));
+        circ.add(mesh(new T.TorusGeometry(0.5, 0.008, 6, 72), cM, { r: [Math.PI / 2, 0, 0], cast: false, recv: false }));
+        for (let k = 0; k < 8; k++) {
+            const a = k / 8 * TAU, rr = runeStrokes(RUNES[k % RUNES.length], cM, 0.08, 0.01);
+            rr.scale.setScalar(0.09); rr.position.set(Math.sin(a) * 0.56, 0.005, Math.cos(a) * 0.56); rr.rotation.set(-Math.PI / 2, 0, a); circ.add(rr);
+        }
+        root.rotation.y = 0.35;
         return (i, n) => {
-            body.position.y = 0.02 + bob(i, n, 0.025);
-            orb.rotation.y = i / n * TAU;
-            halo.scale.setScalar(1 + 0.15 * Math.sin(i / n * TAU));
-            robe.rotation.y = Math.sin(i / n * TAU) * 0.08;
+            const atk = i >= 8, k = i - 8;
+            const f = i / 8 * TAU;
+            const q = atk ? (k + 1) / 4 : 0;
+            body.position.y = 0.03 + (atk ? 0.02 * q : Math.sin(f) * 0.022);
+            body.rotation.z = atk ? -0.04 * q : Math.sin(f) * 0.025;
+            robe.rotation.y = Math.sin(f) * 0.08;
+            robe.scale.set(1 + q * 0.06, 1, 1 + q * 0.06);
+            hood.rotation.set(-0.2 + (atk ? -0.12 * q : Math.sin(f + 0.8) * 0.05), 0, atk ? 0 : Math.sin(f) * 0.04);
+            hoodTip.rotation.set(Math.sin(f - 0.6) * 0.12 - q * 0.2, 0, Math.sin(f - 1.2) * 0.14);
+            arm.rotation.set(atk ? [-0.35, -0.7, -0.95, -1.1][k] : Math.sin(f) * 0.04, 0, atk ? [0.1, 0.18, 0.22, 0.25][k] : 0);
+            const oi = atk ? [5, 8, 12, 16][k] : 3 + Math.sin(f) * 0.9;
+            orbM.emissiveIntensity = oi;
+            orb.scale.setScalar(atk ? 1.15 + q * 0.6 : 1 + Math.sin(f) * 0.08);
+            orb.rotation.set(0, f / 2 + k * 0.4, 0.3);
+            orbMotes.forEach((m, j) => {
+                const u = m.userData, a = u.a + (atk ? -k * 1.3 : f / 2);
+                const r = atk ? u.r * (1 - q * 0.6) : u.r;
+                m.position.set(0.03 + Math.cos(a) * r, 1.48 + Math.sin(a * 2 + j) * 0.05, Math.sin(a) * r);
+                m.scale.setScalar(u.s * (atk ? 1.3 : 0.9));
+            });
+            palm.scale.setScalar(atk ? 0.8 + q * 1.4 : 0.6 + Math.sin(f) * 0.1);
+            palm.material.emissiveIntensity = atk ? 8 : 4;
+            runeM.emissiveIntensity = atk ? 5 + q * 6 : 3.5 + Math.sin(f) * 1.2;
+            eyeM.emissiveIntensity = atk ? 14 : 9;
+            circ.visible = atk;
+            circ.scale.setScalar(0.6 + q * 0.5);
+            circ.rotation.y = k * 0.25;
+            cM.emissiveIntensity = 2 + q * 4;
+            capeWave(v => {
+                const a = Math.atan2(v.z, v.x);
+                const low = 1 - B.smooth(0.5, 0.95, v.y);
+                const dr = low * (0.03 * Math.sin(a * 4 - f) + (atk ? 0.04 * q : 0));
+                const r = Math.hypot(v.x, v.z) || 1;
+                v.x += v.x / r * dr; v.z += v.z / r * dr;
+                v.y += low * 0.02 * Math.sin(a * 3 + f);
+            });
         };
     }
 
-    // TAŞ MUHAFIZ: zırhlı golem (kaba taş gövde, demir kuşaklar, köz vizör, boynuz)
+    // TAŞ MUHAFIZ: ağır taş golem. Kambur kaya gövde, köz ışıklı çatlak ağı, demir kuşak ve apoletler,
+    // yosunlu omuzlar, sırtta rün kristalleri, iri yumruklar. Yürüyüşte bacaklar sırayla kalkar,
+    // gövde her adımda çöker ve yana sallanır; saldırıda iki yumruğu kaldırıp yere vurur.
     function rock(w, h, d, seed, amp) {
         const g = new T.BoxGeometry(w, h, d, 8, 8, 8);
         const n = B.noiseGen(seed || 5);
@@ -486,113 +673,224 @@
     function buildMuhafiz(scene) {
         const root = new T.Group(); scene.add(root);
         const body = new T.Group(); root.add(body);
-        const st = M.stone(0xf0d8bc, [1, 1], 13);
+        const st = M.granite(0xd8d2cc, [1, 1], 13);
+        const st2 = M.granite(0xb4aea8, [1, 1], 17);
         const iron = M.iron(0xa8a29a);
-        // bacak kütükleri
-        [-1, 1].forEach(s => body.add(mesh(rock(0.24, 0.3, 0.26, 30 + s, 0.2), st, { p: [s * 0.2, 0.15, 0] })));
-        // gövde
-        const torso = mesh(rock(0.78, 0.62, 0.52, 7, 0.22), st, { p: [0, 0.6, 0] });
-        body.add(torso);
-        // demir göğüs plakası + perçin
-        const plateG = new T.CylinderGeometry(0.4, 0.4, 0.34, 32, 1, true, -0.9, 1.8);
-        const plate = mesh(plateG, iron, { p: [0, 0.62, -0.08] });
-        plate.material.side = T.DoubleSide;
-        body.add(plate);
-        for (let k = -2; k <= 2; k++) body.add(mesh(sphere(0.026, 10, 8), iron, { p: [Math.sin(k * 0.38) * 0.41, 0.75, Math.cos(k * 0.38) * 0.41 - 0.08], cast: false }));
-        // köz rün göğüste
-        const rune = runeStrokes(RUNES[3], M.glow(0xff8a2a, 4), 0.045, 0.03);
-        rune.scale.setScalar(0.24); rune.position.set(0, 0.58, 0.34);
-        body.add(rune);
-        // omuz kayaları + demir apolet
-        [-1, 1].forEach(s => {
-            body.add(mesh(rock(0.36, 0.32, 0.36, 40 + s, 0.3), st, { p: [s * 0.48, 0.82, 0] }));
-            body.add(mesh(new T.SphereGeometry(0.22, 24, 12, 0, TAU, 0, Math.PI / 2), iron, { p: [s * 0.5, 0.92, 0], r: [0, 0, -s * 0.35] }));
-            // kollar + yumruk
-            body.add(mesh(rock(0.22, 0.38, 0.22, 50 + s, 0.25), st, { p: [s * 0.55, 0.5, 0.06], r: [0.2, 0, s * 0.12] }));
-            body.add(mesh(rock(0.25, 0.22, 0.25, 60 + s, 0.3), st, { p: [s * 0.57, 0.25, 0.14] }));
+        const moss = B.mat('granite', { color: 0x6f9a3e, roughness: 1, ns: 1.5 }, [2, 2], 3);
+        const emb = glowM(0xff7a1a, 3);
+        // bacaklar: kalça ekseninde döner
+        const legs = [-1, 1].map(s => {
+            const g = new T.Group(); g.position.set(s * 0.2, 0.34, 0); root.add(g);
+            g.add(mesh(rock(0.26, 0.24, 0.28, 30 + s, 0.2), st2, { p: [0, -0.1, 0] }));
+            g.add(mesh(rock(0.3, 0.15, 0.36, 33 + s, 0.22), st, { p: [0, -0.27, 0.04] }));
+            g.add(mesh(new T.TorusGeometry(0.13, 0.025, 8, 24), iron, { p: [0, -0.04, 0], r: [Math.PI / 2, 0, 0] }));
+            return g;
         });
-        // baş + köz vizör + boynuz
-        const head = new T.Group(); head.position.set(0, 1.0, 0.05); body.add(head);
-        head.add(mesh(rock(0.32, 0.26, 0.3, 77, 0.18), st));
-        head.add(mesh(new T.BoxGeometry(0.22, 0.04, 0.05), M.glow(0xffa040, 6), { p: [0, 0.01, 0.15], cast: false }));
+        // gövde (öne kambur)
+        const torsoG = new T.Group(); torsoG.position.set(0, 0.62, 0); torsoG.rotation.x = 0.14; body.add(torsoG);
+        torsoG.add(mesh(rock(0.7, 0.74, 0.52, 7, 0.22), st));
+        torsoG.add(mesh(new T.TorusGeometry(0.39, 0.045, 10, 40), iron, { p: [0, -0.26, 0], r: [Math.PI / 2, 0, 0], s: [1.05, 0.72, 1] }));
+        // göğüs: demir plaka + köz çatlak ağı + merkez rün
+        const plate = mesh(new T.CylinderGeometry(0.42, 0.42, 0.3, 32, 1, true, -0.85, 1.7), iron, { p: [0, 0.03, -0.1] });
+        plate.material = plate.material.clone(); plate.material.side = T.DoubleSide;
+        torsoG.add(plate);
+        for (let k = -2; k <= 2; k++) torsoG.add(mesh(sphere(0.026, 10, 8), iron, { p: [Math.sin(k * 0.38) * 0.43, 0.15, Math.cos(k * 0.38) * 0.43 - 0.1], cast: false }));
+        const cracks = runeStrokes(crackSegs(4, 5, 0.085), emb, 0.014, 0.05);
+        cracks.position.set(0, -0.06, 0.3); torsoG.add(cracks);
+        const rune = runeStrokes(RUNES[3], glowM(0xffb04a, 6), 0.05, 0.05);
+        rune.scale.setScalar(0.22); rune.position.set(0, -0.04, 0.33); torsoG.add(rune);
+        // sırtta rün kristali dikenleri
+        const crysM = new T.MeshPhysicalMaterial({ color: 0xffa050, emissive: 0xff6a10, emissiveIntensity: 1.6, roughness: 0.2, clearcoat: 1, flatShading: true });
+        crysM.userData.glow = true;
+        [[-0.2, 0.28, -0.2, -0.4], [0.05, 0.34, -0.22, 0.1], [0.24, 0.26, -0.18, 0.5]].forEach(([x, y, z, rz]) => torsoG.add(mesh(new T.ConeGeometry(0.06, 0.26, 5), crysM, { p: [x, y, z], r: [-0.5, 0, rz] })));
+        // omuzlar: kaya + demir apolet + yosun
+        const arms = [];
+        [-1, 1].forEach(s => {
+            torsoG.add(mesh(rock(0.32, 0.3, 0.34, 40 + s, 0.3), st, { p: [s * 0.44, 0.22, 0] }));
+            torsoG.add(mesh(new T.SphereGeometry(0.18, 24, 12, 0, TAU, 0, Math.PI / 2), iron, { p: [s * 0.46, 0.3, 0], r: [0, 0, -s * 0.35], s: [1, 0.7, 1] }));
+            for (let k = 0; k < 3; k++) torsoG.add(mesh(new T.ConeGeometry(0.03, 0.12, 6), iron, { p: [s * (0.42 + k * 0.08), 0.48 - k * 0.04, -0.02], r: [0, 0, -s * (0.3 + k * 0.25)] }));
+            torsoG.add(mesh(rock(0.2, 0.08, 0.18, 70 + s, 0.6), moss, { p: [s * 0.36, 0.38, 0.08], cast: false }));
+            // kol: omuz ekseni
+            const a = new T.Group(); a.position.set(s * 0.56, 0.14, 0.02); torsoG.add(a);
+            a.add(mesh(rock(0.22, 0.34, 0.22, 50 + s, 0.25), st2, { p: [0, -0.16, 0], r: [0, 0, s * 0.08] }));
+            a.add(mesh(new T.TorusGeometry(0.12, 0.028, 8, 24), iron, { p: [0, -0.33, 0.02], r: [Math.PI / 2, 0, 0] }));
+            a.add(mesh(rock(0.28, 0.26, 0.28, 60 + s, 0.3), st, { p: [0.0, -0.48, 0.05] }));
+            arms.push(a);
+        });
+        // baş: omuzlar arasına gömük, köz vizör ve gözler, kıvrık boynuz
+        const head = new T.Group(); head.position.set(0, 0.46, 0.12); torsoG.add(head);
+        head.add(mesh(rock(0.3, 0.3, 0.3, 77, 0.18), st));
+        head.add(mesh(new T.BoxGeometry(0.34, 0.07, 0.24), iron, { p: [0, 0.07, 0.04] }));
+        const visor = mesh(new T.BoxGeometry(0.22, 0.04, 0.05), glowM(0xffa040, 7), { p: [0, 0.0, 0.15], cast: false });
+        head.add(visor);
         const hornM = M.bone(0xd8cfae);
-        [-1, 1].forEach(s => head.add(mesh(taperTube([[s * 0.12, 0.08, 0], [s * 0.26, 0.14, 0], [s * 0.3, 0.3, -0.04], [s * 0.24, 0.42, -0.06]], 0.05, 0.008, 20, 10).geo, hornM)));
-        root.rotation.y = 0.3;
+        [-1, 1].forEach(s => head.add(mesh(taperTube([[s * 0.12, 0.08, 0], [s * 0.27, 0.14, 0.02], [s * 0.32, 0.3, -0.03], [s * 0.25, 0.44, -0.07]], 0.055, 0.008, 20, 10).geo, hornM)));
+        root.rotation.y = 0.35;
         return (i, n) => {
-            body.position.y = Math.max(0, bob(i, n, 0.02));
-            body.rotation.z = Math.sin(i / n * TAU) * 0.03;
-            head.rotation.y = Math.sin(i / n * TAU) * 0.1;
+            const atk = i >= 8, k = i - 8;
+            const f = i / 8 * TAU;
+            const sn = Math.sin(f);
+            // yürüme: bacak salınımı + adımda kalkan ayak; gövde her basışta çöker
+            legs.forEach((g, j) => {
+                const ph = j ? -sn : sn;
+                g.rotation.x = atk ? [0, 0, 0.2, 0.1][k] * (j ? -1 : 1) : ph * 0.42;
+                g.position.y = 0.34 + (atk ? 0 : Math.max(0, Math.cos(f + (j ? Math.PI : 0))) * 0.05);
+            });
+            body.position.y = atk ? [0.03, 0.06, -0.06, -0.02][k] : -Math.abs(Math.sin(f)) * 0.04 + 0.01;
+            body.rotation.z = atk ? 0 : Math.cos(f) * 0.06;
+            body.rotation.x = atk ? [-0.1, -0.18, 0.28, 0.1][k] : 0;
+            arms.forEach((a, j) => {
+                a.rotation.x = atk ? [-1.9, -2.7, -0.7, -0.3][k] : (j ? 1 : -1) * sn * 0.35;
+                a.rotation.z = atk ? (j ? 1 : -1) * [0.25, 0.3, -0.1, 0][k] : 0;
+            });
+            head.rotation.set(atk ? [-0.15, -0.25, 0.25, 0][k] : 0, atk ? 0 : Math.sin(f) * 0.12, 0);
+            const glow = atk ? [4.5, 7, 10, 5][k] : 3 + Math.sin(f * 2) * 0.8;
+            emb.emissiveIntensity = glow;
+            visor.material.emissiveIntensity = atk ? 12 : 7;
+            crysM.emissiveIntensity = atk ? 3 : 1.4 + Math.sin(f) * 0.3;
         };
     }
 
-    // KÜL JARLI: boss (boynuzlu miğfer, köz gözler, erimiş göğüs çekirdeği, kül pelerini, rün baltası)
+    // KÜL JARLI: boss. Kıvrık boynuzlu miğfer (uçları kor), köz gözler, çatlak göğüste erimiş çekirdek,
+    // kürk yaka, dikenli apoletler, kor kenarlı kül pelerini, rün baltası. Bekleme: nefes, pelerin
+    // salınımı, çekirdek/boynuz nabzı, yükselen közler. Özel (8-11): kükreme / faz geçişi.
     function buildJarl(scene) {
         const root = new T.Group(); scene.add(root);
         const body = new T.Group(); root.add(body);
-        const iron = M.iron(0x8a8690);
+        const iron = M.iron(0xb0acb8);
         const dark = M.iron(0x5e5864);
-        const cloakM = M.cloth(new T.Color(0x3a2a2c), [6, 5]);
+        const cloakM = M.fabric(new T.Color(0x4e4040), [6, 5]);
         cloakM.side = T.DoubleSide;
+        cloakM.emissive = new T.Color(0x2e0a04); cloakM.emissiveIntensity = 0.7;
         const S = 2.0;   // genel ölçek
         body.scale.setScalar(S);
-        const cloak = mesh(shroud([[0.01, 1.0], [0.26, 0.95], [0.34, 0.8], [0.36, 0.5], [0.42, 0.2], [0.5, 0.02]], 0.12, 31, 64), cloakM);
+        const cloakG = folds(shroud([[0.01, 1.0], [0.26, 0.95], [0.34, 0.8], [0.37, 0.5], [0.44, 0.2], [0.52, 0.0]], 0.12, 31, 72, 11), 8, 0.1, 0.0, 0.8, 31);
+        const cloakWave = animGeo(cloakG);
+        const cloak = mesh(cloakG, cloakM);
         body.add(cloak);
-        // kül-kor pelerin kenarı (emissive iç yüz şeridi)
-        body.add(mesh(new T.TorusGeometry(0.47, 0.015, 6, 64), M.glow(0xff5a1a, 1.4), { p: [0, 0.05, 0], r: [Math.PI / 2, 0, 0], cast: false }));
-        // zırhlı göğüs + erimiş çekirdek
-        const chest = mesh(deform(ellipsoid(0.34, 0.3, 0.24, 48, 32), v => { if (v.z < 0) v.z *= 0.6; }), iron, { p: [0, 0.72, 0.06] });
-        body.add(chest);
-        const core = mesh(sphere(0.1, 32, 20), M.glow(0xff7a1a, 2.2), { p: [0, 0.7, 0.28], cast: false });
-        body.add(core);
-        const coreHalo = new T.Group();
-        for (let i = 0; i < 6; i++) {
-            const a = i / 6 * TAU + 0.3;
-            const cr = taperTube([[Math.cos(a) * 0.08, 0.7 + Math.sin(a) * 0.08, 0.29], [Math.cos(a) * 0.17, 0.7 + Math.sin(a) * 0.15, 0.27], [Math.cos(a) * 0.25, 0.7 + Math.sin(a) * 0.2, 0.22]], 0.014, 0.004, 8, 6).geo;
-            body.add(mesh(cr, M.glow(0xff7a2a, 3.5), { cast: false }));
+        // kor kenar: pelerin eteğinde ışıyan şerit
+        const hemM = glowM(0xff5a1a, 2.4);
+        // içten için için yanan etek: alt kenar köşelerinde düzensiz kor parçaları (kesintisiz halka yerine)
+        const hem = new T.Group(); body.add(hem);
+        {
+            const p = cloakG.attributes.position, R1 = B.rng(77);
+            for (let i = 0; i < p.count; i += 3) {
+                if (p.getY(i) > 0.02 || R1() < 0.45) continue;
+                const l = 0.03 + R1() * 0.05;
+                hem.add(mesh(new T.BoxGeometry(l, 0.02, 0.02), hemM, { p: [p.getX(i) * 1.01, p.getY(i) + 0.01, p.getZ(i) * 1.01], r: [0, Math.atan2(p.getX(i), p.getZ(i)) + Math.PI / 2, (R1() - 0.5) * 0.8], cast: false }));
+            }
         }
-        // kemer
+        // nefes alan gövde grubu
+        const chestG = new T.Group(); chestG.position.set(0, 0.72, 0.06); body.add(chestG);
+        chestG.add(mesh(deform(ellipsoid(0.34, 0.3, 0.24, 48, 32), v => { if (v.z < 0) v.z *= 0.6; v.x *= 1 + 0.08 * Math.max(0, v.y / 0.3); }), iron));
+        // göğüs plakası kenarları (altın şerit)
+        chestG.add(mesh(new T.TorusGeometry(0.2, 0.014, 6, 40, Math.PI), M.gold(), { p: [0, 0.02, 0.2], r: [0.1, 0, Math.PI] }));
+        const coreM = glowM(0xff7a1a, 4);
+        const core = mesh(sphere(0.095, 32, 20), coreM, { p: [0, -0.02, 0.22], cast: false });
+        chestG.add(core);
+        const crM = glowM(0xff8a2a, 4.5);
+        const cracks = runeStrokes(crackSegs(9, 7, 0.08), crM, 0.016, 0.04);
+        cracks.position.set(0, -0.02, 0.235); chestG.add(cracks);
+        // kürk yaka
+        const fur = M.fabric(new T.Color(0x6a5a4a), [3, 3]);
+        const R0 = B.rng(5);
+        for (let k = 0; k < 22; k++) {
+            const a = k / 22 * TAU;
+            chestG.add(mesh(new T.ConeGeometry(0.05, 0.16 + R0() * 0.06, 6), fur, { p: [Math.sin(a) * 0.28, 0.24, Math.cos(a) * 0.2 - 0.02], r: [Math.cos(a) * 1.0, 0, -Math.sin(a) * 1.0] }));
+        }
+        // kemer + kafatası tokası
         body.add(mesh(new T.TorusGeometry(0.33, 0.04, 10, 48), M.iron(0x5a4630), { p: [0, 0.46, 0.02], r: [Math.PI / 2, 0, 0] }));
-        body.add(mesh(new T.BoxGeometry(0.12, 0.1, 0.04), M.gold(), { p: [0, 0.46, 0.35] }));
-        // dikenli apoletler
+        body.add(mesh(ellipsoid(0.06, 0.06, 0.04, 16, 12), M.bone(), { p: [0, 0.46, 0.35] }));
+        body.add(mesh(new T.BoxGeometry(0.15, 0.03, 0.02), M.gold(), { p: [0, 0.41, 0.35] }));
+        // dikenli apoletler + kollar (kükremede kalkar)
+        const arms = [];
         [-1, 1].forEach(s => {
             const pa = new T.Group(); pa.position.set(s * 0.4, 0.9, 0); pa.rotation.z = -s * 0.4; body.add(pa);
-            pa.add(mesh(new T.SphereGeometry(0.2, 32, 16, 0, TAU, 0, Math.PI / 2), iron));
-            pa.add(mesh(new T.TorusGeometry(0.195, 0.02, 8, 32), M.gold(), { r: [Math.PI / 2, 0, 0] }));
-            for (let k = 0; k < 3; k++) pa.add(mesh(new T.ConeGeometry(0.035, 0.16, 8), dark, { p: [(k - 1) * 0.1, 0.2, -0.02], r: [0, 0, (k - 1) * -0.3] }));
-            // kol
-            pa.add(mesh(new T.CylinderGeometry(0.09, 0.08, 0.42, 16), dark, { p: [0, -0.28, 0.04] }));
+            pa.add(mesh(new T.SphereGeometry(0.21, 32, 16, 0, TAU, 0, Math.PI / 2), iron));
+            pa.add(mesh(new T.TorusGeometry(0.205, 0.02, 8, 32), M.gold(), { r: [Math.PI / 2, 0, 0] }));
+            for (let k = 0; k < 3; k++) pa.add(mesh(new T.ConeGeometry(0.035, 0.2 - Math.abs(k - 1) * 0.04, 8), dark, { p: [(k - 1) * 0.1, 0.2, -0.02], r: [0, 0, (k - 1) * -0.3] }));
+            const arm = new T.Group(); arm.position.set(s * 0.42, 0.82, 0.04); body.add(arm);
+            arm.add(mesh(new T.CylinderGeometry(0.09, 0.08, 0.42, 16), dark, { p: [0, -0.2, 0] }));
+            arm.add(mesh(new T.CylinderGeometry(0.1, 0.09, 0.14, 16), iron, { p: [0, -0.4, 0.01] }));
+            arm.add(mesh(sphere(0.085, 16, 12), dark, { p: [0, -0.5, 0.03] }));
+            arms.push(arm);
         });
-        // rün baltası (sağ el)
-        const axe = new T.Group(); axe.position.set(0.52, 0.0, 0.2); axe.rotation.z = 0.12; body.add(axe);
-        axe.add(mesh(new T.CylinderGeometry(0.025, 0.03, 1.05, 10), M.wood(0x5a3d26), { p: [0, 0.55, 0] }));
+        // rün baltası (sağ kolda)
+        const axe = new T.Group(); axe.position.set(0.05, -0.52, 0.12); axe.rotation.z = 0.12; arms[1].add(axe);
+        axe.add(mesh(new T.CylinderGeometry(0.025, 0.03, 1.05, 10), M.wood(0x5a3d26), { p: [0, 0.05, 0] }));
         const bladeS = new T.Shape();
         bladeS.moveTo(0, 0.12); bladeS.quadraticCurveTo(0.2, 0.2, 0.28, 0.3); bladeS.quadraticCurveTo(0.34, 0.0, 0.28, -0.3); bladeS.quadraticCurveTo(0.2, -0.2, 0, -0.12); bladeS.closePath();
-        const blade = mesh(new T.ExtrudeGeometry(bladeS, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2 }), M.iron(0x8a8e9a), { p: [0.02, 0.92, -0.01], r: [0, -0.5, 0] });
-        axe.add(blade);
-        const ar = runeStrokes(RUNES[1], M.glow(0xff7a2a, 3), 0.05, 0.03); ar.scale.setScalar(0.18); ar.position.set(0.13, 0.92, 0.06); ar.rotation.y = -0.5; axe.add(ar);
-        // miğfer: kubbe + yüz siperi + yanak koruyucu + vizörde köz gözler
+        axe.add(mesh(new T.ExtrudeGeometry(bladeS, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2 }), M.iron(0xb0b4c0), { p: [0.02, 0.42, -0.01], r: [0, -0.5, 0] }));
+        const axeRuneM = glowM(0xff7a2a, 4);
+        const ar = runeStrokes(RUNES[1], axeRuneM, 0.05, 0.03); ar.scale.setScalar(0.18); ar.position.set(0.13, 0.42, 0.06); ar.rotation.y = -0.5; axe.add(ar);
+        // miğfer
         const helm = new T.Group(); helm.position.set(0, 1.12, 0.03); body.add(helm);
         helm.add(mesh(deform(ellipsoid(0.2, 0.2, 0.21, 40, 28), v => { if (v.y < -0.05) { v.x *= 1.05; v.z *= 1.05; } }), dark));
         helm.add(mesh(new T.TorusGeometry(0.2, 0.025, 8, 40), M.gold(), { p: [0, -0.02, 0], r: [Math.PI / 2, 0, 0] }));
-        helm.add(mesh(new T.BoxGeometry(0.035, 0.24, 0.05), iron, { p: [0, -0.05, 0.2] }));     // burun koruyucu
+        helm.add(mesh(new T.BoxGeometry(0.035, 0.24, 0.05), iron, { p: [0, -0.05, 0.2] }));
+        const eyeM = glowM(0xfff1b0, 9);
+        const hornTipM = glowM(0xff6a1a, 3);
         [-1, 1].forEach(s => {
-            helm.add(mesh(sphere(0.03, 12, 8), M.glow(0xfff1b0, 8), { p: [s * 0.075, -0.03, 0.18], s: [1.4, 0.6, 0.6], cast: false }));
+            helm.add(mesh(sphere(0.032, 12, 8), eyeM, { p: [s * 0.075, -0.03, 0.18], s: [1.5, 0.6, 0.6], cast: false }));
             helm.add(mesh(new T.BoxGeometry(0.06, 0.18, 0.16), iron, { p: [s * 0.16, -0.14, 0.06], r: [0.1, 0, s * 0.15] }));
-            // büyük kıvrık boynuzlar
-            const horn = taperTube([[s * 0.16, 0.08, 0], [s * 0.36, 0.14, 0.02], [s * 0.48, 0.32, -0.02], [s * 0.44, 0.52, -0.08], [s * 0.34, 0.62, -0.12]], 0.07, 0.008, 32, 12).geo;
-            helm.add(mesh(horn, M.bone(0xd8cfae)));
+            const pts = [[s * 0.16, 0.08, 0], [s * 0.38, 0.14, 0.02], [s * 0.5, 0.33, -0.02], [s * 0.46, 0.54, -0.08], [s * 0.35, 0.65, -0.12]];
+            const horn = taperTube(pts, 0.075, 0.01, 32, 12);
+            helm.add(mesh(horn.geo, M.bone(0xd8cfae)));
+            // kor uç: son çeyrek ayrı ışıyan tüp
+            const tpts = [0.78, 0.88, 1.0].map(t => horn.curve.getPointAt(t).toArray());
+            helm.add(mesh(taperTube(tpts, 0.026, 0.008, 10, 8).geo, hornTipM, { cast: false }));
+            // halka bantlar
+            for (let k = 1; k <= 3; k++) {
+                const p = horn.curve.getPointAt(k * 0.16), tg = horn.curve.getTangentAt(k * 0.16);
+                const rg = mesh(new T.TorusGeometry(0.075 * (1 - k * 0.16) + 0.006, 0.01, 6, 20), M.gold(), { cast: false });
+                rg.position.copy(p); rg.quaternion.setFromUnitVectors(V3(0, 0, 1), tg);
+                helm.add(rg);
+            }
         });
-        // yüzen közler
+        // yükselen közler (döngüsel)
         const embers = new T.Group(); root.add(embers);
-        const eM = M.glow(0xff8a2a, 5);
-        const R = B.rng(99);
-        for (let k = 0; k < 14; k++) embers.add(mesh(sphere(0.025 + R() * 0.02, 8, 6), eM, { p: [(R() - 0.5) * 2.4, 0.4 + R() * 2.0, (R() - 0.5) * 1.2], cast: false }));
+        const eM = glowM(0xff8a2a, 6);
+        const R = B.rng(99), em = [];
+        for (let k = 0; k < 18; k++) {
+            const me = mesh(sphere(0.022 + R() * 0.02, 8, 6), eM, { cast: false, recv: false });
+            me.userData = { x: (R() - 0.5) * 2.2, z: (R() - 0.5) * 1.0, y: R(), s: 0.7 + R() * 0.6 };
+            embers.add(me); em.push(me);
+        }
         root.rotation.y = 0.2;
         return (i, n) => {
-            body.position.y = 0.04 + bob(i, n, 0.05);
-            cloak.rotation.y = Math.sin(i / n * TAU) * 0.06;
-            coreHalo.scale.setScalar(1 + 0.2 * Math.sin(i / n * TAU));
-            embers.position.y = (i / n) * 0.3;
+            const atk = i >= 8, k = i - 8;
+            const f = i / 8 * TAU;
+            const q = atk ? [0.35, 0.8, 1, 0.6][k] : 0;
+            body.position.y = 0.04 + (atk ? 0.06 * q : Math.sin(f) * 0.04);
+            body.rotation.x = atk ? -0.12 * q : 0;
+            const br = atk ? 1 + 0.06 * q : 1 + Math.sin(f) * 0.03;
+            chestG.scale.set(br, 1 + (br - 1) * 0.6, br);
+            helm.rotation.x = atk ? -0.35 * q : Math.sin(f) * 0.03;
+            helm.position.y = 1.12 + (br - 1) * 0.5;
+            arms.forEach((a, j) => {
+                const s = j ? 1 : -1;
+                a.rotation.z = atk ? s * 0.9 * q : s * (0.05 + Math.sin(f) * 0.02);
+                a.rotation.x = atk ? (j ? -1.6 : -0.8) * q : Math.sin(f + j) * 0.05;
+            });
+            coreM.emissiveIntensity = atk ? 6 + 8 * q : 3.5 + Math.sin(f) * 1.5;
+            core.scale.setScalar(atk ? 1 + 0.5 * q : 1 + Math.sin(f) * 0.08);
+            crM.emissiveIntensity = atk ? 5 + 7 * q : 3.5 + Math.sin(f) * 1.2;
+            hornTipM.emissiveIntensity = atk ? 6 + 6 * q : 2.5 + Math.sin(f + 1) * 1.5;
+            eyeM.emissiveIntensity = atk ? 16 : 9 + Math.sin(f) * 1;
+            hemM.emissiveIntensity = atk ? 4 + 3 * q : 2.2 + Math.sin(f * 2) * 0.5;
+            axeRuneM.emissiveIntensity = atk ? 9 : 4;
+            cloakWave(v => {
+                const a = Math.atan2(v.z, v.x);
+                const low = 1 - B.smooth(0.2, 0.9, v.y);
+                const dr = low * (0.03 * Math.sin(a * 3 - f) + (atk ? 0.06 * q : 0));
+                const r = Math.hypot(v.x, v.z) || 1;
+                v.x += v.x / r * dr; v.z += v.z / r * dr;
+            });
+            em.forEach(m => {
+                const u = m.userData, tt = (u.y + (atk ? i / 8 * 2 : i / 8)) % 1;
+                m.position.set(u.x * (1 + (atk ? q * 0.3 : 0)), 0.3 + tt * 2.4, u.z);
+                m.scale.setScalar(u.s * Math.sin(tt * Math.PI) * (atk ? 1.4 : 1));
+            });
         };
     }
 
@@ -710,10 +1008,12 @@
     [['shield', '#00ccff', 2], ['speed', '#ffdd00', 3], ['invincible', '#ff00ff', 4], ['clear', '#00ff66', 1]].forEach(([k, c, r]) => {
         add('crystal_' + k, { w: 1.2, h: 1.6, lean: -0.6, target: [0, 0.55, 0], anchor: [0, 0, 0], frames: 8, build: s => buildCrystal(s, c, r) });
     });
-    add('hortlak', { w: 2.0, h: 2.5, lean: -0.5, target: [0, 0.75, 0], anchor: [0, 0, 0], frames: 4, stage: { light: { rim: 3.4, fill: 1.6 }, shadow: true, shadowOpacity: 0.4, contact: { rx: 0.45, rz: 0.3, a: 0.5 } }, build: s => buildHortlak(s) });
-    add('cadi', { w: 2.0, h: 2.8, lean: -0.5, target: [0, 0.95, 0], anchor: [0, 0, 0], frames: 4, stage: { light: { rim: 3.4, fill: 1.6 }, shadow: true, shadowOpacity: 0.45, contact: { rx: 0.45, rz: 0.32, a: 0.6 } }, build: s => buildCadi(s) });
-    add('muhafiz', { w: 2.4, h: 2.6, lean: -0.45, target: [0, 0.75, 0], anchor: [0, 0, 0], frames: 4, stage: { light: { rim: 3.4, fill: 1.6 }, shadow: true, shadowOpacity: 0.5, contact: { rx: 0.6, rz: 0.4, a: 0.65 } }, build: s => buildMuhafiz(s) });
-    add('jarl', { w: 5.0, h: 6.0, lean: -0.45, target: [0, 2.0, 0], anchor: [0, 0, 0], frames: 4, stage: { light: { rim: 3.0, fill: 1.5 }, shadow: true, shadowOpacity: 0.5, contact: { rx: 1.2, rz: 0.8, a: 0.6 } }, build: s => buildJarl(s) });
+    // düşmanlar: 3 px = 1 mantıksal px (oyunda 1.35-1.65x büyütülür; dpr 2'de net kalsın), ışıma geçişli
+    const EN = { px: 60, frames: 12, anim: ANIM, bloom: { r: 5, a: 0.9 } };
+    add('hortlak', Object.assign({ w: 2.2, h: 2.6, lean: -0.5, target: [0, 0.8, 0.1], anchor: [0, 0, 0], stage: { light: { rim: 4.2, rimColor: 0x9ff6ff, fill: 1.8, key: 2.6 }, shadow: true, shadowOpacity: 0.35, contact: { rx: 0.45, rz: 0.3, a: 0.55 } }, build: (s, st) => buildHortlak(s, st) }, EN));
+    add('cadi', Object.assign({ w: 2.2, h: 3.0, lean: -0.5, target: [0, 1.0, 0], anchor: [0, 0, 0], stage: { light: { rim: 4.0, rimColor: 0xffb0f0, fill: 1.8, key: 2.6 }, shadow: true, shadowOpacity: 0.42, contact: { rx: 0.45, rz: 0.32, a: 0.6 } }, build: (s, st) => buildCadi(s, st) }, EN));
+    add('muhafiz', Object.assign({ w: 2.6, h: 2.8, lean: -0.6, target: [0, 0.8, 0], anchor: [0, 0, 0], stage: { light: { rim: 3.8, rimColor: 0xffd0a0, fill: 1.7, key: 2.6 }, shadow: true, shadowOpacity: 0.5, contact: { rx: 0.62, rz: 0.42, a: 0.65 } }, build: (s, st) => buildMuhafiz(s, st) }, EN));
+    add('jarl', Object.assign({ w: 5.2, h: 6.4, lean: -0.45, target: [0, 2.1, 0], anchor: [0, 0, 0], stage: { light: { rim: 3.6, rimColor: 0xffa070, fill: 1.6, key: 2.5 }, shadow: true, shadowOpacity: 0.5, contact: { rx: 1.2, rz: 0.8, a: 0.6 } }, build: (s, st) => buildJarl(s, st) }, EN, { bloom: { r: 8, a: 0.9 } }));
     add('block', { w: 1.5, h: 1.6, target: [0, 0.25, 0], anchor: [0, 0, 0], frames: 6, stage: { shadow: true, shadowOpacity: 0.55, contact: { rx: 0.62, rz: 0.62, a: 0.45 } }, build: s => buildBlock(s, false) });
     add('block_ember', { w: 1.5, h: 1.6, target: [0, 0.25, 0], anchor: [0, 0, 0], frames: 6, stage: { shadow: true, shadowOpacity: 0.55, contact: { rx: 0.62, rz: 0.62, a: 0.45 } }, build: s => buildBlock(s, true) });
     if (0) add('pillar', { w: 1.8, h: 2.2, target: [0, 0.6, 0], anchor: [0, 0, 0], frames: 1, stage: { shadow: true, shadowOpacity: 0.55, contact: { rx: 0.6, rz: 0.6, a: 0.5 } }, build: s => buildPillar(s) });

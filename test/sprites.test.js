@@ -1,5 +1,5 @@
 // Pişmiş 3B sprite'lar: harita ile PNG'ler tutarlı mı, hepsi yükleniyor mu (404 yok), boyutlar doğru mu,
-// toplam ≤ 6 MB mı, gömülü kopya PNG ile aynı mı, tuval kirlenmiyor mu, klasik ve Tapınak çizimi sprite'larla hatasız dönüyor mu.
+// toplam ≤ 8 MB mı (PNG + gömülü kopya), düşman animasyon kareleri (12: 8 bekleme + 4 saldırı) ve ölüm animasyonu, gömülü kopya PNG ile aynı mı, tuval kirlenmiyor mu, klasik ve Tapınak çizimi sprite'larla hatasız dönüyor mu.
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
@@ -15,7 +15,10 @@ const fs = require('fs');
     return true;
   });
   toplam += fs.statSync(path.join(src, 'sprite-map.js')).size;
-  sonuc.boyut = toplam <= 6 * 1024 * 1024;
+  sonuc.boyut = toplam <= 8 * 1024 * 1024;
+  // Düşman/boss şeritleri: 12 kare, adlandırılmış aralıklar bekleme [0,8] + saldırı [8,4]
+  sonuc.dusmanKare = ['hortlak', 'cadi', 'muhafiz', 'jarl'].every(k => map[k].n === 12 && map[k].anim &&
+    map[k].anim.bekle[0] === 0 && map[k].anim.bekle[1] === 8 && map[k].anim.saldiri[0] === 8 && map[k].anim.saldiri[1] === 4);
   sonuc.gerekli = ['head', 'head_cb', 'seg', 'linkh', 'linkv', 'tail', 'apple', 'apple_rot', 'star', 'crystal_shield', 'crystal_speed', 'crystal_invincible', 'crystal_clear', 'hortlak', 'cadi', 'muhafiz', 'jarl', 'block', 'block_ember', 'torch', 'runestone'].every(k => map[k]);
 
   const b = await chromium.launch();
@@ -53,6 +56,20 @@ const fs = require('fs');
     return Sprites.draw(g, 'hortlak', 3, 50, 50, 1.35, true) && Sprites.draw(g, 'head', 5, 50, 50, 1.2) &&
       Sprites.drawCrop(g, 'linkh', 1, 50, 50, 0.8, 20, null) && Sprites.draw(g, 'yok-boyle-bir-sey', 0, 0, 0, 1) === false && Sprites.has('jarl');
   });
+  // Animasyon API'si: anim aralığı, son kareler çizilir, beyaz flaş siluet yalnız gövdeyi boyar (gölge hariç)
+  sonuc.animApi = await p.evaluate(() => {
+    const a = Sprites.anim('cadi', 'saldiri'), b = Sprites.anim('jarl', 'bekle');
+    if (!a || a[0] !== 8 || !b || b[1] !== 8 || Sprites.anim('apple', 'bekle') !== null) return false;
+    const c = document.createElement('canvas'); c.width = 240; c.height = 240;
+    const g = c.getContext('2d'); g.setTransform(2, 0, 0, 2, 0, 0);
+    if (!['hortlak', 'cadi', 'muhafiz', 'jarl'].every(n => Sprites.draw(g, n, 11, 60, 90, 1.5) && Sprites.draw(g, n, 7, 60, 90, 1.5, true))) return false;
+    const h = document.createElement('canvas'); h.width = 240; h.height = 240;
+    const hg = h.getContext('2d'); hg.setTransform(2, 0, 0, 2, 0, 0);
+    if (!Sprites.drawTint(hg, 'muhafiz', 0, 60, 90, 1.5, false, '#ffffff', 1) || Sprites.drawTint(hg, 'muhafiz', 0, 60, 90, 1.5, false, '#fff', 0) !== false) return false;
+    const d = hg.getImageData(0, 0, 240, 240).data;
+    let beyaz = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 200 && d[i - 1] > 200) beyaz++;
+    return beyaz > 300;
+  });
   // Oyun: klasik + Tapınak (düşman ve boss) birkaç kare sprite ile çizilir, hata yok
   sonuc.oyun = await p.evaluate(() => new Promise(res => {
     SnakeGame.startClassic();
@@ -66,6 +83,17 @@ const fs = require('fs');
       SnakeGame._debug.get().state.paused = true;
       setTimeout(() => res(true), 400);
     }, 400);
+  }));
+  // Ölüm animasyonu: mantık ölüyü listeden siler, çizim tarafı (WeakMap) kısa bir parçalanma/solma oynatır
+  sonuc.olum = await p.evaluate(() => new Promise(res => {
+    const R = SnakeGame._tapinak.run(), oda = R.odalar[R.oda];
+    const e = oda.dusmanlar[0];
+    oda.dusmanlar.splice(0, 1); e.hp = 0;
+    const b = oda.boss; oda.boss = null; b.hp = 0;
+    setTimeout(() => {
+      const n1 = Tapinak._olumSayisi(oda);
+      setTimeout(() => res(n1 === 2 && Tapinak._olumSayisi(oda) === 0 && !('_olum' in e)), 1900);
+    }, 120);
   }));
   await b.close();
   sonuc.hatasiz = hatalar.length === 0;

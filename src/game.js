@@ -2048,7 +2048,10 @@ const SnakeGame = (() => {
         const prog = state.paused || state.over ? 1 : Math.max(0, Math.min(1, (nowT - lastTickAt) / Math.max(40, state.speed)));
         const total = snake.length;
         renderPos = snake.map((c, i) => lerpPos(prevSnake[i], c, prog));
+        // Gövde: gfx25 varsa tek parça şerit (hayalet kuralında gövde gizli); yoksa parça parça
+        const seritli = !!(G25() && G25().drawSnakeRibbon && chaos.rule !== 'ghost' && total > 1 && G25().drawSnakeRibbon(ctx, renderPos, dir, nowT / 1000, gfxOpts()));
         for (let i = total - 1; i >= 0; i--) {
+            if (seritli && i > 0) continue;
             if (chaos.rule === 'ghost' && i > 0) continue;
             const pos = renderPos[i];
             if (i === 0) {
@@ -2929,7 +2932,7 @@ const SnakeGame = (() => {
         document.documentElement.classList.toggle('reduced', REDUCED);
         document.documentElement.classList.toggle('buyuk-hud', !!settings.bigHud);
         const t2 = document.getElementById('tron2pBtn');
-        if (t2) { t2.textContent = settings.tron2p ? '👥 2 OYUNCU: AÇIK' : '👤 2 OYUNCU: KAPALI'; t2.classList.toggle('on', !!settings.tron2p); }
+        if (t2) { t2.textContent = settings.tron2p ? '👥 2P: AÇIK' : '👤 2P: KAPALI'; t2.classList.toggle('on', !!settings.tron2p); }
         if (masterGain && audio) masterGain.gain.setTargetAtTime(settings.vol, audio.currentTime, 0.02);
         if (state.running && !state.paused && loopInterval) { clearInterval(loopInterval); loopInterval = setInterval(tick, effSpeed()); }
         const $ = id => document.getElementById(id);

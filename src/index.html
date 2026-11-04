@@ -952,7 +952,33 @@
         html.reduced *, html.reduced *::before, html.reduced *::after { animation: none !important; transition: none !important; }
         html.reduced .mode-card { opacity: 1; }
         html.reduced .mode-card:hover { transform: none; }
-    </style>
+    
+        /* ===== Menü düzeni (0.9.2): eşit kartlar, tek satır kısayol, taşmasız ===== */
+        #menuScreen { width: min(96vw, 1180px); }
+        .menu-container { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 4px; align-items: stretch; grid-auto-rows: 1fr; }
+        @media (min-width: 760px) { .menu-container { grid-template-columns: repeat(3, 1fr); } }
+        @media (min-width: 1080px) { .menu-container { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 520px) { .menu-container { grid-template-columns: 1fr; } }
+        .menu-container .mode-card { display: flex; flex-direction: column; padding: 12px 14px; min-width: 0; }
+        .menu-container .mode-header { gap: 10px; flex: 1; }
+        .menu-container .mode-icon { font-size: 26px; flex: none; }
+        .menu-container .mode-text h3 { font-size: 10px; margin-bottom: 5px; line-height: 1.4; }
+        .menu-container .mode-text p { font-size: 7px; line-height: 1.6; }
+        .menu-container .mode-stats { margin-top: 8px; padding-top: 8px; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
+        .menu-container .high-score { font-size: 8px; white-space: nowrap; }
+        .menu-container .mode-badge { font-size: 6px; padding: 3px 8px; white-space: nowrap; }
+        .menu-container .tron-2p { font-size: 6px; padding: 4px 8px; white-space: nowrap; }
+        .mode-card.miras { border-color: #ff8a3d; }
+        .mode-card.miras .mode-text h3 { color: #ff8a3d; }
+        .menu-actions { margin-top: 2px; }
+        .menu-container .controls-help { margin-top: 6px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; font-size: 7px; line-height: 1.6; }
+        .menu-container .controls-help > span { white-space: nowrap; display: inline-flex; align-items: center; }
+        .menu-container .key-hint { padding: 2px 7px; margin: 0 2px 0 0; }
+        .menu-container .key-hint + .key-hint { margin-left: 2px; margin-right: 5px; }
+        .subtitle { letter-spacing: 0.5em; padding-left: 0.5em; text-align: center; margin-top: 4px; font-size: 7px; }
+        body.menu-acik .arcade-cabinet { padding: clamp(8px, 1.4vw, 18px); }
+        body.menu-acik .title-area { margin-bottom: 8px; }
+</style>
 </head>
 <body>
     <div class="grid-bg"></div>
@@ -962,7 +988,7 @@
         <div class="arcade-cabinet">
             <div class="title-area">
                 <h1 class="main-title"><span class="logo"><img class="emblem" id="emblem" src="img/emblem-256.png" alt="" decoding="async"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7CFF6B"/><stop offset="1" stop-color="#1f8a5a"/></linearGradient></defs><path d="M14 46c-8-6-6-18 4-20 10-2 16 6 22 6 6 0 10-5 6-10-3-4-10-3-10 1" fill="none" stroke="url(#lg)" stroke-width="7" stroke-linecap="round"/><path d="M14 46c-8-6-6-18 4-20 10-2 16 6 22 6 6 0 10-5 6-10-3-4-10-3-10 1" fill="none" stroke="#e8c46a" stroke-width="1.2" stroke-dasharray="2 5" stroke-linecap="round" opacity="0.8"/><ellipse cx="18" cy="48" rx="9" ry="6" fill="#2fbf71"/><circle cx="14" cy="47" r="1.7" fill="#e8c46a"/><path d="M9 49l-5 1 4 2" stroke="#ff5e5e" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="52" cy="14" r="4" fill="#e8c46a" opacity="0.9"/></svg><span>TWILIGHT OF<br>THE SERPENTS</span></span></h1>
-                <p class="subtitle">A R C A D E &nbsp; E D I T I O N</p>
+                <p class="subtitle">ARCADE EDITION</p>
             </div>
             
             <!-- ==================== MENU SCREEN ==================== -->
@@ -1062,8 +1088,7 @@
                         </div>
                         <div class="mode-stats">
                             <span class="high-score">🏆 REKOR: <span id="menuTronHigh">0</span></span>
-                            <button class="tron-2p" id="tron2pBtn" data-act="toggle" data-key="tron2p">👤 2 OYUNCU: KAPALI</button>
-                            <span class="mode-badge">⚔ DÜELLO</span>
+                            <button class="tron-2p" id="tron2pBtn" data-act="toggle" data-key="tron2p">👤 2P: KAPALI</button>
                         </div>
                     </div>
                     
@@ -1123,17 +1148,34 @@
                         </div>
                     </div>
                     
+                    <div class="mode-card miras" tabindex="0" role="button" data-act="openMiras">
+                        <div class="mode-header">
+                            <span class="mode-icon">🔥</span>
+                            <div class="mode-text">
+                                <h3>MİRAS</h3>
+                                <p>Her ölüm Kül kazandırır. Kalıcı yetenekler al!</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">⭐ SEVİYE: <span id="mirasInfo">Sv.1 · 0</span></span>
+                            <span class="mode-badge">🔓 KALICI</span>
+                        </div>
+                    </div>
+
                     <div class="menu-actions">
                         <button class="menu-btn" data-act="openSettings">⚙ AYARLAR</button>
                         <button class="menu-btn" data-act="openAchievements">🏅 BAŞARIMLAR <span id="achCount">0/0</span></button>
-                        <button class="menu-btn" data-act="openMiras">🔥 MİRAS <span id="mirasInfo">Sv.1 · 0</span></button>
                         <button id="soundBtn" class="menu-btn" data-act="toggleSound">🔊 SES: AÇIK</button>
                         <button id="musicBtn" class="menu-btn" data-act="toggleMusic">🎵 MÜZİK: AÇIK</button>
                     </div>
                     <div class="controls-help">
-                        <span class="key-hint">← → ↑ ↓</span> veya <span class="key-hint">W A S D</span> Hareket<br>
-                        <span class="key-hint">P</span> Duraklat &nbsp; <span class="key-hint">R</span> Yeniden Başlat &nbsp; <span class="key-hint">M</span> Menü &nbsp; <span class="key-hint">N</span> Ses &nbsp; <span class="key-hint">B</span> Müzik &nbsp; <span class="key-hint">Boşluk</span> Ateş &nbsp; <span class="key-hint">1-2-3</span> Yükseltme
-                        <span class="key-hint">SPACE</span> Kuyruktan ateş &nbsp; <span class="key-hint">SHIFT</span> Atılım (Tapınak)
+                        <span><span class="key-hint">WASD</span><span class="key-hint">← ↑ ↓ →</span>Hareket</span>
+                        <span><span class="key-hint">P</span>Duraklat</span>
+                        <span><span class="key-hint">R</span>Yeniden</span>
+                        <span><span class="key-hint">M</span>Menü</span>
+                        <span><span class="key-hint">N</span>Ses</span>
+                        <span><span class="key-hint">B</span>Müzik</span>
+                        <span><span class="key-hint">Boşluk</span>Ateş</span>
                     </div>
                 </div>
             </div>

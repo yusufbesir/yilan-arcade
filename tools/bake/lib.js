@@ -225,6 +225,10 @@
         }
     };
 
+    // Harici dokuyu atlayan prosedürel takma adlar (düşmanlar: nötr renkli dokuma ve granit)
+    PROC.fabric = PROC.cloth;
+    PROC.granite = seed => PROC.stone(seed, [0.62, 0.62, 0.66]);
+
     // ---------------- dokular: harici (ambientCG) varsa onu, yoksa prosedürel ----------------
     const texCache = {};
     function imgTex(src) {
@@ -351,16 +355,17 @@
             pl.receiveShadow = true;
             scene.add(pl);
         }
+        let contact = null;
         if (opts.contact) {
             const c = opts.contact;   // { rx, rz, a, x, z }
-            const m = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: cTex, transparent: true, opacity: c.a || 0.6, depthWrite: false, color: 0x000000 }));
+            const m = contact = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: cTex, transparent: true, opacity: c.a || 0.6, depthWrite: false, color: 0x000000 }));
             m.rotation.x = -Math.PI / 2;
             m.scale.set(c.rx * 2, c.rz * 2, 1);
             m.position.set(c.x || 0, 0.002, c.z || 0);
             m.renderOrder = -1;
             scene.add(m);
         }
-        return { scene, key, fill, rim, hemi };
+        return { scene, key, fill, rim, hemi, contact };
     }
 
     // ---------------- kamera + çıkış ----------------
@@ -391,9 +396,40 @@
         return cur;
     }
 
-    // spec: { w, h (hücre), target:[x,y,z], anchor:[x,y,z], frames, build(stage, i)->update }
+    // Işıma (bloom) geçişi: yalnız userData.glow malzemeleri renkli, geri kalanı yalnız derinlik yazar
+    // (öndeki kumaş/zırh ışığı örter). Sonuç bulanıklaştırılıp kareye 'lighter' ile eklenir.
+    const occl = new T.MeshBasicMaterial({ colorWrite: false });
+    const glowCache = new Map();
+    function glowPass(scene, cam, W, H, bloom) {
+        const saved = [];
+        scene.traverse(o => {
+            if (!o.isMesh) return;
+            const m = o.material;
+            saved.push([o, m, o.visible]);
+            if (m && m.userData && m.userData.glow) {
+                let g = glowCache.get(m);
+                if (!g) { g = new T.MeshBasicMaterial({ toneMapped: false, side: m.side }); glowCache.set(m, g); }
+                const k = Math.min(1.6, (m.emissiveIntensity || 1) / 3);
+                g.color.copy(m.emissive).multiplyScalar(k);
+                o.material = g;
+            } else if (m && (m.transparent || m.isShadowMaterial)) o.visible = false;
+            else o.material = occl;
+        });
+        renderer.render(scene, cam);
+        saved.forEach(([o, m, v]) => { o.material = m; o.visible = v; });
+        const c = document.createElement('canvas'); c.width = W; c.height = H;
+        const g = c.getContext('2d');
+        g.filter = 'blur(' + Math.round(bloom.r * SS) + 'px)';
+        g.drawImage(renderer.domElement, 0, 0);
+        g.filter = 'blur(' + Math.round(bloom.r * SS * 0.35) + 'px)';
+        g.drawImage(renderer.domElement, 0, 0);
+        return c;
+    }
+
+    // spec: { w, h (hücre), px (hücre başı piksel, vars. 40), target:[x,y,z], anchor:[x,y,z], frames, build(stage, i)->update, bloom:{r,a} }
     async function renderSprite(spec) {
-        const W = Math.round(spec.w * PX), H = Math.round(spec.h * PX);
+        const P = spec.px || PX;
+        const W = Math.round(spec.w * P), H = Math.round(spec.h * P);
         const st = stage(spec.stage);
         const cam = camera(spec.w, spec.h, spec.target || [0, 0, 0]);
         const upd = spec.build(st.scene, st);
@@ -406,7 +442,15 @@
             if (upd) upd(i, n);
             renderer.render(st.scene, cam);
             const big = document.createElement('canvas'); big.width = W * SS; big.height = H * SS;
-            big.getContext('2d').drawImage(renderer.domElement, 0, 0);
+            const bg = big.getContext('2d');
+            bg.drawImage(renderer.domElement, 0, 0);
+            if (spec.bloom) {
+                const gl = glowPass(st.scene, cam, W * SS, H * SS, spec.bloom);
+                bg.globalCompositeOperation = 'lighter';
+                bg.globalAlpha = spec.bloom.a || 0.8;
+                bg.drawImage(gl, 0, 0);
+                bg.globalAlpha = 1; bg.globalCompositeOperation = 'source-over';
+            }
             sg.drawImage(downsample(big, W, H), i * W, 0);
         }
         // çapa: dünya noktasının görüntüdeki yeri
@@ -414,7 +458,7 @@
         const ax = (a.x * 0.5 + 0.5) * W, ay = (1 - (a.y * 0.5 + 0.5)) * H;
         // sahneyi bırak
         st.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); });
-        return { png: strip.toDataURL('image/png'), w: W, h: H, n, ax: Math.round(ax * 10) / 10, ay: Math.round(ay * 10) / 10 };
+        return { png: strip.toDataURL('image/png'), w: W, h: H, n, ax: Math.round(ax * 10) / 10, ay: Math.round(ay * 10) / 10, sc: P / 20, anim: spec.anim || null };
     }
 
     window.Bake = { init, preloadExternal, renderSprite, mat, texSet, PROC, noiseGen, rng, smooth, lerp, clamp, fract, hash2, PX, T };

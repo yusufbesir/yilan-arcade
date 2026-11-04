@@ -83,6 +83,9 @@ function harici() {
         const buf = Buffer.from(r.png.split(',')[1], 'base64');
         fs.writeFileSync(path.join(OUT, n + '.png'), buf);
         map[n] = { file: 'img/sprites/' + n + '.png', w: r.w, h: r.h, n: r.n, ax: r.ax, ay: r.ay };
+        // isteğe bağlı: kendi çözünürlüğü (sc: 1 mantıksal px başına piksel) ve animasyon aralıkları
+        if (r.sc !== 2) map[n].sc = r.sc;
+        if (r.anim) map[n].anim = r.anim;
         console.log(n.padEnd(18), (r.w + 'x' + r.h).padEnd(9), 'x' + r.n, (buf.length / 1024).toFixed(1) + ' KB', (Date.now() - t0) + ' ms');
     }
     for (const k of Object.keys(map)) toplam += fs.statSync(path.join(ROOT, 'src', map[k].file)).size;
@@ -95,11 +98,13 @@ function harici() {
     const out = '// OTOMATİK ÜRETİLDİ: node tools/bake/bake.js (elle düzenlemeyin)\n' +
         '// three.js (MIT) ile bu depoda modellenip pişirilen sprite şeritleri. Ölçek: 2 px = 1 mantıksal px.\n' +
         '// w,h: tek karenin piksel boyu; n: kare sayısı (yatay şerit); ax,ay: yer çapası (piksel).\n' +
+        '// sc: (varsa) bu sprite\'ın ölçeği; anim: (varsa) adlandırılmış kare aralıkları [ilk, adet].\n' +
         'window.SPRITE_MAP = ' + JSON.stringify({ scale: 2, sprites: map }, null, 1) + ';\n' +
         '// Aynı PNG baytları (file:// tuval kirlenmesini önler)\n' +
         'window.SPRITE_DATA = ' + JSON.stringify(data) + ';\n';
     fs.writeFileSync(MAP, out);
+    toplam += fs.statSync(MAP).size;   // PNG'ler + gömülü kopya (sprite-map.js)
     console.log('toplam', (toplam / 1024 / 1024).toFixed(2), 'MB,', Object.keys(map).length, 'sprite ->', path.relative(ROOT, MAP));
     await browser.close();
-    if (toplam > 6 * 1024 * 1024) { console.error('UYARI: 6 MB sınırı aşıldı'); process.exitCode = 2; }
+    if (toplam > 8 * 1024 * 1024) { console.error('UYARI: 8 MB bütçesi (PNG + gömülü kopya) aşıldı'); process.exitCode = 2; }
 })();
