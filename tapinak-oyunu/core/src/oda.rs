@@ -114,22 +114,100 @@ fn sablon_uret(r: &mut Rng, biyom: usize, bolum: i32, gecmis: &[String]) -> (Izg
     (izgara(), "acik".to_string())
 }
 
-pub struct Oda { pub grid: Izgara, pub sablon: String, pub gizli: bool }
+pub struct Dusman { pub tip: String, pub rol: String, pub etki: Option<String>, pub elit: bool }
+
+pub struct Oda {
+    pub grid: Izgara,
+    pub sablon: String,
+    pub gizli: bool,
+    pub lanet: bool,
+    pub dalgalar: Vec<Vec<Dusman>>,
+    pub kadro: String,
+    pub odul: String,
+}
+
+struct Biyom { kucuk: &'static [&'static str], menzil: &'static [&'static str], agir: &'static [&'static str], ozel: &'static [&'static str], boss: &'static str }
+const BIYOMLAR: [Biyom; 3] = [
+    Biyom { kucuk: &["draugr", "kurt", "kargaci"], menzil: &["seidr"], agir: &["buzdev"], ozel: &["draugr"], boss: "hrolf" },
+    Biyom { kucuk: &["kor", "demirkurt", "kurt"], menzil: &["kargaci", "seidr"], agir: &["demirci"], ozel: &["albasti"], boss: "tepegoz" },
+    Biyom { kucuk: &["yilan", "draugr", "kor"], menzil: &["golge", "seidr"], agir: &["demirci", "buzdev"], ozel: &["kok", "albasti"], boss: "erlik" },
+];
+const ETKILER: [&str; 4] = ["hizli", "zirh", "bolen", "vampir"];
+const KADROLAR: [&str; 5] = ["karisik", "surunu", "nisanci", "agir", "pusu"];
+
+fn rol_liste(bi: &Biyom, rol: &str) -> &'static [&'static str] {
+    match rol { "kucuk" => bi.kucuk, "menzil" => bi.menzil, "ozel" => bi.ozel, _ => bi.agir }
+}
+fn sec_s<'a>(r: &mut Rng, d: &[&'a str]) -> &'a str { d[(r.next() * d.len() as f64) as usize] }
+
+fn dalgalar_uret(r: &mut Rng, tur: &str, d: i32, kadro_gecmis: &[String]) -> (Vec<Vec<Dusman>>, String) {
+    let bi = &BIYOMLAR[biyom_of(d)];
+    let bolum = bolum_of(d) as f64;
+    let son = kadro_gecmis.last();
+    let adaylar: Vec<&str> = KADROLAR.iter().copied().filter(|k| Some(&k.to_string()) != son).collect();
+    let kadro = sec_s(r, &adaylar);
+    let toplam = 3.5 + d as f64 * 0.6 + if tur == "elit" { 2.0 } else { 0.0 };
+    let dalga_say = if d >= 5 { 3 } else { 2 };
+    // roller(): ağırlıklı havuz
+    let mut havuz: Vec<(&str, f64)> = vec![];
+    for rol in ["kucuk", "menzil", "ozel", "agir"] {
+        let mut w = match rol {
+            "kucuk" => 4.0,
+            "menzil" => 2.5,
+            "ozel" => 1.0 + bolum * 0.6,
+            _ => if bolum >= 1.0 || d >= 3 { 1.0 + bolum * 0.5 } else { 0.0 },
+        };
+        if kadro == "surunu" { w = match rol { "kucuk" => 10.0, "menzil" => 0.5, _ => w * 0.3 }; }
+        if kadro == "nisanci" { w = match rol { "menzil" => 8.0, "kucuk" => 2.0, _ => w }; }
+        if kadro == "agir" { w = match rol { "agir" => 7.0, "kucuk" => 1.5, _ => w }; }
+        if !rol_liste(bi, rol).is_empty() && w > 0.0 { havuz.push((rol, w)); }
+    }
+    let maliyet = |rol: &str| match rol { "kucuk" => 1.0, "menzil" => 1.4, "ozel" => 1.8, _ => 2.6 };
+    let mut dalgalar: Vec<Vec<Dusman>> = vec![];
+    for _ in 0..dalga_say {
+        let mut dalga = vec![];
+        let mut b = toplam / dalga_say as f64;
+        let mut koruma = 0;
+        while b > 0.0 && koruma < 30 {
+            koruma += 1;
+            let mut t = havuz.iter().fold(0.0, |a, x| a + x.1) * r.next();
+            let mut rol = havuz[0].0;
+            for (ad, wt) in &havuz { t -= wt; if t <= 0.0 { rol = ad; break; } }
+            let tip = sec_s(r, rol_liste(bi, rol));
+            let mut e = Dusman { tip: tip.into(), rol: rol.into(), etki: None, elit: false };
+            if tur != "elit" && d >= 6 && bolum >= 1.0 && r.next() < 0.08 { e.etki = Some(sec_s(r, &ETKILER).into()); }
+            dalga.push(e); b -= maliyet(rol);
+        }
+        dalgalar.push(dalga);
+    }
+    if tur == "elit" {
+        let mut ad: Vec<&str> = bi.agir.to_vec(); ad.extend(bi.ozel.iter().copied());
+        let t = sec_s(r, &ad); let et = sec_s(r, &ETKILER);
+        dalgalar[0].insert(0, Dusman { tip: t.into(), rol: "agir".into(), etki: Some(et.into()), elit: true });
+        if d >= 7 {
+            let t = sec_s(r, &ad); let et = sec_s(r, &ETKILER);
+            dalgalar[1].insert(0, Dusman { tip: t.into(), rol: "agir".into(), etki: Some(et.into()), elit: true });
+        }
+    }
+    (dalgalar, kadro.to_string())
+}
 
 /// `tur`: savas | elit | dinlenme | pazar | baslangic | boss | gizli
-pub fn oda_uret(seed: u32, tur: &str, derinlik: i32, gecmis_sablon: &[String]) -> Oda {
+pub fn oda_uret(seed: u32, tur: &str, derinlik: i32, gecmis_sablon: &[String], gecmis_kadro: &[String]) -> Oda {
     let mut r = Rng::new(seed);
     let bi = biyom_of(derinlik); let bolum = bolum_of(derinlik);
     if tur == "gizli" {
         let mut g = izgara(); g[H - 1][11] = GERI;
-        return Oda { grid: g, sablon: String::new(), gizli: false };
+        return Oda { grid: g, sablon: String::new(), gizli: false, lanet: false, dalgalar: vec![], kadro: String::new(), odul: String::new() };
     }
     if tur == "boss" {
         let mut g = izgara();
         sablon(["halka", "kose", "dar", "izgara"][bi], &mut g, &mut r, UCURUM);
         if bi >= 1 { for (x, y) in [(3, 3), (18, 3), (3, 10), (18, 10)] { koy(&mut g, x, y, if bi == 1 { LAV } else { SIVRI }); } }
         if derinlik < SON_DERINLIK { for x in KAPI_X { g[0][x] = KAPIK; } }
-        return Oda { grid: g, sablon: "boss".into(), gizli: false };
+        let odul = if derinlik >= SON_DERINLIK { "yok" } else { "armagan" };
+        let boss = Dusman { tip: BIYOMLAR[bi].boss.into(), rol: "boss".into(), etki: None, elit: false };
+        return Oda { grid: g, sablon: "boss".into(), gizli: false, lanet: false, dalgalar: vec![vec![boss]], kadro: String::new(), odul: odul.into() };
     }
     let (mut g, ad) = if matches!(tur, "dinlenme" | "pazar" | "baslangic") {
         (izgara(), if tur == "baslangic" { "acik".to_string() } else { "duz".to_string() })
@@ -140,8 +218,15 @@ pub fn oda_uret(seed: u32, tur: &str, derinlik: i32, gecmis_sablon: &[String]) -
         for y in 4..=9 { g[y][15] = UCURUM; g[y][16] = UCURUM; for x in [14, 17, 18, 19] { g[y][x] = ZEMIN; } }
     }
     if (tur == "savas" || tur == "elit") && derinlik >= 1 && (derinlik == 2 || r.next() < 0.25) { g[6][0] = CATLAK; gizli = true; }
+    let lanet = tur == "savas" && derinlik >= 3 && r.next() < 0.18;
     if derinlik < SON_DERINLIK { for x in KAPI_X { g[0][x] = KAPIK; } }
-    Oda { grid: g, sablon: ad, gizli }
+    let (mut dalgalar, mut kadro, mut odul) = (vec![], String::new(), String::new());
+    if tur == "savas" || tur == "elit" {
+        let (dl, k) = dalgalar_uret(&mut r, tur, derinlik, gecmis_kadro);
+        dalgalar = dl; kadro = k;
+        odul = if tur == "elit" { "armagan".into() } else if r.next() < 0.62 { "armagan".into() } else { "kul".into() };
+    }
+    Oda { grid: g, sablon: ad, gizli, lanet, dalgalar, kadro, odul }
 }
 
 #[cfg(test)]
@@ -161,11 +246,17 @@ mod tests {
             let seed: u32 = p[0].parse().unwrap();
             let derinlik: i32 = p[2].parse().unwrap();
             let gecmis: Vec<String> = if p[3].is_empty() { vec![] } else { p[3].split(',').map(String::from).collect() };
-            let o = oda_uret(seed, p[1], derinlik, &gecmis);
+            let kg: Vec<String> = if p[8].is_empty() { vec![] } else { p[8].split(',').map(String::from).collect() };
+            let o = oda_uret(seed, p[1], derinlik, &gecmis, &kg);
             let ad = if o.sablon.is_empty() { "-" } else { o.sablon.as_str() };
             assert_eq!(ad, p[4], "şablon: {}", satir);
             assert_eq!(o.gizli as u8, p[5].parse::<u8>().unwrap(), "gizli: {}", satir);
             assert_eq!(ser(&o.grid), p[6], "ızgara: {}", satir);
+            assert_eq!(o.lanet as u8, p[7].parse::<u8>().unwrap(), "lanet: {}", satir);
+            let kd = if o.kadro.is_empty() { "-".to_string() } else { o.kadro.clone() };
+            let dl = o.dalgalar.iter().map(|w| w.iter().map(|e| format!("{}:{}:{}:{}", e.tip, e.rol, e.etki.clone().unwrap_or_default(), e.elit as u8)).collect::<Vec<_>>().join(",")).collect::<Vec<_>>().join("|");
+            let od = if o.odul.is_empty() { "-" } else { o.odul.as_str() };
+            assert_eq!(format!("{} {} {}", kd, od, dl), p[9..].join(" "), "dalga: {}", satir);
             say += 1;
         }
         assert!(say > 20000);
