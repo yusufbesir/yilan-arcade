@@ -95,7 +95,15 @@ const SnakeGame = (() => {
     const SYS_REDUCED = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
     let REDUCED = SYS_REDUCED;
     const TEST_MODE = /[?&]test=1\b/.test(location.search);
-    let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true, bigHud: false, cb: false, tron2p: false };
+    let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true, bigHud: false, cb: false, tron2p: false, ek: {} };
+
+    // ======================== EK ÖZELLİKLER (geri alınabilir) ========================
+    // Her biri Ayarlar > Ek özellikler altında tek tek kapatılabilir; varsayılan açık. Kapalıyken oyun eski davranışıyla çalışır.
+    const EK_LISTE = [
+        ['donus', 'DÖNÜŞ TAMPONU', 'Bir tik içinde basılan iki ardışık tuş sıraya alınır'],
+    ];
+    const ek = id => settings.ek[id] !== false;
+    let turnQ = [];
     let tmHiz = 1;      // Tema kuralı: Bataklık çamurunda tik aralığı çarpanı
     let tmBekle = null; // Tema başlangıç afişi (mod afişi bitince 2 sn gösterilir)
     const effSpeed = () => Math.max(30, Math.round(state.speed * tmHiz * (state.calm > 0 ? 1 + Miras.value('sakin') : 1) / settings.speed)); // Miras: Sakin Başlangıç
@@ -162,6 +170,7 @@ const SnakeGame = (() => {
             const el = e.target.closest('[data-act]');
             if (!el) return;
             const act = el.dataset.act;
+            if (act === 'ekToggle') { ekSet(el.dataset.key, !ek(el.dataset.key)); return; }
             if (act === 'toggle') { setSetting(el.dataset.key, !settings[el.dataset.key]); return; }
             if (act === 'mirasBuy') { mirasBuy(el.dataset.id); return; }
             if (act === 'marketBuy') { marketBuy(el.dataset.id); return; }
@@ -538,7 +547,7 @@ const SnakeGame = (() => {
         const midY = Math.floor(ROWS / 2);
         snake = [{ x: 5, y: midY }, { x: 4, y: midY }, { x: 3, y: midY }];
         dir = { x: 1, y: 0 };
-        nextDir = { x: 1, y: 0 };
+        nextDir = { x: 1, y: 0 }; turnQ.length = 0;
         tron.ai = [{ x: COLS - 6, y: midY }, { x: COLS - 5, y: midY }, { x: COLS - 4, y: midY }];
         tron.aiDir = { x: -1, y: 0 };
         tron.p2Next = { x: -1, y: 0 };
@@ -577,7 +586,7 @@ const SnakeGame = (() => {
         ];
         
         dir = { x: 1, y: 0 };
-        nextDir = { x: 1, y: 0 };
+        nextDir = { x: 1, y: 0 }; turnQ.length = 0;
         
         obstacles = [];
         movingObs = [];
@@ -720,7 +729,10 @@ const SnakeGame = (() => {
             updateHUD();
         }
         
-        if (!Tema.kaymaBekle(dir, nextDir)) dir = { ...nextDir }; // Buzul: dönüş bir tik gecikir
+        if (!Tema.kaymaBekle(dir, nextDir)) { // Buzul: dönüş bir tik gecikir
+            dir = { ...nextDir };
+            if (turnQ.length) { const q = turnQ.shift(); if (!(q.x === -dir.x && q.y === -dir.y)) nextDir = q; } // dönüş tamponu: sıradaki dönüş bir sonraki tikte
+        }
         
         let head = {
             x: snake[0].x + dir.x,
@@ -847,7 +859,7 @@ const SnakeGame = (() => {
                 { x: 3, y: midY }
             ];
             dir = { x: 1, y: 0 };
-            nextDir = { x: 1, y: 0 };
+            nextDir = { x: 1, y: 0 }; turnQ.length = 0;
             
             // Temp invincibility
             powers.invincible = true;
@@ -1986,6 +1998,12 @@ const SnakeGame = (() => {
     
     function steer(dx, dy) {
         if (chaos.rule === 'reverse') { dx = -dx; dy = -dy; }
+        const pending = nextDir.x !== dir.x || nextDir.y !== dir.y; // bu tik içinde zaten bir dönüş bekliyor
+        if (pending && ek('donus') && state.running && state.mode !== 'tron' && state.mode !== 'tapinak') {
+            const n = dx !== 0 ? { x: dx, y: 0 } : { x: 0, y: dy };
+            if (!(n.x === -nextDir.x && n.y === -nextDir.y) && !(n.x === nextDir.x && n.y === nextDir.y) && turnQ.length < 1) turnQ.push(n);
+            return;
+        }
         if (dx !== 0 && dir.x !== -dx) nextDir = { x: dx, y: 0 };
         if (dy !== 0 && dir.y !== -dy) nextDir = { x: 0, y: dy };
     }
@@ -3052,6 +3070,7 @@ const SnakeGame = (() => {
             const bool = k => { if (typeof raw[k] === 'boolean') settings[k] = raw[k]; };
             num('speed', 0.7, 1.5); num('fx', 0, 1.5); num('vol', 0, 1);
             ['reduced', 'shake', 'music', 'bigHud', 'cb', 'tron2p'].forEach(bool);
+            if (raw.ek && typeof raw.ek === 'object') EK_LISTE.forEach(([id]) => { if (typeof raw.ek[id] === 'boolean') settings.ek[id] = raw.ek[id]; });
         } catch (e) {}
         applySettings();
     }
@@ -3071,9 +3090,20 @@ const SnakeGame = (() => {
             $('setVol').value = settings.vol; $('valVol').textContent = Math.round(settings.vol * 100) + '%';
             const tg = (id, on) => { $(id).textContent = on ? 'AÇIK' : 'KAPALI'; $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on ? 'true' : 'false'); };
             tg('setReduced', !!settings.reduced); tg('setShake', !!settings.shake); tg('setMusic', !!settings.music); tg('setBigHud', !!settings.bigHud); tg('setCb', !!settings.cb);
+            ekCiz();
             const mb = $('musicBtn'); if (mb) mb.innerHTML = ikon('music') + (settings.music ? 'Müzik: açık' : 'Müzik: kapalı');
         }
     }
+    function ekCiz() {
+        const kap = document.getElementById('ekRows');
+        if (!kap) return;
+        if (!kap.dataset.cizildi) {
+            kap.innerHTML = EK_LISTE.map(([id, ad, acik]) => '<div class="row"><label>' + ad + '<small>' + acik + '</small></label><button class="toggle" id="ek_' + id + '" data-act="ekToggle" data-key="' + id + '">AÇIK</button></div>').join('');
+            kap.dataset.cizildi = '1';
+        }
+        EK_LISTE.forEach(([id]) => { const b = document.getElementById('ek_' + id), on = ek(id); if (b) { b.textContent = on ? 'AÇIK' : 'KAPALI'; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); } });
+    }
+    function ekSet(id, on) { settings.ek[id] = !!on; setSetting('ek', settings.ek); }
     function setSetting(k, v) {
         settings[k] = v;
         try { localStorage.setItem('twilightSettings', JSON.stringify(settings)); } catch (e) {}
