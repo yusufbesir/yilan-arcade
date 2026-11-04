@@ -453,6 +453,8 @@ const Isik = (() => {
             if (yem && yem.x >= 0 && yem.y >= 0) isikN(ctx, o.yemRenk || '#ffbf2e', (yem.x + 0.5) * S, (yem.y + 0.5) * S + 3, 48, 0.24 * (reduced ? 1 : 0.85 + 0.15 * Math.sin(t * 4)));
             const gl = o.guclar;
             if (gl) for (let i = 0; i < gl.length; i++) isikN(ctx, (o.gucRenk && o.gucRenk[gl[i].type]) || '#ffffff', (gl[i].x + 0.5) * S, (gl[i].y + 0.5) * S + 3, 48, 0.24 * (reduced ? 1 : 0.8 + 0.2 * Math.sin(t * 6 + i)));
+            const eg = o.engeller && typeof Engel !== 'undefined' ? Engel.isiklar(o.engeller, S) : null; // lav nehri, rün dikilitaşı, kristal
+            if (eg) for (let i = 0; i < eg.length; i++) isikN(ctx, eg[i].renk, eg[i].x, eg[i].y, eg[i].r, eg[i].a * (reduced ? 1 : 0.8 + 0.2 * Math.sin(curT * 3 + eg[i].f)));
             const kl = o.korlar;
             if (kl) for (let i = 0; i < kl.length && i < 40; i++) isikN(ctx, '#ff6a14', (Math.floor(kl[i].x) + 0.5) * S, (Math.floor(kl[i].y) + 0.5) * S + 4, 48, 0.26 * titre(5, i));
             const pr = o.portallar;
