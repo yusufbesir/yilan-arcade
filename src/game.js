@@ -2929,7 +2929,7 @@ const SnakeGame = (() => {
         document.documentElement.classList.toggle('reduced', REDUCED);
         document.documentElement.classList.toggle('buyuk-hud', !!settings.bigHud);
         const t2 = document.getElementById('tron2pBtn');
-        if (t2) { t2.textContent = settings.tron2p ? '👥 2 OYUNCU: AÇIK' : '👤 2 OYUNCU: KAPALI'; t2.classList.toggle('on', !!settings.tron2p); }
+        if (t2) { t2.textContent = settings.tron2p ? '👥 2P: AÇIK' : '👤 2P: KAPALI'; t2.classList.toggle('on', !!settings.tron2p); }
         if (masterGain && audio) masterGain.gain.setTargetAtTime(settings.vol, audio.currentTime, 0.02);
         if (state.running && !state.paused && loopInterval) { clearInterval(loopInterval); loopInterval = setInterval(tick, effSpeed()); }
         const $ = id => document.getElementById(id);
