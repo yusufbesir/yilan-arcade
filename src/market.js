@@ -641,6 +641,7 @@ const Market = (() => {
         load: yukle, reset, buy, equip, owned, equipped, balance, canAfford, affordableNew,
         skinFor, fxOn, efekt, efektSifirla, efektKur, onizleBaslat, onizleDurdur, onizlemeSayisi,
         get: tanim,
+        cizim: id => cizimNesnesi(tanim(id)), // Gfx25 çizim nesnesi (giyilmeden; önizleme/test)
         temaSahip, temaYeter, temaAl, temaSec, temaSecili,
         state: () => ({ v: 1, sahip: durum.sahip.slice(), giyili: durum.giyili, tema: durum.tema, sahipTema: durum.sahipTema.slice() })
     };

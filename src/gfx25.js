@@ -596,10 +596,12 @@ const Gfx25 = (() => {
 
     // ====================================================================
     // (c2) TEK PARÇA YILAN GÖVDESİ
-    // renderPos noktalarından sabit yarıçaplı köşe yuvarlamalı bir eğri çıkarılır;
-    // gövde baştan kuyruğa incelen TEK şerit olarak, üst üste ofsetli katmanlarla
-    // (koyu kenar, yansıma, orta ton, ışık, spekülar) gölgelenir; pul kafesi ve
-    // sırt boyunca altın baklavalar yay uzunluğuna bağlıdır (gövdeyle birlikte akar).
+    // renderPos noktalarından (lerp'te köşeyi kesen kirişler yerine gerçek hücre köşeleri geri
+    // konarak) sabit yarıçaplı dairesel yaylarla yuvarlatılmış bir eğri çıkarılır (yalnız çizim;
+    // çarpışma hücre bazlı kalır). Gövde baştan kuyruğa incelen TEK şerit olarak, üst üste
+    // ofsetli katmanlarla (koyu kenar, karın, orta ton, ışık, spekülar) gölgelenir; pul dokusu
+    // ve sırt boyunca altın baklavalar yay uzunluğuna bağlıdır (gövdeyle birlikte akar).
+    // Baş açısı eğriden okunur (dönüşte döndürülerek yumuşak geçer).
     // ====================================================================
     const RB = { x: [], y: [], s: [], nx: [], ny: [], w: [], brk: [], n: 0, L: 0 };
     let travel = 0, lastHead = null;
@@ -610,54 +612,114 @@ const Gfx25 = (() => {
     const chunkBuf = [];
     const rowBuf = [];
 
+    // Izgara yolu: ardışık iki render noktası çapraz duruyorsa (biri köşeyi geçmiş, öbürü
+    // henüz gelmemiş) aradaki köşe hücresinin merkezini geri koy. Yoksa kiriş köşeyi keser ve
+    // köşe şekli her karede değişir (zig-zag). Yalnız tam sayı hücre merkezine eklenir;
+    // dalgalı yollara (market önizlemesi) dokunmaz.
+    const isInt = v => Math.abs(v - Math.round(v)) < 1e-3;
+    function gridCorner(a, b) {
+        const dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y);
+        if (dx < 1e-3 || dy < 1e-3 || dx + dy > 1.0005) return null;
+        if (isInt(a.x) && isInt(b.y)) return { x: a.x, y: b.y };
+        if (isInt(b.x) && isInt(a.y)) return { x: b.x, y: a.y };
+        return null;
+    }
+    const RAD = 0.5;      // köşe merkez yarıçapı (hücre); dış kenar ≈ yarıçap + yarı genişlik ≈ 1.15 x gövde genişliği
+    const ARC_STEP = Math.PI / 12;
+    const AX = [], AY = [], ABRK = [], VX = [], VY = [], VB = [];
+    let ribbonHead = null; // son şeridin baş konumu ve açısı (aynı karede drawSnakeHead kullanır)
+    let lastHeadAng = 0;
+
     function buildRibbon(pts, S, lift) {
         const R = RB;
         R.n = 0; R.L = 0;
-        const rad = S * 0.5;
-        const ax = [], ay = [], brk = [];
-        // yinelenen noktaları ele (büyüme sırasında kuyruk kopyalanır)
+        ribbonHead = null;
+        const rad = S * RAD;
+        const ax = AX, ay = AY, brk = ABRK;
+        ax.length = 0; ay.length = 0; brk.length = 0;
+        // 1) px'e çevir: yinelenen noktaları ele (büyüme sırasında kuyruk kopyalanır), köşeleri geri koy
+        let lp = null;
         for (let i = 0; i < pts.length; i++) {
-            const x = pts[i].x * S + S / 2, y = pts[i].y * S + S / 2 - lift;
+            const p = pts[i];
+            const jump = !!lp && Math.abs(p.x - lp.x) + Math.abs(p.y - lp.y) > 1.5;
+            if (lp && !jump) {
+                const c = gridCorner(lp, p);
+                if (c) { ax.push(c.x * S + S / 2); ay.push(c.y * S + S / 2 - lift); brk.push(false); }
+            }
+            const x = p.x * S + S / 2, y = p.y * S + S / 2 - lift;
             const m = ax.length;
-            if (m) {
+            lp = p;
+            if (m && !jump) {
                 const dx = x - ax[m - 1], dy = y - ay[m - 1];
                 if (dx * dx + dy * dy < 0.04) continue;
-                brk.push(Math.abs(pts[i].x - pts[i - 1].x) + Math.abs(pts[i].y - pts[i - 1].y) > 1.5);
-            } else brk.push(false);
-            ax.push(x); ay.push(y);
+            }
+            ax.push(x); ay.push(y); brk.push(m > 0 && jump);
         }
-        const m = ax.length;
+        if (ax.length < 2) return false;
+        // 2) doğrusal ara noktaları ele: geriye yalnız gerçek köşeler, uçlar ve kesikler kalır
+        const vx = VX, vy = VY, vb = VB;
+        vx.length = 0; vy.length = 0; vb.length = 0;
+        for (let i = 0; i < ax.length; i++) {
+            const m = vx.length;
+            if (m >= 2 && !brk[i] && !vb[m - 1]) {
+                const d1x = vx[m - 1] - vx[m - 2], d1y = vy[m - 1] - vy[m - 2];
+                const d2x = ax[i] - vx[m - 1], d2y = ay[i] - vy[m - 1];
+                const l1 = Math.hypot(d1x, d1y), l2 = Math.hypot(d2x, d2y);
+                if (l1 > 0 && l2 > 0 && Math.abs(d1x * d2y - d1y * d2x) / (l1 * l2) < 1e-3 && d1x * d2x + d1y * d2y > 0) {
+                    vx[m - 1] = ax[i]; vy[m - 1] = ay[i];
+                    continue;
+                }
+            }
+            vx.push(ax[i]); vy.push(ay[i]); vb.push(brk[i]);
+        }
+        const m = vx.length;
         if (m < 2) return false;
         const push = (x, y, b) => { const k = R.n++; R.x[k] = x; R.y[k] = y; R.brk[k] = b; };
         // boyun, baş sprite'ının altına girer: ilk noktadan ileri doğru kısa bir uzantı
-        {
-            const hx = ax[0] - ax[1], hy = ay[0] - ay[1], hl = Math.hypot(hx, hy) || 1;
-            if (!brk[1]) push(ax[0] + hx / hl * 6, ay[0] + hy / hl * 6, false);
+        let headK = 0;
+        if (!vb[1]) {
+            const hx = vx[0] - vx[1], hy = vy[0] - vy[1], hl = Math.hypot(hx, hy) || 1;
+            push(vx[0] + hx / hl * 6, vy[0] + hy / hl * 6, false);
+            headK = 1;
         }
-        push(ax[0], ay[0], false);
+        push(vx[0], vy[0], false);
+        // 3) her köşede sabit yarıçaplı dairesel yay. Uç kollarda (baş/kuyruk/kesik) komşu köşe
+        // olmadığından kolun tamamı kullanılabilir: baş yeni kola girdikçe yay 0'dan büyür (tik
+        // sınırında sıçrama yok); iç kolları iki köşe yarı yarıya paylaşır (90°'de hep tam yarıçap).
+        const endpt = j => j <= 0 || j >= m - 1 || vb[j] || vb[j + 1];
         for (let i = 1; i < m; i++) {
-            if (brk[i]) { push(ax[i], ay[i], true); continue; }
+            if (vb[i]) { push(vx[i], vy[i], true); continue; }
             const x0 = R.x[R.n - 1], y0 = R.y[R.n - 1];
-            let ex = ax[i], ey = ay[i], round = false, p2x = 0, p2y = 0;
-            if (i < m - 1 && !brk[i + 1]) {
-                const d1x = ax[i - 1] - ax[i], d1y = ay[i - 1] - ay[i];
-                const d2x = ax[i + 1] - ax[i], d2y = ay[i + 1] - ay[i];
+            let ex = vx[i], ey = vy[i], arc = false, cxr = 0, cyr = 0, r = 0, a1 = 0, da = 0, p2x = 0, p2y = 0;
+            if (i < m - 1 && !vb[i + 1]) {
+                const d1x = vx[i - 1] - vx[i], d1y = vy[i - 1] - vy[i];
+                const d2x = vx[i + 1] - vx[i], d2y = vy[i + 1] - vy[i];
                 const l1 = Math.hypot(d1x, d1y), l2 = Math.hypot(d2x, d2y);
-                const cr = (d1x * d2y - d1y * d2x) / (l1 * l2);
-                if (Math.abs(cr) > 0.02) {
-                    const t = Math.min(rad, l1 / 2, l2 / 2);
-                    ex = ax[i] + d1x / l1 * t; ey = ay[i] + d1y / l1 * t;
-                    p2x = ax[i] + d2x / l2 * t; p2y = ay[i] + d2y / l2 * t;
-                    round = true;
+                const u1x = d1x / l1, u1y = d1y / l1, u2x = d2x / l2, u2y = d2y / l2;
+                const inner = Math.acos(Math.max(-1, Math.min(1, u1x * u2x + u1y * u2y))); // kollar arası iç açı
+                if (inner < Math.PI - 0.01 && inner > 0.05) {
+                    const tn = Math.tan(inner / 2);
+                    const t = Math.min(rad / tn, endpt(i - 1) ? l1 : l1 / 2, endpt(i + 1) ? l2 : l2 / 2);
+                    if (t > 0.05) {
+                        r = t * tn;
+                        ex = vx[i] + u1x * t; ey = vy[i] + u1y * t;
+                        p2x = vx[i] + u2x * t; p2y = vy[i] + u2y * t;
+                        let bx = u1x + u2x, by = u1y + u2y;
+                        const bl = Math.hypot(bx, by) || 1; bx /= bl; by /= bl;
+                        const cd = Math.hypot(t, r);
+                        cxr = vx[i] + bx * cd; cyr = vy[i] + by * cd;
+                        a1 = Math.atan2(ey - cyr, ex - cxr);
+                        da = Math.atan2(p2y - cyr, p2x - cxr) - a1;
+                        if (da > Math.PI) da -= TAU; else if (da < -Math.PI) da += TAU;
+                        arc = true;
+                    }
                 }
             }
             const ns = Math.ceil(Math.hypot(ex - x0, ey - y0) / 7);
             for (let j = 1; j <= ns; j++) push(x0 + (ex - x0) * j / ns, y0 + (ey - y0) * j / ns, false);
-            if (round) {
-                for (let j = 1; j <= 5; j++) {
-                    const u = j / 6, v = 1 - u;
-                    push(v * v * ex + 2 * u * v * ax[i] + u * u * p2x, v * v * ey + 2 * u * v * ay[i] + u * u * p2y, false);
-                }
+            if (arc) {
+                const k = Math.max(2, Math.ceil(Math.abs(da) / ARC_STEP));
+                for (let j = 1; j < k; j++) { const a = a1 + da * j / k; push(cxr + Math.cos(a) * r, cyr + Math.sin(a) * r, false); }
                 push(p2x, p2y, false);
             }
         }
@@ -678,8 +740,22 @@ const Gfx25 = (() => {
             // boyun baş genişliğine yakın başlar, omuza doğru hafif kalınlaşır, sonra incelir
             let w = 7.5 - 3.4 * Math.pow(f, 0.85);
             if (R.s[i] < 26) w *= 0.84 + 0.16 * (R.s[i] / 26);
-            if (toEnd < 14) w *= 0.38 + 0.62 * Math.sqrt(Math.max(0, toEnd) / 14);
+            // kuyruk: son ~1.2 hücrede kosinüs eğrisiyle sivrilir (uç ince ama kör değil)
+            if (toEnd < 24) { const q = Math.sqrt(Math.max(0, toEnd) / 24); w *= 0.2 + 0.8 * (0.5 - 0.5 * Math.cos(Math.PI * q)); }
             R.w[i] = w;
+        }
+        // baş açısı: baştan yarım hücre gerideki eğri noktasına kiriş (dönüşte açı yay boyunca akar)
+        {
+            const want = R.s[headK] + S * 0.5;
+            let k = headK;
+            while (k < n - 1 && !R.brk[k + 1] && R.s[k + 1] < want) k++;
+            let px = R.x[k], py = R.y[k];
+            if (k < n - 1 && !R.brk[k + 1] && R.s[k + 1] > R.s[k]) {
+                const u = Math.min(1, (want - R.s[k]) / (R.s[k + 1] - R.s[k]));
+                px += (R.x[k + 1] - R.x[k]) * u; py += (R.y[k + 1] - R.y[k]) * u;
+            }
+            const hx = R.x[headK] - px, hy = R.y[headK] - py;
+            if (hx * hx + hy * hy > 0.25) ribbonHead = { x: vx[0], y: vy[0] + lift, a: Math.atan2(hy, hx) };
         }
         return true;
     }
@@ -735,6 +811,106 @@ const Gfx25 = (() => {
         if (R.n - 1 > a) out.push(a, R.n - 1, qa);
     }
 
+    // ====================================================================
+    // (c3) PUL DOKUSU
+    // Gövde boyunca akan örtüşen kalkan pullar: her pulun kuyruğa bakan serbest kenarı,
+    // arkasındaki pula düşen gölge çizgisi, ışığa bakan pullarda kabartma hilali ve ince kenar
+    // ışığı; sırt şeridi (koyu) ve karın şeridi (açık) şerit katmanlarında. Desen yay uzunluğuna
+    // bağlıdır (gövdeyle akar), çarpışma/mantık etkilenmez.
+    // Renkler skin başına BİR KEZ (gri maske tonları x skin rengi) üretilip önbelleğe alınır;
+    // karede tüm pullar 3 toplu yol işlemiyle (hilal dolgusu, gölge, kenar ışığı) çizilir.
+    // Not: önce önbellek tuvalinden dilim dilim drawImage denendi; yazılım GL'de (swiftshader,
+    // testler / GPU'suz makineler) her drawImage ~0.4 ms tuttuğundan uzun yılanda bütçeyi
+    // aşıyordu. Toplu yol, her ortamda ucuz.
+    // ====================================================================
+    const TP = 6.5;          // pul boyu (gövde boyunca, px); satırlar TP/2 aralıkla şaşırtmalı
+    const tex = { key: '', c: null, uretim: 0 };
+    let lastTexDraws = 0;
+
+    function parseRgb(css) {
+        const m = /rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/.exec(css || '');
+        if (m) return [+m[1], +m[2], +m[3]];
+        if (/^#[0-9a-f]{6}$/i.test(css || '')) return hexRgb(css);
+        return null;
+    }
+    // Skin'e boyanmış pul tonları: gri maske değerleri (gölge 0.18, ışık 0.6 beyaza karışım)
+    // skin rengiyle çarpılır. Anahtar skin/cb'ye bağlı; her anahtar bir kez üretilir (market
+    // önizlemesindeki 12 skin aynı karede sırayla çizilse de yeniden üretim yok).
+    const texCache = new Map();
+    function scaleTex(skin, cb) {
+        const key = cb ? 'cb' : skin ? 'skin:' + skin.id : 'orman';
+        tex.key = key;
+        if (texCache.has(key)) return (tex.c = texCache.get(key));
+        let c = null;
+        try {
+            const rgb = cb ? null : skin ? parseRgb(skin.pal(0.3).hi) : [120, 226, 184];
+            const mul = (k, a) => {
+                const v = rgb ? rgb.map(x => Math.round(k < 0.5 ? x * k : x + (255 - x) * (k - 0.5) * 2)) : [255 * k, 255 * k, 255 * k].map(Math.round);
+                return 'rgba(' + v[0] + ',' + v[1] + ',' + v[2] + ',' + a + ')';
+            };
+            c = { golge: mul(0.14, 0.55), hilal: mul(0.82, 0.42), rgb: rgb || [128, 128, 128] };
+        } catch (e) { c = null; }
+        if (texCache.size > 24) texCache.clear();
+        texCache.set(key, c);
+        tex.c = c; tex.uretim++;
+        return c;
+    }
+
+    // pul satırları: [x, y, nx, ny, w, tx, ty, ok, parite]
+    const SROW = [];
+    function drawScaleTex(ctx, st, alpha) {
+        const R = RB;
+        if (R.n < 2 || R.L < TP) return 0;
+        const H = TP / 2;
+        const ph = ((travel % TP) + TP) % TP;
+        const rows = SROW;
+        rows.length = 0;
+        let k = 0;
+        for (let s = ph - TP; s <= R.L - 3; s += H) {
+            const par = Math.round((s - ph) / H) & 1;
+            if (s < 1) continue;
+            k = frameAt(s, k);
+            if (!FR.ok || FR.w < 1.6) continue;
+            rows.push(FR.x, FR.y, FR.nx, FR.ny, FR.w, FR.ny, -FR.nx, par);
+        }
+        const nr = rows.length / 8;
+        const COLA = [-0.64, 0, 0.64], COLB = [-0.33, 0.33];
+        const HW = 0.24, BULGE = TP * 0.8;
+        // yol kurucu: mod 0 = serbest kenar (dx kaydırmalı), 1 = ışık tarafı hilal (kapalı)
+        const build = (mode, dx) => {
+            ctx.beginPath();
+            for (let j = 0; j < nr; j++) {
+                const r = j * 8;
+                const x = rows[r], y = rows[r + 1], nx = rows[r + 2], ny = rows[r + 3], w = rows[r + 4], tx = rows[r + 5], ty = rows[r + 6];
+                const cols = rows[r + 7] ? COLB : COLA;
+                const lit = nx * LIGHT[0] + ny * LIGHT[1];
+                for (let c = 0; c < cols.length; c++) {
+                    const v = cols[c] * w, hw = HW * w;
+                    if (mode === 1 && v * lit < -0.01) continue; // gölge tarafındaki pullarda hilal yok
+                    const ox = x + tx * dx, oy = y + ty * dx;
+                    const ax = ox + nx * (v - hw), ay = oy + ny * (v - hw);
+                    const bx = ox + nx * (v + hw), by = oy + ny * (v + hw);
+                    const qx = ox + nx * v + tx * BULGE, qy = oy + ny * v + ty * BULGE;
+                    ctx.moveTo(ax, ay);
+                    ctx.quadraticCurveTo(qx, qy, bx, by);
+                    if (mode === 1) {
+                        const q2 = BULGE * 0.35;
+                        ctx.quadraticCurveTo(ox + nx * v + tx * q2, oy + ny * v + ty * q2, ax, ay);
+                    }
+                }
+            }
+        };
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
+        build(1, -1.4);
+        ctx.fillStyle = st.hilal; ctx.fill();
+        build(0, 0.25);
+        ctx.strokeStyle = st.golge; ctx.lineWidth = 0.8; ctx.stroke();
+        ctx.restore();
+        return nr;
+    }
+
     function drawSnakeRibbon(ctx, pts, dir, t, o) {
         const S = o.CELL;
         setDpr(ctx);
@@ -749,6 +925,8 @@ const Gfx25 = (() => {
         lastHead = { x: h0.x, y: h0.y };
         ribbonChunks(chunkBuf);
         const cb = o.cb, pal = o.pal, skin = o.skin || null;
+        const timg = o.doku === false ? null : scaleTex(skin, cb);
+        lastTexDraws = 0;
 
         ctx.save();
         // yerde uzun yumuşak gölge: tek yol, üç geçiş
@@ -774,10 +952,39 @@ const Gfx25 = (() => {
                 ctx.fillStyle = l === 0 ? pk.lo : l === 1 ? (skin ? pk.alt : cb ? pal.ton(pal.yilan, 0.2) : 'rgb(46,170,128)') : pk.mid;
                 ribbonPoly(ctx, a, b, L[0], L[1]);
                 ctx.fill();
+                // karın şeridi: ışığın karşı kenarında açık bant (dokulu modda)
+                if (l === 1 && timg) { ctx.globalAlpha = 0.38; ctx.fillStyle = pk.hi; ctx.fill(); ctx.globalAlpha = 1; }
                 if (l === 3) { ctx.globalAlpha = 0.5; ctx.fillStyle = pk.hi; ctx.fill(); ctx.globalAlpha = 1; }
             }
         }
 
+        if (timg) {
+            // 2+3) ışık katmanları, sonra pul dokusu ve dokunun üstünde ince spekülar çizgi
+            topLayers(ctx, cb, pal, skin, 0.8);
+            // sırt şeridi: orta hatta koyu bant (pulların altında kalır)
+            for (let c = chunkBuf.length - 3; c >= 0; c -= 3) {
+                ctx.globalAlpha = 0.22; ctx.fillStyle = ribbonPalette(chunkBuf[c + 2] / 12, cb, pal, skin).lo;
+                ribbonPoly(ctx, chunkBuf[c], chunkBuf[c + 1], 0.16, 0);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            lastTexDraws = drawScaleTex(ctx, timg, o.reduced ? 0.85 : 1);
+            for (let c = chunkBuf.length - 3; c >= 0; c -= 3) {
+                ctx.globalAlpha = 0.3; ctx.fillStyle = '#ffffff';
+                ribbonPoly(ctx, chunkBuf[c], chunkBuf[c + 1], 0.12, 0.74);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        } else drawLattice(ctx, o);
+        drawDiamonds(ctx, skin);
+        ctx.restore();
+        return true;
+    }
+
+    // Eski (dokusuz) pul kafesi + ışık katmanları: doku üretilemezse ya da o.doku === false
+    function drawLattice(ctx, o) {
+        const R = RB;
+        const cb = o.cb, pal = o.pal, skin = o.skin || null;
         // 2) pul kafesi: yay uzunluğuna bağlı elmas ağı
         const D = R.L > 1500 ? 7 : 5.5;
         const ph = ((travel % D) + D) % D;
@@ -814,21 +1021,27 @@ const Gfx25 = (() => {
         lattice(0, 0);
         ctx.strokeStyle = 'rgba(0,28,22,0.34)';
         ctx.stroke();
+        topLayers(ctx, cb, pal, skin, 1);
+    }
 
-        // 3) ışık ve spekülar katmanları
+    // 3) ışık ve spekülar katmanları (k: opaklık çarpanı)
+    function topLayers(ctx, cb, pal, skin, k) {
         for (let c = chunkBuf.length - 3; c >= 0; c -= 3) {
             const a = chunkBuf[c], b = chunkBuf[c + 1], pk = ribbonPalette(chunkBuf[c + 2] / 12, cb, pal, skin);
             for (let l = 0; l < LAYERS_TOP.length; l++) {
                 const L = LAYERS_TOP[l];
-                ctx.globalAlpha = L[2];
+                ctx.globalAlpha = L[2] * k;
                 ctx.fillStyle = l === 0 ? pk.hi : '#ffffff';
                 ribbonPoly(ctx, a, b, L[0], L[1]);
                 ctx.fill();
             }
         }
         ctx.globalAlpha = 1;
+    }
 
-        // 4) sırt boyunca altın baklava deseni
+    // 4) sırt boyunca altın baklava deseni
+    function drawDiamonds(ctx, skin) {
+        const R = RB;
         {
             const GD = 17;
             const gph = ((travel % GD) + GD) % GD;
@@ -853,8 +1066,6 @@ const Gfx25 = (() => {
             ctx.strokeStyle = 'rgba(120,70,0,0.55)';
             ctx.stroke();
         }
-        ctx.restore();
-        return true;
     }
 
     // Kostüm baş sprite'ı: pişmiş başın parlaklığı korunur, renk tonu kostümden gelir
@@ -882,17 +1093,41 @@ const Gfx25 = (() => {
         if (!shadowsDone) shadowPass(ctx, [pos], S);
         shadowsDone = false;
         const hn = o.cb ? 'head_cb' : 'head';
+        // baş açısı: aynı karede çizilen şeridin eğrisinden (dönüşte yumuşak), yoksa yön tuşu
+        const hx = pos.x * S + S / 2, hy = pos.y * S + S / 2;
+        const rh = ribbonHead;
+        ribbonHead = null;
+        const ang = rh && Math.abs(rh.x - hx) < 0.75 && Math.abs(rh.y - hy) < 0.75 ? rh.a : Math.atan2(dir.y, dir.x);
+        lastHeadAng = ang;
         if (SP(hn)) {
             const tongue = (t * 2.2) % 1 < 0.35 ? 1 : 0;
-            if (o.skin && !o.cb) {
-                const hs = skinHeadSprite(o.skin, hn, dirIx(dir.x, dir.y) * 2 + tongue);
-                if (hs) { blit(ctx, hs, pos.x * S + S / 2, pos.y * S + S / 2); return; }
-            }
-            Sprites.draw(ctx, hn, dirIx(dir.x, dir.y) * 2 + tongue, pos.x * S + S / 2, pos.y * S + S / 2, 1.4);
+            // 4 yönlü sprite: en yakın yön + kalan açı kadar döndürme; 45° sınırına yaklaşırken
+            // komşu yön karesi yarı saydam üstüne biner (geçiş sıçramasız)
+            const Q = Math.PI / 2;
+            const q = Math.round(ang / Q), res = ang - q * Q;
+            const one = (qq, rot, alpha) => {
+                const ix = dirIx(Math.round(Math.cos(qq * Q)), Math.round(Math.sin(qq * Q))) * 2 + tongue;
+                const turn = Math.abs(rot) > 0.002;
+                if (turn || alpha < 1) {
+                    ctx.save();
+                    ctx.globalAlpha *= alpha;
+                    if (turn) { ctx.translate(hx, hy - 3); ctx.rotate(rot); ctx.translate(-hx, -hy + 3); }
+                }
+                let ok = false;
+                if (o.skin && !o.cb) {
+                    const hs = skinHeadSprite(o.skin, hn, ix);
+                    if (hs) { blit(ctx, hs, hx, hy); ok = true; }
+                }
+                if (!ok) Sprites.draw(ctx, hn, ix, hx, hy, 1.4);
+                if (turn || alpha < 1) ctx.restore();
+            };
+            one(q, res, 1);
+            const wB = Math.max(0, Math.min(1, (Math.abs(res) - (Q / 2 - 0.09)) / 0.09)) * 0.5;
+            if (wB > 0.01) { const sg = res > 0 ? 1 : -1; one(q + sg, res - sg * Q, wB); }
             return;
         }
         const cx = pos.x * S + S / 2, cy = pos.y * S + S / 2 - LIFT;
-        const th = Math.atan2(dir.y, dir.x);
+        const th = ang;
         const cs = Math.cos(th), sn = Math.sin(th);
         // ışık sabit (sol-üst): yerel eksene çevir
         const lx = cs * -0.4 + sn * -0.55, ly = -sn * -0.4 + cs * -0.55;
@@ -1232,6 +1467,8 @@ const Gfx25 = (() => {
     }
 
     // zeminTuvali: önbellekli zemin (isik.js baş ışığı bölgesini buradan geri basar; salt okunur)
-    return { zeminTuvali: () => bgCache.c, dirIx, drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawSnakeRibbon, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H };
+    return { zeminTuvali: () => bgCache.c, dirIx, drawBackground, drawBlock, drawBlocks, drawSnakeHead, drawSnakeBody, drawSnakeRibbon, drawFood, drawPowerup, drawPortal, LIFT, BLOCK_H,
+        // test/teşhis: son şeridin örnekleri, baş açısı ve doku önbelleği
+        _yilan: () => ({ n: RB.n, L: RB.L, x: RB.x.slice(0, RB.n), y: RB.y.slice(0, RB.n), w: RB.w.slice(0, RB.n), brk: RB.brk.slice(0, RB.n), basAci: lastHeadAng, dokuAnahtar: tex.key, dokuUretim: tex.uretim, dokuVar: !!tex.c, dokuRenk: tex.c ? tex.c.rgb.slice() : null, dokuCizim: lastTexDraws }) };
 })();
 if (typeof window !== 'undefined') window.Gfx25 = Gfx25;
