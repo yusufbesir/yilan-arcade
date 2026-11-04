@@ -12,7 +12,8 @@
 | Ses efektleri ve müzik | Web Audio ile prosedürel üretim, ses dosyası yok | Proje lisansı |
 | Tema esini | Nors mitolojisi (Jörmungandr, İdun'un elmaları, Bifröst, rünler) | Kamu malı |
 | Renk körü paleti (`PALET`, `src/game.js`; yılan #0072B2, yem #E69F00, çürük #D55E00, düşman/engel #CC79A7, Tron #F0E442) | Okabe & Ito, "Color Universal Design" (2008); Wong, "Points of view: Color blindness", Nature Methods 8:441 (2011) | Yayımlanmış renk değerleri, telif korumasında değil |
+| PBR doku paketleri (`src/img/tex/<ID>/`: PavingStones138, Rock064, Rock058, Tiles141, Ground068, Lava004, Moss002, Leather008; Color, NormalGL, Roughness, AmbientOcclusion; 1K-JPG paketlerinden 512x512 JPEG'e küçültüldü) | ambientCG, CC0 1.0, https://ambientcg.com (2026-11-04) | CC0 1.0 (kamu malı bağışı, atıf zorunlu değil)|
 
-Canva ile üretilen iki görsel dışında harici araç varlığı yoktur. Yeni varlık eklenirse bu tabloya kaynak ve lisansıyla yazılır. Amblem yüklenemezse oyun kodla çizilen SVG logoya döner.
+Canva ile üretilen iki görsel ve ambientCG (CC0 1.0, https://ambientcg.com) dokuları dışında harici araç varlığı yoktur. Yeni varlık eklenirse bu tabloya kaynak ve lisansıyla yazılır. Amblem yüklenemezse oyun kodla çizilen SVG logoya döner.
 
 Sürüm geçmişi `README.md` içindedir (0.4.0–0.7.1). Bu dosyadaki tablo yalnız varlık kaynaklarını tutar; silinen satır yoktur.
