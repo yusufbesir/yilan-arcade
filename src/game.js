@@ -1840,10 +1840,12 @@ const SnakeGame = (() => {
         drawBackground(nowT);
         
         // Static obstacles
-        obstacles.forEach(o => drawBlock(o.x, o.y, settings.cb ? PALET.engel : C.obstacle, '#55557a'));
+        if (G25()) G25().drawBlocks(ctx, obstacles, settings.cb ? PALET.engel : C.obstacle, false, nowT / 1000, CELL, false);
+        else obstacles.forEach(o => drawBlock(o.x, o.y, settings.cb ? PALET.engel : C.obstacle, '#55557a'));
         
         // Moving obstacles
-        movingObs.forEach(o => drawBlock(Math.floor(o.x), Math.floor(o.y), C.movingObs, '#ffaa44', true));
+        if (G25()) G25().drawBlocks(ctx, movingObs, C.movingObs, true, nowT / 1000, CELL, true);
+        else movingObs.forEach(o => drawBlock(Math.floor(o.x), Math.floor(o.y), C.movingObs, '#ffaa44', true));
         
         // Powerups
         powerups.forEach(p => drawPowerup(p));
@@ -1886,6 +1888,7 @@ const SnakeGame = (() => {
         ctx.restore();
     }
     
+    const G25 = () => (typeof Gfx25 !== 'undefined' ? Gfx25 : null);
     let nors = { bg: null, key: '' };
     let renderPos = [];
 
@@ -1936,8 +1939,12 @@ const SnakeGame = (() => {
         return c;
     }
 
+    function gfxOpts() {
+        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, all: renderPos };
+    }
     function drawBackground(now) {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        if (G25()) { G25().drawBackground(ctx, now, gfxOpts()); return; }
         const key = dpr + ':' + W + 'x' + H;
         if (!nors.bg || nors.key !== key) { nors.bg = buildNorsBackground(); nors.key = key; }
         ctx.drawImage(nors.bg, 0, 0, W, H);
@@ -2014,6 +2021,7 @@ const SnakeGame = (() => {
     }
 
     function drawSnakeHead(pos) {
+        if (G25()) { G25().drawSnakeHead(ctx, pos, dir, performance.now() / 1000, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const t = performance.now() / 1000;
         const cx = pos.x * S + S / 2;
@@ -2076,6 +2084,7 @@ const SnakeGame = (() => {
     }
 
     function drawSnakeBody(pos, idx, total) {
+        if (G25()) { G25().drawSnakeBody(ctx, pos, idx, total, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const k = total > 1 ? idx / (total - 1) : 0;
         const r = Math.max(5.2, 8.6 - k * 3.2);
@@ -2140,6 +2149,7 @@ const SnakeGame = (() => {
         ctx.restore();
     }
     function drawFood() {
+        if (G25()) { G25().drawFood(ctx, food, performance.now() / 1000, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const t = performance.now() / 1000;
         const isSuper = food.type === 'super';
@@ -2307,6 +2317,12 @@ const SnakeGame = (() => {
     }
 
     function drawPowerup(p) {
+        if (G25()) {
+            const o = gfxOpts();
+            o.colors = { shield: CONFIG.COLORS.powerShield, speed: CONFIG.COLORS.powerSpeed, invincible: CONFIG.COLORS.powerInvincible, clear: CONFIG.COLORS.powerClear };
+            G25().drawPowerup(ctx, p, performance.now() / 1000, o);
+            return;
+        }
         const S = CONFIG.CELL;
         const px = p.x * S;
         const py = p.y * S;
@@ -2379,6 +2395,7 @@ const SnakeGame = (() => {
     }
 
     function drawPortal(p) {
+        if (G25()) { G25().drawPortal(ctx, p, performance.now() / 1000, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const t = performance.now() / 1000;
         [p.a, p.b].forEach(c => {
