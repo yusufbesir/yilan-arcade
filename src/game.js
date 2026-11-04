@@ -174,8 +174,9 @@ const SnakeGame = (() => {
         });
         // Dokunmatik yön/ateş: basar basmaz (click beklemeden); satır içi ontouchstart/onpointerdown CSP'ye takılıyordu
         document.addEventListener('pointerdown', e => {
-            const el = e.target.closest('.dpad-btn[data-act="input"], [data-press="fire"]');
+            const el = e.target.closest('.dpad-btn[data-act="input"], [data-press]');
             if (!el) return;
+            if (el.dataset.press === 'atil') { tapinakAtil(); return; }
             if (el.dataset.press === 'fire') { fire(); return; }
             input(Number(el.dataset.dx), Number(el.dataset.dy));
         });
@@ -559,6 +560,7 @@ const SnakeGame = (() => {
     }
     
     function initGameState() {
+        document.body.dataset.mod = state.mode; // dokunmatik Atılım düğmesi yalnız tapınakta görünür (CSS)
         state.score = 0;
         state.paused = false;
         state.over = false;
@@ -1392,10 +1394,11 @@ const SnakeGame = (() => {
     
     function drawTailgunLayer() {
         const CELL = CONFIG.CELL;
+        const lazer = settings.cb ? PALET.ton(PALET.yilan, 0.45) : Tema.ton('mermi', '#00e5ff', Tema.etkin(state.mode, state.level), false); // tema tonu; cb: PALET
         playerShots.forEach(s => {
-            ctx.shadowColor = '#00e5ff';
+            ctx.shadowColor = lazer;
             ctx.shadowBlur = 10;
-            ctx.fillStyle = '#00e5ff';
+            ctx.fillStyle = lazer;
             ctx.fillRect(s.x * CELL + 6, s.y * CELL + 6, 8, 8);
             ctx.shadowBlur = 0;
         });
@@ -1791,6 +1794,7 @@ const SnakeGame = (() => {
         nextDir = { ...tp.want };
         state.score = tp.skor;
         state.lives = tp.can;
+        document.body.dataset.atilim = tp.yetenek.atilim ? '1' : '0'; // Atılım düğmesi: öğrenilene dek soluk
     }
     function tickTapinak() {
         if (!tp) return;
@@ -2002,6 +2006,7 @@ const SnakeGame = (() => {
         if (ax < -0.5 || b(14)) out.push(K.l);
         if (ax > 0.5 || b(15)) out.push(K.r);
         if (b(0)) out.push(' ');
+        if (b(4) || b(5) || b(7)) out.push('Shift'); // LB/RB/RT: Tapınak Atılım (onKey küçük harfe çevirir)
         if (b(9)) out.push('p');
         if (b(1) || b(2) || b(3)) out.push(idx === 0 ? '1' : '2');
         return out;
@@ -3228,7 +3233,7 @@ const SnakeGame = (() => {
         state.mirasVerildi = true;
         const r = Miras.award({ mode: state.mode, score: state.score, won: !!won });
         state.mirasSonuc = r;
-        if (el) el.textContent = '🔥 +' + r.gained + ' KÜL';
+        if (el) el.innerHTML = '<svg class="ik kul-ik" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg> +' + r.gained + ' KÜL';
         const mm = document.getElementById(elId + 'Market'); // bakiye bir kostüme yetiyorsa küçük ipucu
         if (mm) mm.textContent = (typeof Market !== 'undefined' && Market.affordableNew()) ? "Market'te yeni kostüm alabilirsin" : '';
         if (r.levelUp) showToast('🔥 MİRAS SEVİYE ' + r.level + '!');
@@ -3295,6 +3300,7 @@ const SnakeGame = (() => {
             c.width = Math.round(208 * dpr2); c.height = Math.round(76 * dpr2);
             temaOnizle(c, c.dataset.tema);
         });
+        Market.temaOnizleBaslat([...document.querySelectorAll('#marketList canvas.mk-tonizle')].map(c => ({ canvas: c, id: c.dataset.tema })), { reduced: REDUCED, fx: settings.fx }); // canlı ışık/parçacık
     }
     // Statik önizleme: boyalı zemin dokusu + yem + temanın kuralını anlatan küçük simge
     function temaOnizle(c, id) {

@@ -454,10 +454,14 @@ const Market = (() => {
         }
     };
 
+    // Nadirlik arttıkça efekt yoğunluğu (üretim hızı) ve boyutu artar (0.9.4: skin efektleri daha belirgin)
+    const NADIR_FX = { yaygin: { hiz: 1.4, boy: 1.4 }, nadir: { hiz: 1.5, boy: 1.5 }, epik: { hiz: 1.55, boy: 1.6 }, efsane: { hiz: 1.6, boy: 1.75 } };
+
     // Efekt örneği: kendi havuzu var (oyun için bir, her önizleme için bir)
     function efektKur(id) {
         const s = tanim(id), ef = s && EFEKT[s.efekt];
         const P = [];
+        const kat = NADIR_FX[s && s.nadir] || NADIR_FX.yaygin;
         for (let i = 0; i < MAX_PARCA; i++) P.push({ canli: false, x: 0, y: 0, vx: 0, vy: 0, ay: 0, a: 0, w: 0, bo: 1, ol: 1, yas: 0, c: 0, tip: 0, z: null });
         let sayi = 0, acc = 0;
         const sayac = { orbit: 0, halka: 0 };
@@ -499,7 +503,7 @@ const Market = (() => {
                 }
                 if (b.uret === false || !b.bas) return;
                 if (ef.baslangic) ef.baslangic(P, b, f => ekle(f, b));
-                acc += dt * ef.hiz * (b.yogunluk === undefined ? 1 : b.yogunluk);
+                acc += dt * ef.hiz * kat.hiz * (b.yogunluk === undefined ? 1 : b.yogunluk);
                 let guard = 4;
                 while (acc >= 1 && guard-- > 0) { acc -= 1; ekle(ef.uret, b); }
                 if (acc > 2) acc = 0;
@@ -511,7 +515,11 @@ const Market = (() => {
                 for (let i = 0; i < MAX_PARCA; i++) {
                     const p = P[i];
                     if (!p.canli) continue;
+                    // boyut katsayısı parçacığın kendi noktası etrafında (rün halkası baş etrafında)
+                    const px = (s.efekt === 'run' && p.tip === 2) ? b.bas.x : p.x, py = (s.efekt === 'run' && p.tip === 2) ? b.bas.y : p.y;
+                    ctx.save(); ctx.translate(px, py); ctx.scale(kat.boy, kat.boy); ctx.translate(-px, -py);
                     ef.ciz(ctx, p, p.yas / p.ol, b);
+                    ctx.restore();
                 }
                 ctx.restore();
             }
@@ -627,7 +635,85 @@ const Market = (() => {
         sonraki();
         return onizlemeler.length;
     }
+    // ---------- TEMA önizlemeleri: statik kart üzerine hafif canlı ışık/parçacık (tek RAF döngüsü) ----------
+    // Her tema: ışık rengi + parçacık davranışı. Parçacık sayısı kart başına 14; reduced / fx=0'da hiç başlamaz.
+    const TEMA_FX = {
+        tas: { renk: '255,214,150', n: 10, yon: 'toz' },
+        otomatik: { renk: '200,215,255', n: 10, yon: 'toz' },
+        kaya: { renk: '255,170,60', n: 14, yon: 'kor', mesale: true },
+        buz: { renk: '170,226,255', n: 14, yon: 'kar' },
+        lav: { renk: '255,120,40', n: 14, yon: 'kor', alt: true },
+        bat: { renk: '176,238,90', n: 12, yon: 'bocek' },
+        run: { renk: '190,150,255', n: 12, yon: 'run' }
+    };
+    let temaKartlar = [];
+
+    function temaKare(o, t) {
+        const g = o.ctx, F = o.fx, k = o.k, P = o.p;
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.drawImage(o.snap, 0, 0);
+        g.setTransform(k, 0, 0, k, 0, 0);
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        const c = F.renk;
+        // nefes alan ışık: kaya/lav'da titrek, diğerlerinde yavaş
+        const tit = F.mesale ? 0.75 + 0.25 * Math.sin(t * 9) * Math.sin(t * 3.7) : 0.7 + 0.3 * Math.sin(t * 1.6);
+        const cx = F.alt ? 104 : (F.mesale ? 54 : 104 + Math.sin(t * 0.6) * 40), cy = F.alt ? 84 : 36;
+        const gr = g.createRadialGradient(cx, cy, 2, cx, cy, F.alt ? 90 : 70);
+        gr.addColorStop(0, 'rgba(' + c + ',' + (0.38 * tit).toFixed(3) + ')');
+        gr.addColorStop(1, 'rgba(' + c + ',0)');
+        g.fillStyle = gr; g.fillRect(0, 0, 208, 76);
+        for (let i = 0; i < P.length; i++) {
+            const q = P[i];
+            const u = ((t * q.v + q.o) % 1 + 1) % 1;
+            let x, y, a, r = q.r;
+            if (F.yon === 'kar') { x = q.x + Math.sin(t * 1.3 + q.o * 9) * 6; y = -4 + u * 84; a = 0.85; }
+            else if (F.yon === 'kor') { x = q.x + Math.sin(t * 2 + q.o * 9) * 5; y = 80 - u * 86; a = 1 - u; }
+            else if (F.yon === 'bocek') { x = q.x + Math.sin(t * 0.9 + q.o * 12) * 14; y = q.y + Math.cos(t * 0.7 + q.o * 7) * 9; a = 0.35 + 0.65 * Math.max(0, Math.sin(t * 2.2 + q.o * 20)); }
+            else if (F.yon === 'run') { const an = t * 0.8 + q.o * 6.283; x = 104 + Math.cos(an) * (40 + q.x * 0.25); y = 38 + Math.sin(an) * 22; a = 0.4 + 0.6 * Math.sin(t * 2 + q.o * 10) ** 2; }
+            else { x = q.x + Math.sin(t * 0.5 + q.o * 9) * 8; y = q.y - u * 10; a = Math.sin(u * Math.PI) * 0.7; }
+            g.fillStyle = 'rgba(' + c + ',' + Math.max(0, a).toFixed(3) + ')';
+            g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+            if (F.yon === 'run' && r > 1.6) { g.strokeStyle = g.fillStyle; g.lineWidth = 1; g.strokeRect(x - 2, y - 2, 4, 4); }
+        }
+        g.restore();
+    }
+    // liste: [{canvas, id}] (kanvaslar game.js'te statik çizilmiş olmalı). Tek RAF; reduced / fx kapalıysa statik kalır.
+    function temaOnizleBaslat(liste, ayar) {
+        onizleDurdur();
+        ayar = ayar || {};
+        if (!fxOn({ reduced: ayar.reduced, fx: ayar.fx })) return 0;
+        temaKartlar = [];
+        liste.forEach(it => {
+            try {
+                const c = it.canvas, F = TEMA_FX[it.id] || TEMA_FX.tas;
+                if (!c.width) return;
+                const snap = document.createElement('canvas'); snap.width = c.width; snap.height = c.height;
+                snap.getContext('2d').drawImage(c, 0, 0);
+                const P = [];
+                for (let i = 0; i < F.n; i++) P.push({ x: 8 + Math.random() * 192, y: 8 + Math.random() * 60, o: Math.random(), v: 0.12 + Math.random() * 0.22, r: 0.9 + Math.random() * 1.6 });
+                temaKartlar.push({ ctx: c.getContext('2d'), snap, k: c.width / 208, fx: F, p: P });
+            } catch (e) { /* kart statik kalır */ }
+        });
+        if (!temaKartlar.length) return 0;
+        const t0 = performance.now();
+        const kare = now => {
+            const t = (now - t0) / 1000;
+            for (let i = 0; i < temaKartlar.length; i++) temaKare(temaKartlar[i], t);
+            sonraki();
+        };
+        const sonraki = () => {
+            if (!temaKartlar.length) return;
+            if (typeof document !== 'undefined' && document.hidden) onizlemeZamanlayici = setTimeout(() => { onizlemeRaf = requestAnimationFrame(kare); }, 400);
+            else onizlemeRaf = requestAnimationFrame(kare);
+        };
+        sonraki();
+        return temaKartlar.length;
+    }
+    const temaOnizlemeSayisi = () => temaKartlar.length;
+
     function onizleDurdur() {
+        temaKartlar = [];
         if (onizlemeRaf) { try { cancelAnimationFrame(onizlemeRaf); } catch (e) {} }
         if (onizlemeZamanlayici) { try { clearTimeout(onizlemeZamanlayici); } catch (e) {} }
         onizlemeRaf = 0; onizlemeZamanlayici = 0; onizlemeler = [];
@@ -639,7 +725,7 @@ const Market = (() => {
     return {
         SKINS, NADIRLIK, MAX_PARCA, VARSAYILAN,
         load: yukle, reset, buy, equip, owned, equipped, balance, canAfford, affordableNew,
-        skinFor, fxOn, efekt, efektSifirla, efektKur, onizleBaslat, onizleDurdur, onizlemeSayisi,
+        skinFor, fxOn, efekt, efektSifirla, efektKur, onizleBaslat, onizleDurdur, onizlemeSayisi, temaOnizleBaslat, temaOnizlemeSayisi,
         get: tanim,
         temaSahip, temaYeter, temaAl, temaSec, temaSecili,
         state: () => ({ v: 1, sahip: durum.sahip.slice(), giyili: durum.giyili, tema: durum.tema, sahipTema: durum.sahipTema.slice() })

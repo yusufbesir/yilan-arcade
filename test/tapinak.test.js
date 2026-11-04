@@ -298,6 +298,37 @@ const path = require('path');
     return r.t > 100;
   });
 
+  // 0.9.4: dokunmatik Atılım düğmesi (yalnız Tapınak'ta, yetenek öğrenilene dek soluk) + gamepad LB/RB/RT = SHIFT
+  sonuc.atilDugme = await page.evaluate(() => {
+    const b = document.getElementById('atilBtn');
+    SnakeGame.startTapinak(1234);
+    __T.dondur();
+    const r = __T.R();
+    const gorunur = () => getComputedStyle(b).display !== 'none';
+    const o = { tapinakta: gorunur(), soluk: parseFloat(getComputedStyle(b).opacity) < 1 };
+    r.yetenek.atilim = true; r.atilCd = 0;
+    __T.tick(1, false);
+    __T.ST().paused = false;
+    o.acildi = parseFloat(getComputedStyle(b).opacity) === 1;
+    const x0 = r.snake[0].x + '|' + r.snake[0].y;
+    b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    o.atildi = r.atilCd > 0 || r.snake[0].x + '|' + r.snake[0].y !== x0;
+    SnakeGame.startClassic();
+    o.klasikteGizli = !gorunur();
+    return o;
+  });
+  sonuc.atilKol = await page.evaluate(() => {
+    const pad = { index: 0, connected: true, id: 'x', mapping: 'standard', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+    window.__pads = [pad];
+    navigator.getGamepads = () => [pad, null, null, null];
+    SnakeGame.startTapinak(1234);
+    __T.dondur();
+    const r = __T.R(); r.yetenek.atilim = true; r.atilCd = 0; __T.ST().paused = false;
+    const x0 = r.snake[0].x + '|' + r.snake[0].y;
+    pad.buttons[5].pressed = true;
+    return new Promise(res => setTimeout(() => { pad.buttons[5].pressed = false; res(r.atilCd > 0 || r.snake[0].x + '|' + r.snake[0].y !== x0); }, 250));
+  });
+
   console.log(JSON.stringify(sonuc, null, 1), 'hatalar:', errors);
   await browser.close();
   const duz = v => (v && typeof v === 'object') ? Object.values(v).every(x => typeof x === 'number' ? x >= 2 : typeof x === 'string' ? true : Array.isArray(x) ? true : duz(x)) : v === true;

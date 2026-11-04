@@ -191,6 +191,48 @@ const assert = require('assert');
   });
   assert.strictEqual(ip.yeter, "Market'te yeni kostüm alabilirsin"); assert.strictEqual(ip.yetmez, '');
 
+  // 9) 0.9.4: efekt nadirlikle belirginleşir; göz/dil skin renginden bağımsız; Temalar sekmesinde canlı önizleme
+  const f94 = await page.evaluate(async () => {
+    const o = {};
+    // yoğunluk: aynı süre içinde üretilen parçacık sayısı (kıvılcım=yaygın, altın=efsane) ve tavan
+    const gov = []; for (let i = 0; i < 20; i++) gov.push({ x: 300 - i * 14, y: 200 });
+    const b = { bas: gov[0], yon: { x: 1, y: 0 }, govde: gov, dt: 0.05, t: 0, uret: true, yogunluk: 1 };
+    const say = id => { const ef = Market.efektKur(id); let top = 0, en = 0; for (let i = 0; i < 100; i++) { const once = ef.sayi; ef.adim(b); top += Math.max(0, ef.sayi - once); if (ef.sayi > en) en = ef.sayi; } return en; };
+    o.en = { yaygin: say('kul'), efsane: say('ouroboros') };
+    // boyut: efsane parçacığı yaygından büyük çizilir (aynı efekt tuvalinde piksel kaplama)
+    const cv = document.createElement('canvas'); cv.width = 400; cv.height = 300; const g = cv.getContext('2d');
+    const kaplama = id => { const ef = Market.efektKur(id); g.clearRect(0, 0, 400, 300); for (let i = 0; i < 60; i++) { ef.adim(b); } ef.ciz(g, b); const d = g.getImageData(0, 0, 400, 300).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 8) n++; return n; };
+    o.kaplama = { yaygin: kaplama('tas'), efsane: kaplama('yildiz') };
+    return o;
+  });
+  assert.ok(f94.en.yaygin > 0 && f94.en.efsane > 0 && f94.en.yaygin <= 40 && f94.en.efsane <= 40, 'tavan 40: ' + JSON.stringify(f94.en));
+  assert.ok(f94.kaplama.efsane > 0 && f94.kaplama.yaygin > 0, 'efektler çizilmeli: ' + JSON.stringify(f94.kaplama));
+  // Temalar sekmesi: canlı önizleme başlar, kare değişir, panel kapanınca durur, reduced'ta statik
+  await page.evaluate(() => { Market.reset(); Miras.reset(); Miras.award({ mode: 'classic', score: 700 }); SnakeGame.openMarket(); });
+  await page.waitForTimeout(300);
+  await page.click('#mkSekTema');
+  await page.waitForTimeout(500);
+  const t1 = await page.evaluate(() => {
+    const cs = [...document.querySelectorAll('#marketList canvas.mk-tonizle')];
+    const hash = c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 0; i < d.length; i += 97) h = (h * 31 + d[i]) | 0; return h; };
+    window.__h0 = cs.map(hash);
+    return { n: Market.temaOnizlemeSayisi(), kart: cs.length };
+  });
+  await page.waitForTimeout(700);
+  const t2 = await page.evaluate(() => {
+    const cs = [...document.querySelectorAll('#marketList canvas.mk-tonizle')];
+    const hash = c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 0; i < d.length; i += 97) h = (h * 31 + d[i]) | 0; return h; };
+    const h1 = cs.map(hash);
+    return { degisen: h1.filter((h, i) => h !== window.__h0[i]).length };
+  });
+  assert.ok(t1.n === t1.kart && t1.kart === 7, 'tema önizlemeleri canlı: ' + JSON.stringify(t1));
+  assert.ok(t2.degisen >= 5, 'tema kareleri değişmeli: ' + JSON.stringify(t2));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(100);
+  assert.strictEqual(await page.evaluate(() => Market.temaOnizlemeSayisi() + Market.onizlemeSayisi()), 0, 'panel kapanınca durur');
+  const tr = await page.evaluate(() => { const n = Market.temaOnizleBaslat([{ canvas: Object.assign(document.createElement('canvas'), { width: 208, height: 76 }), id: 'buz' }], { reduced: true, fx: 1 }); const n0 = Market.temaOnizleBaslat([{ canvas: Object.assign(document.createElement('canvas'), { width: 208, height: 76 }), id: 'buz' }], { reduced: false, fx: 0 }); Market.onizleDurdur(); return [n, n0]; });
+  assert.deepStrictEqual(tr, [0, 0], 'reduced / fx=0: tema önizlemesi statik');
+
   assert.deepStrictEqual(errors, [], 'konsol hatası: ' + errors.join('|'));
   await browser.close();
   console.log('market.test.js: tamam');
