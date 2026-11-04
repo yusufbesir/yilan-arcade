@@ -195,6 +195,7 @@ const SnakeGame = (() => {
     
     function showMenu() {
         stopGame();
+        clearPowerTimers();
         stopMusic();
         closeOverlays();
         refreshMenuStats();
@@ -629,6 +630,13 @@ const SnakeGame = (() => {
         startMusic();
     }
     
+    // menüye dönüşte/yeni oyunda süreli güçlerin sahipsiz setTimeout'ları kalmasın
+    function clearPowerTimers() {
+        Object.values(powerTimers).forEach(t => clearTimeout(t));
+        powerTimers = {};
+        powerMeta = {};
+    }
+    
     function stopGame() {
         state.running = false;
         if (loopInterval) clearInterval(loopInterval);
@@ -648,6 +656,8 @@ const SnakeGame = (() => {
     }
     
     function renderFrame() {
+        if (frameRequest) cancelAnimationFrame(frameRequest); // togglePause devamında ikinci rAF döngüsü birikmesin
+        frameRequest = null;
         if (!state.over && !state.complete) {
             draw();
             frameRequest = requestAnimationFrame(renderFrame);
@@ -663,7 +673,7 @@ const SnakeGame = (() => {
         if (state.mode === 'tron') { tickTron(); return; }
         if (state.mode === 'tapinak') { tickTapinak(); return; }
         if (state.mode === 'timeattack') {
-            state.timeLeft -= state.speed / 1000;
+            state.timeLeft -= effSpeed() / 1000; // gerçek tik aralığı (hız ayarı/sakin dahil) = gerçek saniye
             if (state.timeLeft <= 0) { state.timeLeft = 0; updateHUD(); endGame(); return; }
             updateHUD();
         }
@@ -792,10 +802,11 @@ const SnakeGame = (() => {
             // Temp invincibility
             powers.invincible = true;
             refreshPowerDisplay();
-            setTimeout(() => {
+            // armTimer: yeni oyunda/menüde temizlenir, seviye seçiminde durur (eskiden sahipsiz setTimeout'tu)
+            armTimer('invincible', 2000, () => {
                 powers.invincible = false;
                 refreshPowerDisplay();
-            }, 2000);
+            });
             
             flashCanvas('#ff0033');
         }
@@ -1387,14 +1398,22 @@ const SnakeGame = (() => {
             showBanner('DÜŞMANLAR GÜÇLENİYOR');
         }
         
-        const gap = Math.max(6, 22 - state.wave * 2);
+        // Denge: dalga 10'dan sonra da zorluk artar (eskiden gap/hız tavanı yüzünden bot hiç ölmüyordu)
+        const gap = Math.max(3, 22 - state.wave * 2);
         if (waveTick % gap === 0) {
-            spawnEnemy();
-            if (state.wave >= 3 && Math.random() < 0.3) enemies[enemies.length - 1].hp = 1 + Math.floor(state.wave / 3);
+            const grup = state.wave >= 12 ? 1 + Math.floor((state.wave - 12) / 8) : 0;
+            for (let k = 0; k <= Math.min(grup, 3); k++) {
+                const n0 = enemies.length;
+                spawnEnemy();
+                if (enemies.length === n0) break;
+                const ne = enemies[enemies.length - 1];
+                if (state.wave >= 3 && Math.random() < 0.3) ne.hp = 1 + Math.floor(state.wave / 3);
+                if (state.wave >= 10) ne.hp = Math.max(ne.hp, 1 + Math.floor((state.wave - 6) / 3));
+            }
         }
         
         const head = snake[0];
-        const espd = Math.min(0.30, 0.08 + state.wave * 0.006);
+        const espd = Math.min(0.36, 0.08 + state.wave * 0.006);
         
         sv.timer++;
         if (sv.timer >= sv.cd) {
@@ -1412,8 +1431,8 @@ const SnakeGame = (() => {
         moveShots(enemy => {
             state.score += 2;
             updateHUD();
-            gems.push({ x: enemy.x, y: enemy.y });
-            if (gems.length > 80) gems.shift();
+            gems.push({ x: enemy.x, y: enemy.y, v: 1 });
+            if (gems.length > 80) { const o = gems.shift(); gems[0].v = (gems[0].v || 1) + (o.v || 1); } // eski elmas XP'siyle birleşir, silinmez
         });
         
         enemies.forEach(e => {
@@ -1425,8 +1444,8 @@ const SnakeGame = (() => {
         gems = gems.filter(g => {
             const d = Math.hypot(head.x - g.x, head.y - g.y);
             if (d < sv.magnet) {
-                sv.xp++;
-                if (sv.xp >= sv.need) levelUp();
+                sv.xp += g.v || 1;
+                if (sv.xp >= sv.need) { const artan = sv.xp - sv.need; levelUp(); sv.xp = artan; }
                 document.getElementById('hudTarget').textContent = sv.xp + '/' + sv.need;
                 return false;
             }
@@ -1464,7 +1483,7 @@ const SnakeGame = (() => {
             case 'dmg': sv.dmg += 1; break;
             case 'rate': sv.cd = Math.max(3, Math.round(sv.cd * 0.8)); break;
             case 'multi': sv.multi = Math.min(5, sv.multi + 1); break;
-            case 'magnet': sv.magnet += 1.5; break;
+            case 'magnet': sv.magnet = Math.min(8, sv.magnet + 1.5); break;
             case 'life': state.lives = 3; updateHUD(); break;
         }
         sv.choosing = false;
@@ -1592,8 +1611,8 @@ const SnakeGame = (() => {
                 armTimer('speed', 6500, () => {
                     powers.speed = false;
                     state.speed += 35;
-                    clearInterval(loopInterval);
-                    loopInterval = setInterval(tick, effSpeed());
+                    // oyun bitmiş/menüye dönülmüşse (loopInterval null) hayalet tick döngüsü başlatma
+                    if (loopInterval) { clearInterval(loopInterval); loopInterval = setInterval(tick, effSpeed()); }
                     refreshPowerDisplay();
                 });
                 break;
@@ -2429,13 +2448,25 @@ const SnakeGame = (() => {
         ctx.globalCompositeOperation = 'source-over';
     }
     
+    let vigCache = { c: null, key: '' };
     function drawVignette() {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
-        const v = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, W * 0.65);
-        v.addColorStop(0, 'rgba(0,0,0,0)');
-        v.addColorStop(1, 'rgba(0,0,0,0.45)');
-        ctx.fillStyle = v;
-        ctx.fillRect(0, 0, W, H);
+        // Her karede yeniden gradyan üretmek yerine bir kez çizilip önbelleğe alınır (görünüm aynı).
+        const key = dpr + ':' + W + 'x' + H;
+        if (!vigCache.c || vigCache.key !== key) {
+            const c = document.createElement('canvas');
+            c.width = Math.round(W * dpr);
+            c.height = Math.round(H * dpr);
+            const g = c.getContext('2d');
+            g.scale(dpr, dpr);
+            const v = g.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, W * 0.65);
+            v.addColorStop(0, 'rgba(0,0,0,0)');
+            v.addColorStop(1, 'rgba(0,0,0,0.45)');
+            g.fillStyle = v;
+            g.fillRect(0, 0, W, H);
+            vigCache = { c, key };
+        }
+        ctx.drawImage(vigCache.c, 0, 0, W, H);
     }
     
     function drawBullet(b) {
@@ -2622,18 +2653,20 @@ const SnakeGame = (() => {
     
     function tronBlocked(x, y) {
         if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return true;
+        if (tronGrid) return tronGrid.has(x * 64 + y);
         return snake.some(c => c.x === x && c.y === y) || tron.ai.some(c => c.x === x && c.y === y);
     }
+    let tronGrid = null; // karar boyunca izler değişmez: O(1) arama, string anahtar yok
     
     function floodCount(sx, sy) {
-        const seen = new Set([sx + ',' + sy]);
+        const seen = new Set([sx * 64 + sy]);
         const stack = [[sx, sy]];
         let n = 0;
-        while (stack.length && n < 400) {
+        while (stack.length && n < COLS * ROWS) {
             const [x, y] = stack.pop();
             n++;
             for (const d of DIRS4) {
-                const nx = x + d.x, ny = y + d.y, k = nx + ',' + ny;
+                const nx = x + d.x, ny = y + d.y, k = nx * 64 + ny;
                 if (seen.has(k) || tronBlocked(nx, ny)) continue;
                 seen.add(k);
                 stack.push([nx, ny]);
@@ -2659,6 +2692,9 @@ const SnakeGame = (() => {
             return src[Math.floor(Math.random() * src.length)].d;
         }
         let best = [], bestN = -Infinity;
+        tronGrid = new Set();
+        snake.forEach(c => tronGrid.add(c.x * 64 + c.y));
+        tron.ai.forEach(c => tronGrid.add(c.x * 64 + c.y));
         opts.forEach(o => {
             const nx = h.x + o.d.x, ny = h.y + o.d.y;
             let n = floodCount(nx, ny);
@@ -2667,6 +2703,7 @@ const SnakeGame = (() => {
             if (n > bestN) { bestN = n; best = [o]; }
             else if (n === bestN) best.push(o); // eşitlik: rastgele seç
         });
+        tronGrid = null;
         return best[Math.floor(Math.random() * best.length)].d;
     }
     
