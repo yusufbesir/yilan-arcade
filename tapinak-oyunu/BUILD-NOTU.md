@@ -27,3 +27,11 @@ sahip: Claude (PC derleme oturumu), [İP:TEZDENEME]
 
 - Yeni (hepsi menüde "Özellikler"den kapatılır): Tohum paylaş (ölüm ekranında kopyala, menüden "Tohumla Başla"), Hasar sayıları aç/kapa + boyut (Normal/Orta/Büyük), Son 5 saniye özeti (darbe kaynağı ve yön oku).
 - `node test/mantik.test.js`: 34 test. Exe boyutu/SHA256 derleme sonrası eklenecek.
+
+## 0.2.2 (2026-11-05)
+
+- Derleme: kaynak commit 748f227 (dal `claude/project-thread-4r8dz5`), `npm run dist` başarılı; `node test/mantik.test.js`: 34 test geçti.
+- Dosya: `D:\Programlar\Emberwake\Emberwake-Setup-0.2.2.exe`
+- Boyut: 121122561 bayt
+- SHA256: `767EDCF9101BB26533F1F063F3D83E1E5BAEEEE0703FBE26B4397C1AED5D6484`
+- Eski 0.2.1 exe `D:\Programlar\Emberwake\eski\` altına taşındı (silinmedi).
