@@ -14,7 +14,7 @@ const path = require('path');
   await page.evaluate(() => SnakeGame.toggleSound());
   const on = await page.textContent('#soundBtn');
   await browser.close();
-  const ok = off.includes('KAPALI') && kept.includes('KAPALI') && on.includes('AÇIK') && !errors.length;
+  const ok = /kapal[ıi]/i.test(off) && /kapal[ıi]/i.test(kept) && /a[çc][ıi]k/i.test(on) && !errors.length;
   console.log(off, '|', kept, '|', on, 'hatalar:', errors.length);
   if (!ok) { console.error('BAŞARISIZ'); process.exit(1); }
   console.log('GEÇTİ');

@@ -477,6 +477,7 @@ const SnakeGame = (() => {
             }
         }
         if (isOccupied(food.x, food.y) && obstacles.some(o => o.x === food.x && o.y === food.y)) spawnFood();
+        engelCesit();
         showGame();
         beginLoop();
         playSound('start');
@@ -515,6 +516,7 @@ const SnakeGame = (() => {
                 obstacles.push({ x: wx, y });
             }
         });
+        engelCesit();
         placePortals();
         spawnFood();
         showBanner('PORTALLARDAN GEÇ!');
@@ -647,6 +649,13 @@ const SnakeGame = (() => {
                 }
             }
         }
+        engelCesit(); // biyom engel çeşitleri (kendi tohumu; rand/Math.random tüketmez)
+    }
+
+    // Tema engel çeşitleri (src/engel.js): yalnız görsel/şekil; Bölüm'de ek küme/şerit, Günlük/Portal'da yalnız mevcut engeller etiketlenir
+    function engelCesit() {
+        if (typeof Engel === 'undefined') return;
+        Engel.uret(obstacles, { tema: Tema.etkin(state.mode, state.level), COLS, ROWS, yilan: snake, yem: food, hareketli: movingObs, seviye: state.level, ek: state.mode === 'campaign', tohum: state.mode === 'daily' ? state.dailyKey : null });
     }
     
     // ======================== GAME LOOP ========================
@@ -2873,7 +2882,7 @@ const SnakeGame = (() => {
     
     function refreshSoundBtn() {
         const b = document.getElementById('soundBtn');
-        if (b) b.textContent = soundOn ? '🔊 SES: AÇIK' : '🔇 SES: KAPALI';
+        if (b) b.innerHTML = ikon(soundOn ? 'sound' : 'soundoff') + (soundOn ? 'Ses: açık' : 'Ses: kapalı');
         if (!soundOn) stopMusic(); else if (state.running) startMusic();
     }
     
@@ -3004,7 +3013,7 @@ const SnakeGame = (() => {
             $('setVol').value = settings.vol; $('valVol').textContent = Math.round(settings.vol * 100) + '%';
             const tg = (id, on) => { $(id).textContent = on ? 'AÇIK' : 'KAPALI'; $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on ? 'true' : 'false'); };
             tg('setReduced', !!settings.reduced); tg('setShake', !!settings.shake); tg('setMusic', !!settings.music); tg('setBigHud', !!settings.bigHud); tg('setCb', !!settings.cb);
-            const mb = $('musicBtn'); if (mb) mb.textContent = settings.music ? '🎵 MÜZİK: AÇIK' : '🎵 MÜZİK: KAPALI';
+            const mb = $('musicBtn'); if (mb) mb.innerHTML = ikon('music') + (settings.music ? 'Müzik: açık' : 'Müzik: kapalı');
         }
     }
     function setSetting(k, v) {

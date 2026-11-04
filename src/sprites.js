@@ -25,7 +25,13 @@ const Sprites = (() => {
         });
     }
     function has(name) { return !!img[name]; }
-    function dprOf(ctx) { let d = 1; try { d = ctx.getTransform().a || 1; } catch (e) { d = 1; } return d; }
+    // Ölçek büyüklüğü (döndürülmüş bağlamda da: baş dönüşte döndürülür). Önbellek anahtarı
+    // kararlı kalsın diye 1/8'e yuvarlanır; yoksa her açı yeni bir küçültülmüş tuval üretirdi.
+    function dprOf(ctx) {
+        let d = 1;
+        try { const m = ctx.getTransform(); d = Math.hypot(m.a, m.b) || 1; } catch (e) { d = 1; }
+        return Math.max(0.125, Math.round(d * 8) / 8);
+    }
 
     // Kareyi hedef piksel boyuna yüksek kaliteyle indir (yarılayarak)
     // m.sc (varsa): sprite'a özgü çözünürlük (ör. düşmanlar 3 px = 1 mantıksal px)
