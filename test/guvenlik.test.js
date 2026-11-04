@@ -16,6 +16,15 @@ const fs = require('fs');
   // Tıklama yetkilendirmesi: gerçek tıklama ile kart oyunu başlatır, ayar düğmesi anahtarı çevirir, Tron 2P düğmesi oyunu başlatmaz
   await page.click('.mode-card.classic');
   const clicked = await page.evaluate(() => document.body.classList.contains('oyun-acik'));
+  // Dokunmatik dpad/ateş: pointerdown ile çalışır, CSP ihlali üretmez (satır içi ontouchstart/onpointerdown yok)
+  const dpad = await page.evaluate(() => {
+    window.__cspv = 0; document.addEventListener('securitypolicyviolation', () => window.__cspv++);
+    const dir0 = JSON.stringify(SnakeGame._debug.get().nextDir);
+    document.querySelector('.dpad-btn.up').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    document.getElementById('fireBtn').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    const dir1 = JSON.stringify(SnakeGame._debug.get().nextDir);
+    return { changed: dir0 !== dir1 && dir1 === '{"x":0,"y":-1}', cspv: window.__cspv, hasPress: document.getElementById('fireBtn').dataset.press === 'fire' };
+  });
   await page.evaluate(() => SnakeGame.showMenu());
   await page.click('#tron2pBtn');
   const tronBtn = await page.evaluate(() => SnakeGame.getSettings().tron2p === true && document.body.classList.contains('menu-acik'));
@@ -32,11 +41,11 @@ const fs = require('fs');
   await browser.close();
   const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
   const cspVal = html.match(/Content-Security-Policy" content="([^"]+)"/)[1];
-  const csp = /default-src 'self'/.test(cspVal) && !/script-src[^;]*unsafe-inline/.test(cspVal) && /object-src 'none'/.test(cspVal) && /base-uri 'none'/.test(cspVal) && !/\son(click|load|error|input|change)=/.test(html) && !/<script>/.test(html);
+  const csp = /default-src 'self'/.test(cspVal) && !/script-src[^;]*unsafe-inline/.test(cspVal) && /object-src 'none'/.test(cspVal) && /base-uri 'none'/.test(cspVal) && !/\son(click|load|error|input|change|touchstart|pointerdown|touchend|mousedown)=/.test(html) && !/<script>/.test(html);
   const main = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
   const shell = ['contextIsolation: true', 'nodeIntegration: false', 'sandbox: true', 'setPermissionRequestHandler', 'setWindowOpenHandler', "will-navigate", 'will-attach-webview', 'devTools: !app.isPackaged', 'new URL('].every(k => main.includes(k));
-  const ok = prod.dbg === 'undefined' && prod.ach === 'undefined' && prod.keys.length === 0 && prod.works && test.dbg === 'object' && test.ach === 'object' && clicked && tronBtn && shakeBtn && cspEnforced && sane && csp && shell && errors.length === 0;
-  console.log(JSON.stringify({ prod, test, clicked, tronBtn, shakeBtn, cspEnforced, sane, csp, shell, errors }));
+  const ok = prod.dbg === 'undefined' && prod.ach === 'undefined' && prod.keys.length === 0 && prod.works && test.dbg === 'object' && test.ach === 'object' && clicked && dpad.changed && dpad.cspv === 0 && dpad.hasPress && tronBtn && shakeBtn && cspEnforced && sane && csp && shell && errors.length === 0;
+  console.log(JSON.stringify({ prod, test, clicked, dpad, tronBtn, shakeBtn, cspEnforced, sane, csp, shell, errors }));
   console.log(ok ? 'GUVENLIK TEST: GECTI' : 'GUVENLIK TEST: KALDI');
   process.exit(ok ? 0 : 1);
 })();
