@@ -1913,6 +1913,9 @@ const SnakeGame = (() => {
         const key = e.key.toLowerCase();
         
         if (key === 'escape' && closeOpenPanel()) return;
+        // Panel açıkken oyun tuşları (M, yön, ateş) çalışmaz; odaktaki düğmede Boşluk/Enter düğmeyi tıklar
+        if (document.querySelector('.panel-overlay.active')) return;
+        if (key === ' ' && e.target && e.target.closest && e.target.closest('button')) return;
         if (key === 'p' || key === 'escape') {
             togglePause();
             return;
@@ -2038,7 +2041,7 @@ const SnakeGame = (() => {
     }
     
     function togglePause() {
-        if (state.over || state.complete) return;
+        if (!state.running || state.over || state.complete) return; // menüde (oyun başlamamışken) duraklatma yok
         state.paused = !state.paused;
         if (state.paused) pausePowerTimers(); else resumePowerTimers(); // güç süreleri duraklamada akmasın
         document.getElementById('pauseOverlay').classList.toggle('active', state.paused);
@@ -3345,7 +3348,7 @@ const SnakeGame = (() => {
         $('marketKul').textContent = Miras.kul;
         ['skin', 'tema'].forEach(k => {
             const b = $(k === 'tema' ? 'mkSekTema' : 'mkSekSkin');
-            if (b) { b.classList.toggle('on', marketSekme === k); b.setAttribute('aria-selected', marketSekme === k ? 'true' : 'false'); b.tabIndex = marketSekme === k ? 0 : -1; }
+            if (b) { b.classList.toggle('on', marketSekme === k); b.setAttribute('aria-selected', marketSekme === k ? 'true' : 'false'); b.tabIndex = 0; }
         });
         if (marketSekme === 'tema') { Market.onizleDurdur(); renderTemalar(); return; }
         const giyili = Market.equipped();
