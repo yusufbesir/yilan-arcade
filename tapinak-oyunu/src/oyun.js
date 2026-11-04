@@ -33,7 +33,7 @@
     const y = []; for (const k in TK.YETENEKLER) y.push((meta.yetenek[k] ? '✔ ' : '✖ ') + TK.YETENEKLER[k].ad + ': ' + TK.YETENEKLER[k].acik);
     $('mirasYet').innerHTML = ''; y.forEach(t => { const d = document.createElement('div'); d.textContent = t; $('mirasYet').append(d); });
   }
-  function basla() { s = TK.yeniKosu((Date.now() ^ (Math.random() * 1e9)) >>> 0, meta); goster(null); }
+  function basla() { Ses.baslat(); s = TK.yeniKosu((Date.now() ^ (Math.random() * 1e9)) >>> 0, meta); goster(null); }
   function bitis() {
     TK.mirasKaydet(depo, meta);
     const z = s.bitti === 'zafer';
@@ -68,6 +68,7 @@
     const k = e.key.toLowerCase();
     tus[k] = true;
     if (ekran === 'secim' && '123'.includes(k)) sec(+k - 1);
+    if (k === 'm') Ses.sessiz(!Ses.sessizMi());
     if (ekran !== 'oyun') return;
     if (k === ' ' || k === 'j') { girdiOlay.savur = true; e.preventDefault(); }
     if (k === 'e' || k === 'k') girdiOlay.koz = true;
@@ -78,14 +79,29 @@
   addEventListener('blur', () => { for (const k in tus) tus[k] = false; if (ekran === 'oyun') goster('duraklat'); });
   function fareKonum(e) { const r = tuval.getBoundingClientRect(); fare.x = (e.clientX - r.left) * 960 / r.width; fare.y = (e.clientY - r.top) * 620 / r.height; fare.hareket = performance.now(); }
   tuval.addEventListener('mousemove', fareKonum);
-  tuval.addEventListener('mousedown', e => { fareKonum(e); if (ekran !== 'oyun') return; if (e.button === 0) girdiOlay.savur = true; if (e.button === 2) girdiOlay.koz = true; });
+  tuval.addEventListener('mousedown', e => { Ses.baslat(); fareKonum(e); if (ekran !== 'oyun') return; if (e.button === 0) girdiOlay.savur = true; if (e.button === 2) girdiOlay.koz = true; });
   tuval.addEventListener('contextmenu', e => e.preventDefault());
 
+  const kolDurum = {};
+  function oyunKolu() { try { const l = navigator.getGamepads ? navigator.getGamepads() : []; for (const g of l) if (g && g.connected) return g; } catch (e) { /* kol yok */ } return null; }
   function girdiAl() {
     let mx = (tus['d'] || tus['arrowright'] ? 1 : 0) - (tus['a'] || tus['arrowleft'] ? 1 : 0);
     let my = (tus['s'] || tus['arrowdown'] ? 1 : 0) - (tus['w'] || tus['arrowup'] ? 1 : 0);
     const g = { mx, my, savur: girdiOlay.savur, koz: girdiOlay.koz, atilim: girdiOlay.atilim };
     girdiOlay.savur = girdiOlay.koz = girdiOlay.atilim = false;
+    const gp = oyunKolu();
+    if (gp) {
+      const d = v => Math.abs(v) > 0.25 ? v : 0;
+      if (d(gp.axes[0]) || d(gp.axes[1])) { g.mx = d(gp.axes[0]); g.my = d(gp.axes[1]); mx = g.mx; my = g.my; }
+      const bas = i => gp.buttons[i] && gp.buttons[i].pressed;
+      const kenar = (i) => { const y = bas(i), e = y && !kolDurum[i]; kolDurum[i] = y; return e; };
+      if (kenar(0) || kenar(7)) g.savur = true;
+      if (kenar(2) || kenar(5)) g.koz = true;
+      if (kenar(1) || kenar(4)) g.atilim = true;
+      if (kenar(9)) goster('duraklat');
+      if (d(gp.axes[2]) || d(gp.axes[3])) { g.hx = s.p.x + d(gp.axes[2]) * 3; g.hy = s.p.y + d(gp.axes[3]) * 3; if (mx || my) s.sonHareket = s.zaman; return g; }
+      if (mx || my) { g.hx = s.p.x + mx; g.hy = s.p.y + my; s.sonHareket = s.zaman; return g; }
+    }
     const w = Ciz.dunya(fare.x, fare.y);
     if (performance.now() - fare.hareket < 4000 || !(mx || my)) { g.hx = w.x; g.hy = w.y; }
     else { g.hx = s.p.x + mx; g.hy = s.p.y + my; }
@@ -102,6 +118,7 @@
         else if (s.bitti && ekran === 'oyun') bitis();
         Ciz.guncelle(dt);
       }
+      Ses.isle(s.olaylar);
       Ciz.ciz(c, s);
     } else { c.fillStyle = '#05030a'; c.fillRect(0, 0, 960, 620); }
     requestAnimationFrame(dongu);

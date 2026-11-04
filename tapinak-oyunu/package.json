@@ -1,0 +1,23 @@
+{
+  "name": "koz-tapinagi",
+  "version": "0.1.0",
+  "description": "Köz Tapınağı: 2.5D aksiyon oyunu",
+  "main": "main.js",
+  "author": "Yusuf",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/mantik.test.js",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": { "electron": "45.2.2", "electron-builder": "26.18.0" },
+  "build": {
+    "appId": "com.yusuf.koztapinagi",
+    "productName": "Köz Tapınağı",
+    "files": ["main.js", "index.html", "src/**/*", "package.json"],
+    "directories": { "output": "dist" },
+    "win": { "target": "nsis" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "perMachine": false, "deleteAppDataOnUninstall": false, "shortcutName": "Köz Tapınağı", "artifactName": "Koz-Tapinagi-Kurulum-${version}.exe" }
+  }
+}
