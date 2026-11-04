@@ -1172,12 +1172,12 @@
                 <!-- Touch Controls -->
                 <div class="touch-pad">
                     <div class="dpad">
-                        <button class="dpad-btn up" ontouchstart="SnakeGame.input(0,-1)" data-act="input" data-dx="0" data-dy="-1">▲</button>
-                        <button class="dpad-btn left" ontouchstart="SnakeGame.input(-1,0)" data-act="input" data-dx="-1" data-dy="0">◀</button>
+                        <button class="dpad-btn up" data-act="input" data-dx="0" data-dy="-1">▲</button>
+                        <button class="dpad-btn left" data-act="input" data-dx="-1" data-dy="0">◀</button>
                         <button class="dpad-btn center" data-act="togglePause">| |</button>
-                        <button class="dpad-btn fire" id="fireBtn" style="display:none" onpointerdown="SnakeGame.fire()">🔫</button>
-                        <button class="dpad-btn right" ontouchstart="SnakeGame.input(1,0)" data-act="input" data-dx="1" data-dy="0">▶</button>
-                        <button class="dpad-btn down" ontouchstart="SnakeGame.input(0,1)" data-act="input" data-dx="0" data-dy="1">▼</button>
+                        <button class="dpad-btn fire" id="fireBtn" style="display:none" data-press="fire">🔫</button>
+                        <button class="dpad-btn right" data-act="input" data-dx="1" data-dy="0">▶</button>
+                        <button class="dpad-btn down" data-act="input" data-dx="0" data-dy="1">▼</button>
                     </div>
                 </div>
             </div>

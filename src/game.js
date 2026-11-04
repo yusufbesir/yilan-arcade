@@ -134,6 +134,13 @@ const SnakeGame = (() => {
             if (act === 'input') { input(Number(el.dataset.dx), Number(el.dataset.dy)); return; }
             if (Object.prototype.hasOwnProperty.call(PUBLIC, act) && typeof PUBLIC[act] === 'function') PUBLIC[act]();
         });
+        // Dokunmatik yön/ateş: basar basmaz (click beklemeden); satır içi ontouchstart/onpointerdown CSP'ye takılıyordu
+        document.addEventListener('pointerdown', e => {
+            const el = e.target.closest('.dpad-btn[data-act="input"], [data-press="fire"]');
+            if (!el) return;
+            if (el.dataset.press === 'fire') { fire(); return; }
+            input(Number(el.dataset.dx), Number(el.dataset.dy));
+        });
         // Amblem yüklenemezse SVG logoya dön
         const em = document.getElementById('emblem');
         if (em) {
@@ -2768,7 +2775,7 @@ const SnakeGame = (() => {
         openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic,
         // Test API'si (_debug, _ach) yalnız ?test=1 ile açılan sayfada; paketli oyunda yok.
         ...(TEST_MODE ? { _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
-        _debug: { tick, get: () => ({ sv, gems, state, snake, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records }) } } : {})
+        _debug: { tick, get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records }) } } : {})
     };
     return PUBLIC;
 })();
