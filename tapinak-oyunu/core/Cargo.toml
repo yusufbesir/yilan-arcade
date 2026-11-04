@@ -1,6 +1,6 @@
 [package]
 name = "emberwake-core"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Emberwake oyun çekirdeği (tohumlu, deterministik)"
 license = "MIT"

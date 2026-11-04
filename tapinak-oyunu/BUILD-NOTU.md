@@ -1,5 +1,5 @@
-﻿---
-description: Emberwake 0.2.0 Windows kurulum exe derleme notu
+---
+description: Emberwake 0.2.1 Windows kurulum exe derleme notu
 sahip: Claude (PC derleme oturumu), [İP:TEZDENEME]
 ---
 # Emberwake 0.2.0 derleme notu (2026-11-04)
@@ -12,3 +12,9 @@ sahip: Claude (PC derleme oturumu), [İP:TEZDENEME]
 - `node test/mantik.test.js`: 23 test geçti
 - `win-unpacked\Emberwake.exe`: açıldı, menü düğmeleri (Koşuya Başla, Miras Sunağı, Nasıl Oynanır, Ses, Çıkış) ve canvas var; konsol/CSP hatası yok
 - `cargo test`: çalıştırılamadı, bu PC'de rustc/cargo kurulu değil
+
+## 0.2.1 (2026-11-04, özellik paketi)
+
+- Sürüm 0.2.0 → 0.2.1 (aynı adlı iki exe karışmasın diye). Hedef: `D:\Programlar\Emberwake\Emberwake-Setup-0.2.1.exe`; eski 0.2.0 exe'leri `D:\Programlar\Emberwake\eski\` altında, silinmez.
+- Yeni: Köz Sınavı, Köz Ocağı, Risk kapısı, Karşılık, Boss Provası, Sisli Oda Mührü, Armağan satışı, ölüm raporu, diyara özel şablon, biyoma özgü engel görünümü. Hepsi menüde "Özellikler"den kapatılır.
+- `node test/mantik.test.js`: 33 test geçti.
