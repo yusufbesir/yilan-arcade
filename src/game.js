@@ -83,7 +83,7 @@ const SnakeGame = (() => {
     let sv = { level: 1, xp: 0, need: 5, dmg: 1, cd: 10, multi: 1, magnet: 2.5, timer: 0, choosing: false, choices: [] };
     let banner = { text: '', until: 0 };
     let portals = [];
-    let tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0 };
+    let tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0, gaps: new Set(), gapN: 0 };
     let chaos = { rule: null, left: 0, next: 0, saved: 0 };
     let rand = Math.random;
     let particles = [];
@@ -95,7 +95,27 @@ const SnakeGame = (() => {
     const SYS_REDUCED = (() => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
     let REDUCED = SYS_REDUCED;
     const TEST_MODE = /[?&]test=1\b/.test(location.search);
-    let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true, bigHud: false, cb: false, tron2p: false };
+    let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true, bigHud: false, cb: false, tron2p: false, ek: {} };
+
+    // ======================== EK ÖZELLİKLER (geri alınabilir) ========================
+    // Her biri Ayarlar > Ek özellikler altında tek tek kapatılabilir; varsayılan açık. Kapalıyken oyun eski davranışıyla çalışır.
+    const EK_LISTE = [
+        ['donus', 'DÖNÜŞ TAMPONU', 'Bir tik içinde basılan iki ardışık tuş sıraya alınır'],
+        ['rekor', 'REKOR IŞILTISI', 'Her modda kendi rekorunu geçince kısa ışıltı ve uyarı'],
+        ['siyrilma', 'SIYRILMA ZİNCİRİ', 'Mermi Manyağı: 90 tik içinde art arda sıyrılma x2, x3 puan'],
+        ['zbonus', 'ZAMANLI BONUS YEM', 'Klasik: her 5 yemde kısa süreli yıldız yem, erken yenirse çok puan'],
+        ['zseri', 'SERİ YEM', 'Zamana Karşı: 2 sn içinde art arda 3 yem +1 sn'],
+        ['cekim', 'ÇEKİM YEMİ', 'Kaos: nadir mor yem, yenince yem 1 sn başa doğru kayar'],
+        ['kivrim', 'KIVRIM BONUSU', 'Günlük: son 3 hareket farklı yöndeyse yem x2'],
+        ['tizbos', 'İZ BOŞLUĞU', 'Tron: iz duvarında periyodik küçük geçit açılır'],
+        ['avpayi', 'AV PAYI', 'Kuyruk Silahı: her 3. vuruşta harcanan kuyruk halkası geri gelir'],
+        ['diken', 'GÖVDE DİKENİ', 'Hayatta Kalma: gövdeye değen düşman yavaş yavaş hasar alır'],
+        ['soguyan', 'SOĞUYAN PORTAL', 'Portal: kullanılan çift 8 tik uyur (solar), art arda sıçrama olmaz'],
+        ['par', 'SÜRE YILDIZI', 'Bölüm: hedefi hızlı bitirirsen yıldız +1 (en çok 3)'],
+        ['elit', 'ELİT SANDIK', 'Hayatta Kalma: her 20. öldürmede tam seviyelik altın elmas düşer'],
+    ];
+    const ek = id => settings.ek[id] !== false;
+    let turnQ = [];
     let tmHiz = 1;      // Tema kuralı: Bataklık çamurunda tik aralığı çarpanı
     let tmBekle = null; // Tema başlangıç afişi (mod afişi bitince 2 sn gösterilir)
     const effSpeed = () => Math.max(30, Math.round(state.speed * tmHiz * (state.calm > 0 ? 1 + Miras.value('sakin') : 1) / settings.speed)); // Miras: Sakin Başlangıç
@@ -162,6 +182,7 @@ const SnakeGame = (() => {
             const el = e.target.closest('[data-act]');
             if (!el) return;
             const act = el.dataset.act;
+            if (act === 'ekToggle') { ekSet(el.dataset.key, !ek(el.dataset.key)); return; }
             if (act === 'toggle') { setSetting(el.dataset.key, !settings[el.dataset.key]); return; }
             if (act === 'mirasBuy') { mirasBuy(el.dataset.id); return; }
             if (act === 'marketBuy') { marketBuy(el.dataset.id); return; }
@@ -538,10 +559,11 @@ const SnakeGame = (() => {
         const midY = Math.floor(ROWS / 2);
         snake = [{ x: 5, y: midY }, { x: 4, y: midY }, { x: 3, y: midY }];
         dir = { x: 1, y: 0 };
-        nextDir = { x: 1, y: 0 };
+        nextDir = { x: 1, y: 0 }; turnQ.length = 0;
         tron.ai = [{ x: COLS - 6, y: midY }, { x: COLS - 5, y: midY }, { x: COLS - 4, y: midY }];
         tron.aiDir = { x: -1, y: 0 };
         tron.p2Next = { x: -1, y: 0 };
+        tron.gaps = new Set(); tron.gapN = 0;
     }
     const TRON_HEDEF = 5; // 2 oyuncuda ilk 5 turu alan kazanır
     
@@ -577,7 +599,7 @@ const SnakeGame = (() => {
         ];
         
         dir = { x: 1, y: 0 };
-        nextDir = { x: 1, y: 0 };
+        nextDir = { x: 1, y: 0 }; turnQ.length = 0;
         
         obstacles = [];
         movingObs = [];
@@ -595,11 +617,12 @@ const SnakeGame = (() => {
         banner = { text: '', until: 0 };
         food = null;
         portals = [];
-        tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0 };
+        tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0, gaps: new Set(), gapN: 0 };
         chaos = { rule: null, left: 0, next: 120, saved: 0, pending: null, kisa: '' };
         state.timeLeft = 60;
-        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
+        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
         document.getElementById('hudTarget').classList.remove('ragnarok');
+        state.bolumTik = 0;
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
         
         powers = { shield: false, speed: false, invincible: false };
@@ -720,7 +743,12 @@ const SnakeGame = (() => {
             updateHUD();
         }
         
-        if (!Tema.kaymaBekle(dir, nextDir)) dir = { ...nextDir }; // Buzul: dönüş bir tik gecikir
+        if (state.mode === 'campaign') state.bolumTik++;
+        if (!Tema.kaymaBekle(dir, nextDir)) { // Buzul: dönüş bir tik gecikir
+            dir = { ...nextDir };
+            if (turnQ.length) { const q = turnQ.shift(); if (!(q.x === -dir.x && q.y === -dir.y)) nextDir = q; } // dönüş tamponu: sıradaki dönüş bir sonraki tikte
+        }
+        if (state.mode === 'daily') { state.yonler.push({ ...dir }); if (state.yonler.length > 3) state.yonler.shift(); }
         
         let head = {
             x: snake[0].x + dir.x,
@@ -728,9 +756,11 @@ const SnakeGame = (() => {
         };
         
         if (state.mode === 'portal') {
+            for (const p of portals) if (p.cool > 0) p.cool--; // soğuyan portal: kullanılan çift 8 tik uyur
             for (const p of portals) {
-                if (head.x === p.a.x && head.y === p.a.y) { head = { ...p.b }; playSound('powerup'); break; }
-                if (head.x === p.b.x && head.y === p.b.y) { head = { ...p.a }; playSound('powerup'); break; }
+                if (p.cool > 0 && ek('soguyan')) continue;
+                if (head.x === p.a.x && head.y === p.a.y) { head = { ...p.b }; playSound('powerup'); if (ek('soguyan')) p.cool = 8; break; }
+                if (head.x === p.b.x && head.y === p.b.y) { head = { ...p.a }; playSound('powerup'); if (ek('soguyan')) p.cool = 8; break; }
             }
         }
         
@@ -773,6 +803,7 @@ const SnakeGame = (() => {
         }
         
         temaAdim(head);
+        ekYemAdim(head);
         if (state.over) return;
         
         // Mode updates
@@ -847,7 +878,7 @@ const SnakeGame = (() => {
                 { x: 3, y: midY }
             ];
             dir = { x: 1, y: 0 };
-            nextDir = { x: 1, y: 0 };
+            nextDir = { x: 1, y: 0 }; turnQ.length = 0;
             
             // Temp invincibility
             powers.invincible = true;
@@ -899,8 +930,21 @@ const SnakeGame = (() => {
             state.istahAcc -= ek; pts += ek;
         }
         burst(food.x + 0.5, food.y + 0.5, food.type === 'super' ? '#ffdd00' : '#ffbf2e', food.type === 'super' ? 22 : 12);
+        if (state.mode === 'daily' && ek('kivrim') && state.yonler.length >= 3 && new Set(state.yonler.map(d => d.x + ',' + d.y)).size === 3) { // kıvrım: son 3 hareket 3 farklı yön
+            pts *= 2; showBanner('KIVRIM x2'); burst(food.x + 0.5, food.y + 0.5, '#7ad7ff', 14, 1.2);
+        }
         state.score += pts;
-        if (state.mode === 'timeattack') state.timeLeft += food.type === 'super' ? 5 : 2;
+        rekorKontrol();
+        state.yemSay++;
+        if (state.mode === 'classic' && ek('zbonus') && state.yemSay % 5 === 0 && !state.ekYem) ekYemUret('bonus', 56);
+        if (state.mode === 'timeattack') {
+            state.timeLeft += food.type === 'super' ? 5 : 2;
+            if (ek('zseri')) { // seri: 2 sn içinde art arda 3 yem +1 sn
+                const now = performance.now();
+                state.seri = now - state.sonYem <= 2000 ? state.seri + 1 : 1; state.sonYem = now;
+                if (state.seri >= 3) { state.seri = 0; state.timeLeft += 1; showBanner('SERİ! +1 sn'); }
+            }
+        }
         if (state.mode === 'portal' && state.score % 5 === 0) placePortals();
         if (state.mode === 'daily' && !state.pacerDone) {
             const dun = dunkuSkor();
@@ -917,6 +961,63 @@ const SnakeGame = (() => {
         spawnFood();
     }
     
+    // Rekor ışıltısı: kendi rekorunu (kayıtlıysa) bu oyunda ilk kez geçince; Günlük'ün dünkü skor çizgisi ayrıdır
+    function rekorKontrol() {
+        if (!ek('rekor') || state.rekorDone || state.mode === 'daily' || state.mode === 'tron') return;
+        const rk = records[state.mode];
+        if (typeof rk !== 'number' || rk <= 0 || state.score <= rk) return;
+        state.rekorDone = true;
+        showBanner('YENİ REKOR!', true, 1500, 'altin'); playSound('ach');
+        const h = snake[0]; burst(h.x + 0.5, h.y + 0.5, '#e8c46a', 28, 1.6);
+    }
+
+    // Ek yem: tek yuvalı, süreli (Klasik bonus yıldızı, Kaos çekim yemi); ana yemden bağımsız, sayacı bitince kendiliğinden kaybolur
+    function ekYemUret(tur, ms) {
+        const pos = findEmpty();
+        if (!pos || (food && pos.x === food.x && pos.y === food.y)) return;
+        state.ekYem = { x: pos.x, y: pos.y, left: ms, max: ms, tur };
+        showBanner(tur === 'bonus' ? 'BONUS YEM!' : 'ÇEKİM YEMİ!', false, 1200, 'soluk');
+    }
+    function ekYemAdim(head) {
+        if (state.cekimLeft > 0 && food) { // çekim: ana yem baş yönüne bir hücre kayar (boş hücreye)
+            state.cekimLeft--;
+            const dx = head.x - food.x, dy = head.y - food.y;
+            const st = Math.abs(dx) >= Math.abs(dy) ? { x: Math.sign(dx), y: 0 } : { x: 0, y: Math.sign(dy) };
+            const nx = food.x + st.x, ny = food.y + st.y;
+            if ((st.x || st.y) && !snake.some(c => c.x === nx && c.y === ny) && !obstacles.some(o => o.x === nx && o.y === ny)) { food.x = nx; food.y = ny; }
+        }
+        const e = state.ekYem;
+        if (!e) return;
+        if (head.x === e.x && head.y === e.y) {
+            state.ekYem = null;
+            if (e.tur === 'bonus') {
+                const p = 5 + Math.floor(e.left / 14); // erken yenirse 5..9
+                state.score += p; rekorKontrol(); updateHUD(); showBanner('BONUS +' + p, true, 1300, 'altin'); playSound('supereat');
+                burst(e.x + 0.5, e.y + 0.5, '#ffdd00', 24, 1.6);
+            } else {
+                state.cekimLeft = 8; showBanner('ÇEKİM!'); playSound('powerup'); burst(e.x + 0.5, e.y + 0.5, '#b07cff', 20, 1.4);
+            }
+            return;
+        }
+        if (--e.left <= 0) state.ekYem = null;
+    }
+    function drawEkYem() {
+        const e = state.ekYem;
+        if (!e) return;
+        const S = CONFIG.CELL, t = performance.now() / 1000, cx = e.x * S + S / 2, cy = e.y * S + S / 2, k = e.left / e.max;
+        if (e.tur === 'bonus' && G25()) G25().drawFood(ctx, { x: e.x, y: e.y, type: 'super' }, t, gfxOpts());
+        else {
+            const col = e.tur === 'bonus' ? '#ffdd00' : '#b07cff';
+            ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 14; ctx.fillStyle = col;
+            ctx.beginPath(); ctx.arc(cx, cy, 7 + Math.sin(t * 6) * 1.2, 0, Math.PI * 2); ctx.fill();
+            if (e.tur === 'cekim') { ctx.shadowBlur = 0; ctx.strokeStyle = '#ece0ff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, 11, 0, Math.PI * 2); ctx.stroke(); }
+            ctx.restore();
+        }
+        ctx.save(); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = e.tur === 'bonus' ? '#e8c46a' : '#b07cff';
+        ctx.globalAlpha = k < 0.25 && Math.floor(t * 8) % 2 ? 0.35 : 0.9;
+        ctx.beginPath(); ctx.arc(cx, cy, 15, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); ctx.stroke(); ctx.restore();
+    }
+
     function findEmpty() {
         for (let i = 0; i < 100; i++) {
             const pos = {
@@ -1009,7 +1110,13 @@ const SnakeGame = (() => {
             if (!b.grazed && Math.hypot(head.x - b.x, head.y - b.y) < 1.8) {
                 b.grazed = true;
                 if (!powers.invincible) {
-                    state.score += 1;
+                    let g = 1;
+                    if (ek('siyrilma')) { // zincir: 90 tik içinde art arda sıyrılma x2, x3 puan
+                        state.grazeChain = waveTick - state.grazeLast <= 90 ? state.grazeChain + 1 : 1;
+                        state.grazeLast = waveTick; g = Math.min(3, state.grazeChain);
+                        if (g > 1) showBanner('SIYRILMA x' + g);
+                    }
+                    state.score += g;
                     updateHUD();
                 }
             }
@@ -1371,6 +1478,9 @@ const SnakeGame = (() => {
             state.score += 2;
             updateHUD();
             playSound('eat');
+            if (ek('avpayi') && ++state.avSay % 3 === 0) { // av payı: her 3. vuruşta bir kuyruk halkası geri gelir
+                snake.push({ ...snake[snake.length - 1] }); showBanner('AV PAYI +1', false, 1000, 'soluk');
+            }
         });
         enemies = enemies.filter(e => e.hp > 0);
         
@@ -1466,10 +1576,14 @@ const SnakeGame = (() => {
         moveShots(enemy => {
             state.score += 2;
             updateHUD();
-            SvCore.addGem(gems, enemy.x, enemy.y); // 80 üstünde eski elmas XP'siyle birleşir, silinmez
+            if (ek('elit') && ++state.svKill % 20 === 0) { // elit sandık: tam seviyelik altın elmas
+                gems.push({ x: enemy.x, y: enemy.y, v: Math.max(1, sv.need - sv.xp), elit: true });
+                showBanner('ELİT SANDIK!', false, 1200, 'altin');
+            } else SvCore.addGem(gems, enemy.x, enemy.y); // 80 üstünde eski elmas XP'siyle birleşir, silinmez
         });
 
         SvCore.moveEnemies(enemies, head, espd);
+        if (ek('diken')) govdeDikeni();
 
         gems = SvCore.collectGems(gems, head, sv, levelUp, () => {
             document.getElementById('hudTarget').textContent = sv.xp + '/' + sv.need;
@@ -1485,6 +1599,21 @@ const SnakeGame = (() => {
         }
     }
     
+    // Gövde dikeni: baştan 3 halka sonrası gövdeye değen düşman tikte 0,2 hasar alır; ölürse elmas bırakır
+    function govdeDikeni() {
+        let oldu = false;
+        for (const e of enemies) {
+            if (e.hp <= 0) continue;
+            for (let i = 3; i < snake.length; i++) {
+                if (Math.abs(snake[i].x - e.x) < 0.75 && Math.abs(snake[i].y - e.y) < 0.75) {
+                    e.hp -= 0.2;
+                    if (e.hp <= 0) { oldu = true; state.score += 2; SvCore.addGem(gems, e.x, e.y); burst(e.x + 0.5, e.y + 0.5, '#7CFF6B', 6, 0.8); }
+                    break;
+                }
+            }
+        }
+        if (oldu) { enemies = enemies.filter(e => e.hp > 0); updateHUD(); }
+    }
     function levelUp() {
         SvCore.levelUpStats(sv, Math.random);
         document.getElementById('hudLevel').textContent = sv.level;
@@ -1517,10 +1646,12 @@ const SnakeGame = (() => {
     function drawSurvivorLayer() {
         const CELL = CONFIG.CELL;
         gems.forEach(g => {
-            ctx.shadowColor = '#7CFF6B';
-            ctx.shadowBlur = 8;
-            ctx.fillStyle = '#7CFF6B';
-            ctx.fillRect(g.x * CELL + 7, g.y * CELL + 7, 6, 6);
+            const ec = g.elit ? '#ffd45e' : '#7CFF6B';
+            ctx.shadowColor = ec;
+            ctx.shadowBlur = g.elit ? 16 : 8;
+            ctx.fillStyle = ec;
+            if (g.elit) { ctx.fillRect(g.x * CELL + 3, g.y * CELL + 3, 14, 14); ctx.fillStyle = '#fff6cf'; ctx.fillRect(g.x * CELL + 7, g.y * CELL + 7, 6, 6); } // büyük altın elmas
+            else ctx.fillRect(g.x * CELL + 7, g.y * CELL + 7, 6, 6);
             ctx.shadowBlur = 0;
         });
         drawTailgunLayer();
@@ -1828,6 +1959,8 @@ const SnakeGame = (() => {
         let stars = 1;
         if (ratio >= 1.35) stars = 3;
         else if (ratio >= 1.12) stars = 2;
+        const hizli = ek('par') && state.bolumTik <= state.target * 14; // süre yıldızı: par = hedef x 14 tik
+        if (hizli && stars < 3) stars++;
         
         // Save progress
         if (!progress.stars[state.level] || progress.stars[state.level] < stars) {
@@ -1843,8 +1976,8 @@ const SnakeGame = (() => {
         stopMusic();
         
         document.getElementById('starsDisplay').innerHTML = yildizlar(stars, 3);
-        document.getElementById('starsDisplay').setAttribute('aria-label', stars + ' yıldız');
-        document.getElementById('levelEndScore').textContent = state.score;
+        document.getElementById('starsDisplay').setAttribute('aria-label', stars + ' yıldız' + (hizli ? ', hızlı bitiriş' : ''));
+        document.getElementById('levelEndScore').textContent = state.score + (hizli ? ' ⚡' : '');
         mirasVer('kulMsgWin', true, true);
         document.getElementById('completeOverlay').classList.add('active');
     }
@@ -1986,6 +2119,12 @@ const SnakeGame = (() => {
     
     function steer(dx, dy) {
         if (chaos.rule === 'reverse') { dx = -dx; dy = -dy; }
+        const pending = nextDir.x !== dir.x || nextDir.y !== dir.y; // bu tik içinde zaten bir dönüş bekliyor
+        if (pending && ek('donus') && state.running && state.mode !== 'tron' && state.mode !== 'tapinak') {
+            const n = dx !== 0 ? { x: dx, y: 0 } : { x: 0, y: dy };
+            if (!(n.x === -nextDir.x && n.y === -nextDir.y) && !(n.x === nextDir.x && n.y === nextDir.y) && turnQ.length < 1) turnQ.push(n);
+            return;
+        }
         if (dx !== 0 && dir.x !== -dx) nextDir = { x: dx, y: 0 };
         if (dy !== 0 && dir.y !== -dy) nextDir = { x: 0, y: dy };
     }
@@ -2062,7 +2201,7 @@ const SnakeGame = (() => {
         portals.forEach(drawPortal);
         
         // Food
-        if (state.mode !== 'tron') drawFood();
+        if (state.mode !== 'tron') { drawFood(); drawEkYem(); }
         if (state.mode === 'tron') drawTronLayer();
         
         // Lasers, warnings, boss
@@ -2734,6 +2873,10 @@ const SnakeGame = (() => {
     }
 
     function drawPortal(p) {
+        if (p.cool > 0 && ek('soguyan')) { ctx.save(); ctx.globalAlpha = 0.3; drawPortalAsil(p); ctx.restore(); return; }
+        drawPortalAsil(p);
+    }
+    function drawPortalAsil(p) {
         if (G25()) { G25().drawPortal(ctx, p, performance.now() / 1000, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const t = performance.now() / 1000;
@@ -2773,6 +2916,11 @@ const SnakeGame = (() => {
 
     function drawTronLayer() {
         const S = CONFIG.CELL;
+        if (tron.gaps && tron.gaps.size) { // geçit işareti: izin üstünde soluk altın halka
+            ctx.save(); ctx.strokeStyle = 'rgba(232,196,106,0.85)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+            tron.gaps.forEach(k => { const [gx, gy] = k.split(',').map(Number); ctx.beginPath(); ctx.arc(gx * S + S / 2, gy * S + S / 2, 10, 0, Math.PI * 2); ctx.stroke(); });
+            ctx.restore();
+        }
         // Rakip yılan: kor/bakır renkli, aynı kesintisiz gövde diliyle
         ctx.lineCap = 'round';
         for (let i = tron.ai.length - 1; i >= 0; i--) {
@@ -2831,9 +2979,11 @@ const SnakeGame = (() => {
     // ======================== TRON ========================
     // Saf Tron YZ mantığı src/core/tron.js içinde (window.YilanCore.tron)
     const TronCore = window.YilanCore.tron;
-    function tronBlocked(x, y) { return TronCore.tronBlocked(x, y, COLS, ROWS, snake, tron.ai, null); }
+    // İz boşluğu: geçit hücreleri duvar sayılmaz (hem oyuncu hem YZ için; çekirdeğe filtrelenmiş diziler gider)
+    function tronArr(a) { return tron.gaps && tron.gaps.size ? a.filter(c => !tron.gaps.has(c.x + ',' + c.y)) : a; }
+    function tronBlocked(x, y) { return TronCore.tronBlocked(x, y, COLS, ROWS, tronArr(snake), tronArr(tron.ai), null); }
     function aiChooseDir() {
-        const args = { COLS, ROWS, snake, ai: tron.ai, aiDir: tron.aiDir, nextDir, wins: state.score };
+        const args = { COLS, ROWS, snake: tronArr(snake), ai: tronArr(tron.ai), aiDir: tron.aiDir, nextDir, wins: state.score };
         // Rust/wasm çekirdeği hazırsa onu kullan; yüklenmediyse ya da girdi geçersizse JS yedeği.
         const W = window.YilanCore.wasm;
         if (W) { const d = W.aiChooseDir(args, Math.random(), Math.random()); if (d) return d; }
@@ -2886,6 +3036,9 @@ const SnakeGame = (() => {
         if (aDead) { tronWin(); return; }
         snake.unshift(ph);
         tron.ai.unshift(ah);
+        if (ek('tizbos') && ++tron.gapN % 30 === 0 && snake.length > 8 && tron.ai.length > 8) { // her 30 tikte iki izde 2 hücrelik geçit
+            for (const a of [snake, tron.ai]) for (const i of [4, 5]) tron.gaps.add(a[i].x + ',' + a[i].y);
+        }
     }
     
     const CHAOS_KURALLAR = [
@@ -2898,6 +3051,7 @@ const SnakeGame = (() => {
     function tickChaos() {
         // Çürük yem tek yem olup oyunu kilitlemesin: 60 tik sonra normal yeme döner
         if (food && food.type === 'curuk' && ++food.age >= 60) food.type = 'normal';
+        if (ek('cekim') && !state.ekYem && Math.random() < 0.006) ekYemUret('cekim', 70);
         if (chaos.rule) {
             chaos.left--;
             if (chaos.left === 10) showBanner(chaos.kisa + ' BİTİYOR', false, 1200, 'soluk'); // bitiş ipucu
@@ -3052,6 +3206,7 @@ const SnakeGame = (() => {
             const bool = k => { if (typeof raw[k] === 'boolean') settings[k] = raw[k]; };
             num('speed', 0.7, 1.5); num('fx', 0, 1.5); num('vol', 0, 1);
             ['reduced', 'shake', 'music', 'bigHud', 'cb', 'tron2p'].forEach(bool);
+            if (raw.ek && typeof raw.ek === 'object') EK_LISTE.forEach(([id]) => { if (typeof raw.ek[id] === 'boolean') settings.ek[id] = raw.ek[id]; });
         } catch (e) {}
         applySettings();
     }
@@ -3071,9 +3226,20 @@ const SnakeGame = (() => {
             $('setVol').value = settings.vol; $('valVol').textContent = Math.round(settings.vol * 100) + '%';
             const tg = (id, on) => { $(id).textContent = on ? 'AÇIK' : 'KAPALI'; $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on ? 'true' : 'false'); };
             tg('setReduced', !!settings.reduced); tg('setShake', !!settings.shake); tg('setMusic', !!settings.music); tg('setBigHud', !!settings.bigHud); tg('setCb', !!settings.cb);
+            ekCiz();
             const mb = $('musicBtn'); if (mb) mb.innerHTML = ikon('music') + (settings.music ? 'Müzik: açık' : 'Müzik: kapalı');
         }
     }
+    function ekCiz() {
+        const kap = document.getElementById('ekRows');
+        if (!kap) return;
+        if (!kap.dataset.cizildi) {
+            kap.innerHTML = EK_LISTE.map(([id, ad, acik]) => '<div class="row"><label>' + ad + '<small>' + acik + '</small></label><button class="toggle" id="ek_' + id + '" data-act="ekToggle" data-key="' + id + '">AÇIK</button></div>').join('');
+            kap.dataset.cizildi = '1';
+        }
+        EK_LISTE.forEach(([id]) => { const b = document.getElementById('ek_' + id), on = ek(id); if (b) { b.textContent = on ? 'AÇIK' : 'KAPALI'; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); } });
+    }
+    function ekSet(id, on) { settings.ek[id] = !!on; setSetting('ek', settings.ek); }
     function setSetting(k, v) {
         settings[k] = v;
         try { localStorage.setItem('twilightSettings', JSON.stringify(settings)); } catch (e) {}

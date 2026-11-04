@@ -94,6 +94,7 @@ const path = require('path');
       await wait(150);
       o.slotSteer = eq(nd(), want);
       // Kol çıkıp geri gelince hâlâ basılı tuş yeniden tetiklenir (boş yuvanın eski durumu silinir)
+      SnakeGame.setSetting('ek', { donus: false }); // bu bölüm 'son tuş kazanır' davranışını sınar (tampon kapalı)
       D.tick(); // dir = want
       key(horiz ? 'ArrowUp' : 'ArrowLeft'); // want'a dik, geçerli
       const perp = nd();
