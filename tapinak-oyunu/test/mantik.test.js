@@ -258,4 +258,12 @@ ok('Armağan eşleşmeleri: Tılsım+Kül Emici açlık doldurur, Alev+Çember y
   TK.dusmanHasar(s, e2, 99, 0); assert.ok(s.p.aclik > 50 && s.p.susuz > 50);
   assert.strictEqual(TK.ESLESME.length, 3);
 });
+ok('Miras: Pazarlık Ustası pazar fiyatını düşürür, kayıt doğrulanır', () => {
+  const m0 = TK.mirasBos(), m3 = TK.mirasBos(); m3.seviye.pazar = 3;
+  const f = m => TK.odaUret(9, 'pazar', 6, m, null).nesneler.filter(n => n.tur === 'raf').map(n => n.fiyat);
+  const a = f(m0), b = f(m3);
+  assert.ok(a.length === 4 && a.every((v, i) => b[i] < v));
+  const d = depo(); d.setItem(TK.KEY, JSON.stringify({ kul: 5, seviye: { pazar: 99 } }));
+  assert.strictEqual(TK.mirasYukle(d).seviye.pazar, 0);
+});
 console.log(n + ' test geçti');

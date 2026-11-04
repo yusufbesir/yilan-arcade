@@ -67,6 +67,7 @@
     koz: { ad: 'Çifte Köz', acik: '+1 köz yükü', maks: 2, maliyet: n => 80 + 80 * n },
     ilk: { ad: 'İlk Armağan', acik: 'Koşuya rastgele Armağanla başla', maks: 2, maliyet: n => 90 + 110 * n },
     sans: { ad: 'İkinci Şans', acik: 'Ölünce bir kez %40 canla dön', maks: 1, maliyet: () => 220 },
+    pazar: { ad: 'Pazarlık Ustası', acik: 'Pazar fiyatları %8 ucuz', maks: 3, maliyet: n => 40 + 30 * n },
     iase: { ad: 'Dayanıklı Mide', acik: 'Açlık ve susuzluk %15 yavaş', maks: 3, maliyet: n => 45 + 35 * n }
   };
   const YETENEKLER = {
@@ -262,7 +263,7 @@
     if (tur === 'dinlenme') { oda.nesneler.push({ tur: 'cesme', x: 9, y: 6.5, aktif: true }); oda.nesneler.push({ tur: 'ziyafet', x: 13, y: 6.5, aktif: true }); }
     if (tur === 'pazar') {
       const r2 = [['sifa', 'Şifa', 30], ['yem', 'Yemek ve su', 20], ['armagan', 'Armağan', 70], ['koz', '+1 köz yükü', 55]];
-      r2.forEach((u, i) => oda.nesneler.push({ tur: 'raf', alt: u[0], ad: u[1], fiyat: u[2] + Math.floor(derinlik * 2), x: 6 + i * 3.4, y: 6.5, aktif: true }));
+      r2.forEach((u, i) => oda.nesneler.push({ tur: 'raf', alt: u[0], ad: u[1], fiyat: Math.max(1, Math.round((u[2] + Math.floor(derinlik * 2)) * (1 - 0.08 * ((meta && meta.seviye && meta.seviye.pazar) || 0)))), x: 6 + i * 3.4, y: 6.5, aktif: true }));
     }
     if (derinlik < SON_DERINLIK) for (const x of KAPI_X) g[0][x] = T.KAPIK;
     if (tur === 'savas' || tur === 'elit') {
