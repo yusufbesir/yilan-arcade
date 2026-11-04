@@ -1023,6 +1023,18 @@
     .hud-value.high { color: var(--nors-buz); }
     .hud-value.level { color: #7fe0d0; }
     .hud-value.target { color: #ffb86b; }
+    .copy-satir { margin: 0 0 6px; text-align: center; }
+    .copy-btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 9px; letter-spacing: 1px; padding: 8px 12px; min-height: 36px; background: var(--yuzey-hafif); border: 1px solid var(--nors-cizgi); color: #d6e4ef; border-radius: 6px; cursor: pointer; }
+    .copy-btn:hover, .copy-btn:focus-visible { border-color: rgba(169, 214, 240, 0.55); color: #fff; }
+    .copy-btn .ik { width: 14px; height: 14px; }
+    #copyHint { margin: 4px 0; font-size: 8px; } #copyHint:empty { display: none; }
+    /* Ragnarök dakikası: kırmızı + çapraz tarama + alev ikonu + "x2" (renk yalnız ipucu değil); renk körü: kızıl turuncu; reduced: nabız yok */
+    .hud-value.target.ragnarok { color: #ff5a4a; background: repeating-linear-gradient(135deg, rgba(255, 90, 74, 0.14) 0 3px, transparent 3px 7px); border-radius: 4px; padding: 0 4px; animation: ragNabiz 0.8s ease-in-out infinite alternate; }
+    .hud-value.target.ragnarok b { font-weight: 700; margin-left: 4px; }
+    .hud-value.target.ragnarok .ik { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; fill: currentColor; }
+    html.cb .hud-value.target.ragnarok { color: #D55E00; background: repeating-linear-gradient(135deg, rgba(213, 94, 0, 0.2) 0 3px, transparent 3px 7px); }
+    @keyframes ragNabiz { from { opacity: 0.8; } to { opacity: 1; } }
+    html.reduced .hud-value.target.ragnarok { animation: none; }
     .hud-value.target.gecildi { color: #00ff66; } /* gunluk.test: dünkü skor geçildi = saf yeşil */
     .hud-value.lives { display: flex; align-items: center; gap: 4px; min-height: 19px; text-shadow: none; }
     .hud-value .kalp { width: 16px; height: 16px; color: #ff6f8e; vertical-align: 0; filter: drop-shadow(0 0 4px rgba(255, 111, 142, 0.5)); }
@@ -1487,6 +1499,7 @@
             <symbol id="i-fire" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></g></symbol>
             <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 
+            <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><rect x="8.500" y="8.500" width="11.500" height="12" rx="2"/><path d="M15.500 5.500V5a2 2 0 00-2-2H6a2 2 0 00-2 2v9.500a2 2 0 002 2h.5"/></g></symbol>
             <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.500l13 7.500-13 7.500z"/></symbol>
             <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 8.500V13l3 2M9.500 3h5"/></g></symbol>
             <symbol id="i-gem" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><path d="M6.500 4h11l4 5.500L12 21 2.500 9.500z"/><path d="M2.500 9.500h19M9 4L7 9.500 12 21l5-11.500L15 4"/></g></symbol>
@@ -1683,6 +1696,8 @@
                                 <p class="overlay-message kul-msg" id="kulMsg"></p>
                                 <p class="overlay-message market-msg" id="kulMsgMarket"></p>
                                 <ol class="top-list" id="topList"></ol>
+                                <div class="copy-satir"><button class="copy-btn" id="copyBtn" data-act="kopyalaSonuc" style="display:none"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-copy"/></svg><span>Sonucu kopyala</span></button></div>
+                                <p class="overlay-message" id="copyHint" role="status" aria-live="polite"></p>
                                 <div class="overlay-buttons">
                                     <button class="overlay-btn primary" data-act="restart"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-retry"/></svg><span>TEKRAR</span></button>
                                     <button class="overlay-btn secondary" data-act="showMenu"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>MENÜ</span></button>
