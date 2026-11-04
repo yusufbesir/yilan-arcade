@@ -1,0 +1,93 @@
+{
+ "sira": [
+  "keskin",
+  "ruzgar",
+  "kalp",
+  "bilek",
+  "alev",
+  "golge",
+  "kivilcim",
+  "kan",
+  "cember",
+  "tilsim"
+ ],
+ "tablo": {
+  "keskin": {
+   "ad": "Parlak Keskinlik",
+   "acik": "Kılıç hasarı +%20",
+   "renk": "#ff7a5c",
+   "ic": "K"
+  },
+  "ruzgar": {
+   "ad": "Rüzgâr Ayağı",
+   "acik": "Hareket hızı +%12",
+   "renk": "#8de3ff",
+   "ic": "R"
+  },
+  "kalp": {
+   "ad": "Köz Kalbi",
+   "acik": "+25 azami can ve iyileşme",
+   "renk": "#ff5d8f",
+   "ic": "C"
+  },
+  "bilek": {
+   "ad": "Çevik Bilek",
+   "acik": "Savurma %15 daha hızlı",
+   "renk": "#ffd86b",
+   "ic": "B"
+  },
+  "alev": {
+   "ad": "Alev İzi",
+   "acik": "Vuruşlar yakar (3 sn)",
+   "renk": "#ff9a3c",
+   "ic": "A"
+  },
+  "golge": {
+   "ad": "Gölge Adımı",
+   "acik": "Atılım değdiğine hasar verir",
+   "renk": "#b69cff",
+   "ic": "G"
+  },
+  "kivilcim": {
+   "ad": "Kıvılcım",
+   "acik": "Köz atışı +1 yük, delip geçer",
+   "renk": "#7fffd4",
+   "ic": "V"
+  },
+  "kan": {
+   "ad": "Kül Emici",
+   "acik": "Her öldürmede 2 can",
+   "renk": "#e07bff",
+   "ic": "E"
+  },
+  "cember": {
+   "ad": "Köz Çemberi",
+   "acik": "Etrafında dönen köz küreleri yakar",
+   "renk": "#ffb35a",
+   "ic": "Ç"
+  },
+  "tilsim": {
+   "ad": "Kurt Tılsımı",
+   "acik": "Açlık ve susuzluk %25 yavaşlar",
+   "renk": "#9dffb0",
+   "ic": "T"
+  }
+ },
+ "eslesme": [
+  [
+   "alev",
+   "cember",
+   "Küreler yakar"
+  ],
+  [
+   "tilsim",
+   "kan",
+   "Öldürmede açlık ve su dolar"
+  ],
+  [
+   "golge",
+   "kivilcim",
+   "Atılımla vurunca +1 köz yükü"
+  ]
+ ]
+}

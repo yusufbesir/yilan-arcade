@@ -16,7 +16,7 @@ Karar (Yusuf, 2026-11-04): motor Godot 4, mantık Rust, üst katman ve araçlar 
 | 0 | Araçlar | Godot 4.7.2, Rust, MSVC | bitti |
 | 1 | Oda/dalga üretimi Rust'ta | JS ile 21.840 odada parite | bitti |
 | 2 | Godot önizleme | gdext köprüsü, oda 2.5D çizimi | bitti |
-| 3 | Veri tabloları Rust'ta | düşman, Armağan, Mühür, Miras, biyom tabloları + Python doğrulayıcı | sıradaki |
+| 3 | Veri tabloları Rust'ta | düşman, Armağan, Mühür, Miras, biyom tabloları + Python doğrulayıcı | bitti (core/data, tools/export-data.js, tools/dogrula.py) |
 | 4 | Savaş çekirdeği | oyuncu hareketi, vuruş, atılım, köz, çarpışma, mermi; adım(dt) JS ile aynı sonuç (bot koşusu paritesi) | |
 | 5 | Düşman yapay zekâsı | 12 tür + 3 boss, elit etkiler | |
 | 6 | Koşu döngüsü | kapılar, odalar, açlık/susuzluk, Pazar, Armağan seçimi, Miras, Günlük Koşu | |

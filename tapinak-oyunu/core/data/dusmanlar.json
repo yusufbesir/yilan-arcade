@@ -1,0 +1,162 @@
+{
+ "draugr": {
+  "ad": "Draugr",
+  "hp": 30,
+  "hiz": 2.5,
+  "r": 0.42,
+  "kul": 4,
+  "temas": 10,
+  "ai": "kovala"
+ },
+ "kurt": {
+  "ad": "Fenrir Yavrusu",
+  "hp": 22,
+  "hiz": 2.4,
+  "r": 0.4,
+  "kul": 5,
+  "temas": 10,
+  "ai": "atilgan",
+  "atilim": 9.5
+ },
+ "seidr": {
+  "ad": "Seidr Cadısı",
+  "hp": 24,
+  "hiz": 1.9,
+  "r": 0.42,
+  "kul": 6,
+  "temas": 6,
+  "ai": "nisanci"
+ },
+ "kargaci": {
+  "ad": "Hugin Kuzgunu",
+  "hp": 14,
+  "hiz": 3.4,
+  "r": 0.32,
+  "kul": 5,
+  "temas": 8,
+  "ai": "cirpinan",
+  "ucar": true
+ },
+ "buzdev": {
+  "ad": "Buz Devi",
+  "hp": 70,
+  "hiz": 1.5,
+  "r": 0.62,
+  "kul": 12,
+  "temas": 18,
+  "ai": "devasa"
+ },
+ "albasti": {
+  "ad": "Albastı",
+  "hp": 34,
+  "hiz": 2.1,
+  "r": 0.42,
+  "kul": 9,
+  "temas": 12,
+  "ai": "isinlan"
+ },
+ "demirkurt": {
+  "ad": "Demir Bozkurt",
+  "hp": 42,
+  "hiz": 2.7,
+  "r": 0.5,
+  "kul": 8,
+  "temas": 14,
+  "ai": "atilgan",
+  "atilim": 10.5,
+  "uluma": true
+ },
+ "kor": {
+  "ad": "Kor Cini",
+  "hp": 18,
+  "hiz": 3.3,
+  "r": 0.36,
+  "kul": 6,
+  "temas": 6,
+  "ai": "patlayan"
+ },
+ "demirci": {
+  "ad": "Kalkanlı Demirci",
+  "hp": 75,
+  "hiz": 1.6,
+  "r": 0.55,
+  "kul": 12,
+  "temas": 16,
+  "ai": "kalkanli"
+ },
+ "yilan": {
+  "ad": "Şahmaran Yavrusu",
+  "hp": 16,
+  "hiz": 3,
+  "r": 0.34,
+  "kul": 3,
+  "temas": 7,
+  "ai": "surunen"
+ },
+ "kok": {
+  "ad": "Tamu Kökü",
+  "hp": 40,
+  "hiz": 0,
+  "r": 0.5,
+  "kul": 8,
+  "temas": 0,
+  "ai": "kok"
+ },
+ "golge": {
+  "ad": "Tamu Gölgesi",
+  "hp": 36,
+  "hiz": 2.3,
+  "r": 0.42,
+  "kul": 10,
+  "temas": 10,
+  "ai": "golge"
+ },
+ "hrolf": {
+  "ad": "Kral Hrolf",
+  "hp": 560,
+  "hiz": 1.7,
+  "r": 0.95,
+  "kul": 120,
+  "temas": 20,
+  "ai": "boss",
+  "boss": true,
+  "saldiri": [
+   "hamle",
+   "halka",
+   "buz",
+   "cagri"
+  ]
+ },
+ "tepegoz": {
+  "ad": "Tepegöz",
+  "hp": 820,
+  "hiz": 1.5,
+  "r": 1.1,
+  "kul": 160,
+  "temas": 24,
+  "ai": "boss",
+  "boss": true,
+  "saldiri": [
+   "hamle",
+   "tas",
+   "zemin",
+   "cagri"
+  ]
+ },
+ "erlik": {
+  "ad": "Erlik Han",
+  "hp": 1100,
+  "hiz": 1.9,
+  "r": 1,
+  "kul": 260,
+  "temas": 24,
+  "ai": "boss",
+  "boss": true,
+  "saldiri": [
+   "halka",
+   "tuzak",
+   "hamle",
+   "cagri"
+  ]
+ }
+}

@@ -1,0 +1,27 @@
+{
+ "sert": {
+  "ad": "Demir Postal",
+  "acik": "Düşman canı +%25",
+  "bonus": 0.15
+ },
+ "hizli": {
+  "ad": "Hızlı Ordu",
+  "acik": "Düşman hızı +%15",
+  "bonus": 0.15
+ },
+ "kitlik": {
+  "ad": "Kıtlık",
+  "acik": "Açlık/susuzluk %60 hızlı, az yiyecek",
+  "bonus": 0.2
+ },
+ "kral": {
+  "ad": "Kor Kral",
+  "acik": "Boss canı +%30 ve daha hırçın",
+  "bonus": 0.2
+ },
+ "cimri": {
+  "ad": "Cimri Kader",
+  "acik": "Pazar ve dinlenme odası çıkmaz",
+  "bonus": 0.25
+ }
+}

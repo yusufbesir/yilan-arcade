@@ -132,6 +132,11 @@ const BIYOMLAR: [Biyom; 3] = [
     Biyom { kucuk: &["kor", "demirkurt", "kurt"], menzil: &["kargaci", "seidr"], agir: &["demirci"], ozel: &["albasti"], boss: "tepegoz" },
     Biyom { kucuk: &["yilan", "draugr", "kor"], menzil: &["golge", "seidr"], agir: &["demirci", "buzdev"], ozel: &["kok", "albasti"], boss: "erlik" },
 ];
+/// Veri paritesi testi için: (küçük, menzil, ağır, özel, boss).
+pub fn biyom_havuzu(i: usize) -> (Vec<&'static str>, Vec<&'static str>, Vec<&'static str>, Vec<&'static str>, &'static str) {
+    let b = &BIYOMLAR[i];
+    (b.kucuk.to_vec(), b.menzil.to_vec(), b.agir.to_vec(), b.ozel.to_vec(), b.boss)
+}
 const ETKILER: [&str; 4] = ["hizli", "zirh", "bolen", "vampir"];
 const KADROLAR: [&str; 5] = ["karisik", "surunu", "nisanci", "agir", "pusu"];
 

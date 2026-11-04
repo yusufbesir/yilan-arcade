@@ -1,0 +1,83 @@
+{
+ "zirh": {
+  "ad": "Sağlam Kemik",
+  "acik": "+10 azami can",
+  "maks": 5,
+  "maliyet": [
+   30,
+   55,
+   80,
+   105,
+   130
+  ]
+ },
+ "guc": {
+  "ad": "Demir Bilek",
+  "acik": "+%8 hasar",
+  "maks": 5,
+  "maliyet": [
+   40,
+   70,
+   100,
+   130,
+   160
+  ]
+ },
+ "kul": {
+  "ad": "Kül Hasadı",
+  "acik": "+%15 Kül kazancı",
+  "maks": 4,
+  "maliyet": [
+   50,
+   90,
+   130,
+   170
+  ]
+ },
+ "koz": {
+  "ad": "Çifte Köz",
+  "acik": "+1 köz yükü",
+  "maks": 2,
+  "maliyet": [
+   80,
+   160
+  ]
+ },
+ "ilk": {
+  "ad": "İlk Armağan",
+  "acik": "Koşuya rastgele Armağanla başla",
+  "maks": 2,
+  "maliyet": [
+   90,
+   200
+  ]
+ },
+ "sans": {
+  "ad": "İkinci Şans",
+  "acik": "Ölünce bir kez %40 canla dön",
+  "maks": 1,
+  "maliyet": [
+   220
+  ]
+ },
+ "pazar": {
+  "ad": "Pazarlık Ustası",
+  "acik": "Pazar fiyatları %8 ucuz",
+  "maks": 3,
+  "maliyet": [
+   40,
+   70,
+   100
+  ]
+ },
+ "iase": {
+  "ad": "Dayanıklı Mide",
+  "acik": "Açlık ve susuzluk %15 yavaş",
+  "maks": 3,
+  "maliyet": [
+   45,
+   80,
+   115
+  ]
+ }
+}

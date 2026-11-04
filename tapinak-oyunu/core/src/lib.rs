@@ -2,6 +2,7 @@
 
 /// mulberry32: `src/mantik.js` içindeki `mulberry(a)` ile aynı sayı dizisini üretir.
 pub mod oda;
+pub mod veri;
 
 pub struct Rng {
     a: u32,
