@@ -1301,6 +1301,11 @@
     .dpad-btn.center:active { background: var(--nors-altin); color: var(--altin-ink); }
     .dpad-btn.fire { border-color: rgba(255, 143, 154, 0.5); color: var(--gul); }
     .dpad-btn.fire:active { background: var(--gul); color: #2a0a10; }
+    /* Tapınak Atılım düğmesi: yalnız Tapınak'ta; yetenek öğrenilene dek soluk */
+    .dpad-btn.atil { grid-column: 1; grid-row: 3; display: none; border-color: rgba(127, 227, 255, 0.55); color: #7fe3ff; }
+    body[data-mod="tapinak"] .dpad-btn.atil { display: flex; align-items: center; justify-content: center; }
+    body[data-mod="tapinak"][data-atilim="0"] .dpad-btn.atil { opacity: 0.4; }
+    .dpad-btn.atil:active { background: #7fe3ff; color: #0a1220; }
 
     /* ---------- Duyarlılık ---------- */
     @media (max-width: 700px) {
@@ -1401,7 +1406,8 @@
     .modes-wrap .mi-sag { flex-direction: column; align-items: flex-end; gap: 4px; }
     #modesScreen { width: min(94vw, 860px); }
     .mod-grup h3 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 18px; color: #e8c46a; letter-spacing: 2px; margin: 0 0 8px 4px; padding-bottom: 6px; border-bottom: 1px solid rgba(232,196,106,0.25); }
-    .mod-izgara { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 8px; }
+    .mod-izgara { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 8px; }
+    .mod-izgara > *, .modes-wrap .mode-card { min-width: 0; }
     .modes-wrap .mi-tx b { font-size: 18px; }
     .modes-wrap .mode-card .tron-2p { font-family: var(--serif); font-size: 11px; padding: 3px 8px; }
     @media (max-width: 520px) { .menu-container .menu-actions { grid-template-columns: repeat(2, 1fr); } .mi-tx b { font-size: 19px; } .menu-container .mode-card.classic .mi-tx b { font-size: 28px; } }
@@ -1470,6 +1476,7 @@
             <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/></symbol>
             <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/></symbol>
             <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="3.200" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+            <symbol id="i-dash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h6M2 12h8M3 16h6"/><path d="M12 6l7 6-7 6V6z"/></g></symbol>
             <symbol id="i-fire" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></g></symbol>
             <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 
@@ -1702,6 +1709,7 @@
                         <button class="dpad-btn left" data-act="input" data-dx="-1" data-dy="0" aria-label="Sol"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-chev-left"/></svg></button>
                         <button class="dpad-btn center" data-act="togglePause" aria-label="Duraklat"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-pause"/></svg></button>
                         <button class="dpad-btn fire" id="fireBtn" style="display:none" data-press="fire" aria-label="Ateş"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-fire"/></svg></button>
+                        <button class="dpad-btn atil" id="atilBtn" data-press="atil" aria-label="Atılım"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-dash"/></svg></button>
                         <button class="dpad-btn right" data-act="input" data-dx="1" data-dy="0" aria-label="Sağ"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-chev-right"/></svg></button>
                         <button class="dpad-btn down" data-act="input" data-dx="0" data-dy="1" aria-label="Aşağı"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-chev-down"/></svg></button>
                     </div>
