@@ -857,6 +857,28 @@ const Gfx25 = (() => {
         return true;
     }
 
+    // 0.9.4: 'color' karışımı gözü ve dili de boyuyordu; özgün sprite'tan göz (sarı) ve dil (kırmızı/pembe)
+    // pikselleri skin renginden bağımsız geri çizilir. Okunamazsa (tuval kirli) eski davranış kalır.
+    function gozDilKoru(g, hn, fr, k, ox, oy, w, h) {
+        try {
+            const t = document.createElement('canvas');
+            t.width = Math.max(1, Math.ceil(w * dpr)); t.height = Math.max(1, Math.ceil(h * dpr));
+            const tg = t.getContext('2d');
+            tg.scale(dpr, dpr); tg.translate(ox, oy);
+            Sprites.draw(tg, hn, fr, 0, 0, k);
+            const im = tg.getImageData(0, 0, t.width, t.height), d = im.data;
+            for (let i = 0; i < d.length; i += 4) {
+                const r = d[i], gr = d[i + 1], b = d[i + 2], a = d[i + 3];
+                const goz = a > 0 && r > 170 && gr > 150 && b < 0.7 * gr && r > b + 60;       // sarı göz
+                const dil = a > 0 && r > 190 && gr < 0.55 * r && b < 0.85 * r && r - gr > 90;  // kırmızı/pembe dil
+                if (!goz && !dil) d[i + 3] = 0;
+            }
+            tg.setTransform(1, 0, 0, 1, 0, 0);
+            tg.putImageData(im, 0, 0);
+            g.drawImage(t, -ox, -oy, w, h);
+        } catch (e) { /* eski davranış */ }
+    }
+
     // Kostüm baş sprite'ı: pişmiş başın parlaklığı korunur, renk tonu kostümden gelir
     function skinHeadSprite(skin, hn, fr) {
         try {
@@ -872,6 +894,7 @@ const Gfx25 = (() => {
                 g.globalCompositeOperation = 'destination-in';
                 Sprites.draw(g, hn, fr, 0, 0, k);
                 g.globalCompositeOperation = 'source-over';
+                gozDilKoru(g, hn, fr, k, ox, oy, w, h);
             });
         } catch (e) { return null; }
     }

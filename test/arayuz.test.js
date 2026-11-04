@@ -78,7 +78,7 @@ const assert = require('assert');
       for (let i = 0; i < 400 && !g.state.over; i++) { SnakeGame.input(-1, 0); D.tick(); SnakeGame.input(1, 0); D.tick(); }
       const ov = document.getElementById('gameoverOverlay'), box = ov.querySelector('.overlay-box'), cv = document.getElementById('gameCanvas').getBoundingClientRect(), br = box.getBoundingClientRect();
       const btn = [...ov.querySelectorAll('.overlay-btn')].map(b => { const r = b.getBoundingClientRect(); return r.width > 0 && r.bottom <= cv.bottom + 1 && r.height >= 36; });
-      return { acik: ov.classList.contains('active'), kul: /^🔥 \+\d+ KÜL$/.test(document.getElementById('kulMsg').textContent) && getComputedStyle(document.getElementById('kulMsg')).display !== 'none', btn: btn.length === 2 && btn.every(Boolean), sig: br.top >= cv.top - 1 && br.bottom <= cv.bottom + 1 && br.left >= cv.left && br.right <= cv.right };
+      return { acik: ov.classList.contains('active'), kul: /^\s*\+\d+ KÜL$/.test(document.getElementById('kulMsg').textContent) && !!document.querySelector('#kulMsg svg use') && !/[\u{1F300}-\u{1FAFF}]/u.test(document.getElementById('kulMsg').textContent) && getComputedStyle(document.getElementById('kulMsg')).display !== 'none', btn: btn.length === 2 && btn.every(Boolean), sig: br.top >= cv.top - 1 && br.bottom <= cv.bottom + 1 && br.left >= cv.left && br.right <= cv.right };
     });
     assert.ok(Object.values(son).every(Boolean), `${w}px oyun sonu: ${JSON.stringify(son)}`);
 
@@ -90,6 +90,23 @@ const assert = require('assert');
     const dr = await page.evaluate(() => { SnakeGame.startClassic(); SnakeGame.togglePause(); const a = document.getElementById('pauseOverlay').classList.contains('active'); SnakeGame.togglePause(); const t = document.getElementById('toast'); t.textContent = '🏅 BAŞARIM: ZAMANI BÜK ve biraz daha uzun bir metin'; t.classList.add('show'); const r = t.getBoundingClientRect(); return { a, toast: r.left >= 0 && r.right <= innerWidth }; });
     assert.ok(dr.a && dr.toast, `${w}px duraklat/toast: ${JSON.stringify(dr)}`);
     await page.screenshot({ path: path.join(require('os').tmpdir(), `arayuz-test-${w}.png`) }).catch(() => {});
+    await ctx.close();
+  }
+  // 0.9.4: 320x568'de Modlar ekranı yatay taşmaz; Tron 2P düğmesi kartın içinde kalır
+  {
+    const ctx = await browser.newContext({ viewport: { width: 320, height: 568 } });
+    const page = await ctx.newPage();
+    page.on('pageerror', e => errors.push('320 ' + e));
+    await page.goto(url);
+    await page.waitForTimeout(300);
+    await page.evaluate(() => document.querySelector('[data-act="showModes"]').click());
+    await page.waitForTimeout(300);
+    const m = await page.evaluate(() => {
+      const kartlar = [...document.querySelectorAll('#modesScreen .mode-card')];
+      const tr = document.querySelector('#modesScreen #tron2pBtn').getBoundingClientRect();
+      return { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, tasan: kartlar.filter(k => k.getBoundingClientRect().right > 320.5).length, n: kartlar.length, tron: tr.left >= 0 && tr.right <= 320 };
+    });
+    assert.ok(m.sw <= m.cw && m.tasan === 0 && m.n >= 8 && m.tron, '320px Modlar taşıyor: ' + JSON.stringify(m));
     await ctx.close();
   }
   await browser.close();
