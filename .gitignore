@@ -13,3 +13,5 @@ dist/
 
 # Rust çekirdek derleme çıktısı
 core/target
+__pycache__/
+*.pyc
