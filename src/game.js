@@ -96,7 +96,9 @@ const SnakeGame = (() => {
     let REDUCED = SYS_REDUCED;
     const TEST_MODE = /[?&]test=1\b/.test(location.search);
     let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true, bigHud: false, cb: false, tron2p: false };
-    const effSpeed = () => Math.max(30, Math.round(state.speed * (state.calm > 0 ? 1 + Miras.value('sakin') : 1) / settings.speed)); // Miras: Sakin Başlangıç
+    let tmHiz = 1;      // Tema kuralı: Bataklık çamurunda tik aralığı çarpanı
+    let tmBekle = null; // Tema başlangıç afişi (mod afişi bitince 2 sn gösterilir)
+    const effSpeed = () => Math.max(30, Math.round(state.speed * tmHiz * (state.calm > 0 ? 1 + Miras.value('sakin') : 1) / settings.speed)); // Miras: Sakin Başlangıç
     const STARS = Array.from({ length: 46 }, (_, i) => ({ x: (i * 97.13) % 960, y: (i * 53.71) % 640, r: 0.6 + (i % 3) * 0.5, s: 0.4 + (i % 5) * 0.25, p: i }));
     const CLASSIC_LIKE = ['classic', 'portal', 'daily'];
     
@@ -164,6 +166,9 @@ const SnakeGame = (() => {
             if (act === 'mirasBuy') { mirasBuy(el.dataset.id); return; }
             if (act === 'marketBuy') { marketBuy(el.dataset.id); return; }
             if (act === 'marketEquip') { marketEquip(el.dataset.id); return; }
+            if (act === 'marketSekme') { marketSekmeSec(el.dataset.id); return; }
+            if (act === 'temaBuy') { temaBuy(el.dataset.id); return; }
+            if (act === 'temaSec') { temaSec(el.dataset.id); return; }
             if (act === 'input') { input(Number(el.dataset.dx), Number(el.dataset.dy)); return; }
             if (Object.prototype.hasOwnProperty.call(PUBLIC, act) && typeof PUBLIC[act] === 'function') PUBLIC[act]();
         });
@@ -598,6 +603,7 @@ const SnakeGame = (() => {
         refreshPowerDisplay();
         
         applyMirasPerks();
+        temaBaslat();
         spawnFood();
         updateHUD();
     }
@@ -699,7 +705,7 @@ const SnakeGame = (() => {
             updateHUD();
         }
         
-        dir = { ...nextDir };
+        if (!Tema.kaymaBekle(dir, nextDir)) dir = { ...nextDir }; // Buzul: dönüş bir tik gecikir
         
         let head = {
             x: snake[0].x + dir.x,
@@ -731,6 +737,9 @@ const SnakeGame = (() => {
             return;
         }
         
+        // Tema: yanan lav hücresi (Lav Ocağı kuralı)
+        if (Tema.tehlike(head.x, head.y)) { Tema.vurdu(); damage(); return; }
+        
         // Moving obstacle
         for (const o of movingObs) {
             if (Math.abs(o.x - head.x) < 0.8 && Math.abs(o.y - head.y) < 0.8) {
@@ -747,6 +756,9 @@ const SnakeGame = (() => {
         } else {
             snake.pop();
         }
+        
+        temaAdim(head);
+        if (state.over) return;
         
         // Mode updates
         if (state.mode === 'bullet') {
@@ -847,8 +859,9 @@ const SnakeGame = (() => {
             return;
         }
         const r = rand();
-        // Kaos: ara sıra çürük yem (kural bozma ruhu); diğer modlara girmez
-        food = { ...pos, age: 0, type: state.mode === 'chaos' && r < 0.15 ? 'curuk' : r < 0.12 + (state.mode === 'chaos' ? 0.15 : 0) ? 'super' : 'normal' };
+        // Kaos: ara sıra çürük yem (kural bozma ruhu); Bataklık teması da seyrek çürük yem getirir
+        const bc = Tema.curukOran();
+        food = { ...pos, age: 0, type: (state.mode === 'chaos' && r < 0.15) || r < bc ? 'curuk' : r < 0.12 + bc + (state.mode === 'chaos' ? 0.15 : 0) ? 'super' : 'normal' };
     }
     
     function eatFood() {
@@ -863,6 +876,7 @@ const SnakeGame = (() => {
         }
         let pts = food.type === 'super' ? 5 : 1;
         if (chaos.rule === 'triple') pts *= 3;
+        pts = Tema.yemPuan(pts) * Tema.carpan(); // Tema kuralları: Kaya +%50, Rün x2 (kural yoksa değişmez)
         if (state.mode !== 'daily' && state.mode !== 'tron') { // Miras: Altın İştah (kesirler birikir)
             state.istahAcc = (state.istahAcc || 0) + pts * Miras.value('istah');
             const ek = Math.floor(state.istahAcc + 1e-9);
@@ -907,9 +921,39 @@ const SnakeGame = (() => {
     }
     
     // ======================== BULLETS ========================
-    function showBanner(text, onemli) { // onemli: süresi dolana dek sıradan bir afiş (ör. 'HIZ 2') üstüne yazamaz
+    function showBanner(text, onemli, ms) { // onemli: süresi dolana dek sıradan bir afiş (ör. 'HIZ 2') üstüne yazamaz
         if (!onemli && banner.onemli && performance.now() < banner.until) return;
-        banner = { text, until: performance.now() + 1600, onemli: !!onemli };
+        banner = { text, until: performance.now() + (ms || 1600), onemli: !!onemli };
+    }
+
+    // ======================== TEMA KURALLARI (src/tema.js) ========================
+    // Oyun başında: kural temasını kur ve başlangıç afişini sıraya al (mod afişi bitince 2 sn gösterilir)
+    function temaBaslat() {
+        tmHiz = 1; tmBekle = null;
+        const kuralId = Tema.baslat(state.mode, state.level);
+        if (state.mode === 'tapinak') return;
+        const tema = Tema.etkin(state.mode, state.level);
+        // Taş + Otomatik'te afiş yok (eski oyun); açık seçimde ya da kural varsa tema adı
+        if (kuralId || (Tema.secili() !== Tema.OTOMATIK && tema !== 'tas')) tmBekle = Tema.afis(tema, !!kuralId);
+    }
+    function temaEnv() {
+        return { COLS, ROWS, bos: (x, y) => !isOccupied(x, y) && !movingObs.some(o => Math.abs(o.x - x) < 1.2 && Math.abs(o.y - y) < 1.2), rand: Math.random, bas: snake[0], yon: dir };
+    }
+    function temaAralik() { // çamur: tik aralığını yeniden kur
+        if (loopInterval) { clearInterval(loopInterval); loopInterval = setInterval(tick, effSpeed()); }
+    }
+    // Her tikte (baş hareket ettikten sonra): kural zamanlayıcısı, lav/rün olayları, çamur yavaşlığı
+    function temaAdim(head) {
+        if (!Tema.aktif()) return;
+        const ev = Tema.adim(effSpeed(), temaEnv());
+        ev.forEach(e => {
+            if (e === 'uyari') { showBanner('LAV: TURUNCU HÜCRELER YANACAK!', false, 1400); playSound('shield'); }
+            else if (e === 'yanik') { addShake(4); playSound('hit'); isikOlay('sok', head.x + 0.5, head.y + 0.5, '#ff6a2a'); }
+            else if (e === 'run') { showBanner('RÜN! 5 SN SKOR x2', false, 1400); playSound('powerup'); isikOlay('guc', head.x + 0.5, head.y + 0.5, '#7af0e8'); }
+        });
+        if (Tema.tehlike(head.x, head.y)) { Tema.vurdu(); damage(); return; } // yanış tam başın altında başladıysa
+        const hz = Tema.hizCarpan(head);
+        if (hz !== tmHiz) { tmHiz = hz; temaAralik(); }
     }
     
     function rnd(a, b) { return a + Math.random() * (b - a); }
@@ -1258,7 +1302,7 @@ const SnakeGame = (() => {
         ctx.fillStyle = '#fff';
         ctx.shadowColor = '#00ff66';
         ctx.shadowBlur = 14;
-        ctx.fillText(banner.text, CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2 - 90);
+        ctx.fillText(banner.text, CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2 - 90, CONFIG.WIDTH - 40);
         ctx.restore();
     }
 
@@ -1357,10 +1401,11 @@ const SnakeGame = (() => {
         });
         enemies.forEach(e => {
             const px = e.x * CELL, py = e.y * CELL;
-            ctx.shadowColor = settings.cb ? PALET.dusman : '#ff3355';
+            const tt = Tema.etkin(state.mode, state.level);
+            ctx.shadowColor = settings.cb ? PALET.dusman : Tema.ton('dusman', '#ff3355', tt, false);
             ctx.shadowBlur = 10;
-            // cb: düşman tek renk (#CC79A7), dayanıklı olan açık tonu
-            ctx.fillStyle = settings.cb ? (e.hp > 1 ? PALET.ton(PALET.dusman, 0.35) : PALET.dusman) : (e.hp > 1 ? '#ff7a00' : '#ff3355');
+            // cb: düşman tek renk (#CC79A7), dayanıklı olan açık tonu; aksi halde tema tonuna kaydırılır
+            ctx.fillStyle = settings.cb ? (e.hp > 1 ? PALET.ton(PALET.dusman, 0.35) : PALET.dusman) : Tema.ton('dusman', e.hp > 1 ? '#ff7a00' : '#ff3355', tt, false);
             ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
             ctx.fillStyle = '#fff';
             ctx.fillRect(px + 5, py + 6, 3, 3);
@@ -2041,6 +2086,7 @@ const SnakeGame = (() => {
         if (shake.mag > 0.2 && !REDUCED) ctx.translate((Math.random() - 0.5) * shake.mag, (Math.random() - 0.5) * shake.mag);
         drawBackground(nowT);
         if (state.mode !== 'tapinak') isikZemin(ctx); // ışık haritası/sis/iz: tüm nesnelerin altında (Tapınak: tapinak.js kancası)
+        if (Tema.aktif()) drawTemaKatman(nowT / 1000); // Bataklık çamuru, Lav uyarı/yanış hücreleri, Rün hücreleri
         
         // Static obstacles
         if (G25()) G25().drawBlocks(ctx, obstacles, settings.cb ? PALET.engel : C.obstacle, false, nowT / 1000, CELL, false, settings.cb);
@@ -2095,14 +2141,86 @@ const SnakeGame = (() => {
         if (powers.shield) drawAura(snake[0], '#00ccff', 22);
         if (state.mode === 'tapinak') drawTapinakTop();
         
+        if (tmBekle && nowT > banner.until) { showBanner(tmBekle, true, 2000); tmBekle = null; } // Tema adı/ipucu: 2 sn
         if (['classic', 'bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron', 'daily', 'tapinak'].includes(state.mode)) drawBanner(); // daily eksikti: Günlük afişleri hiç çizilmiyordu
         drawParticles();
         if (state.mode !== 'tapinak') isikUst(ctx);
+        if (Tema.carpan() > 1) drawRunSayac();
         drawVignette();
         if (state.mode === 'survivor' && sv.choosing) drawLevelUp();
         ctx.restore();
     }
     
+    // ---- Tema kural katmanı: renk körü açıkken PALET renkleri; ayrım desenle (tarama / çarpı / nokta) de verilir ----
+    function drawTemaKatman(t) {
+        const S = CONFIG.CELL, cb = settings.cb, titre = REDUCED ? 0.5 : 0.5 + 0.5 * Math.sin(t * 7);
+        ctx.save();
+        // Bataklık çamuru: koyu çamur zemini + açık nokta deseni (renk bağımsız) + kabarcık
+        Tema.camurlar().forEach((m, i) => {
+            const x = m.x * S, y = m.y * S;
+            ctx.fillStyle = cb ? 'rgba(150,115,60,0.92)' : 'rgba(92,68,30,0.92)';
+            ctx.fillRect(x, y, S, S);
+            ctx.fillStyle = cb ? 'rgba(255,255,255,0.55)' : 'rgba(205,215,130,0.62)';
+            for (let k = 0; k < 4; k++) ctx.fillRect(x + 3 + (k % 2) * 8 + (i % 2), y + 4 + Math.floor(k / 2) * 8, 2, 2);
+            ctx.strokeStyle = cb ? 'rgba(255,255,255,0.6)' : 'rgba(170,190,90,0.7)'; ctx.lineWidth = 1.5;
+            ctx.strokeRect(x + 1, y + 1, S - 2, S - 2);
+            if (!REDUCED) { const b = (t * 0.6 + i * 0.37) % 1; ctx.globalAlpha = 0.5 * (1 - b); ctx.strokeStyle = '#c9d98a'; ctx.beginPath(); ctx.arc(x + 6 + (i * 7) % 9, y + 14 - b * 8, 1 + b * 2, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+        });
+        // Lav: uyarı = turuncu zemin + ÇAPRAZ TARAMA, yanış = kızıl zemin + KALIN ÇARPI
+        const L = Tema.lavDurum();
+        if (L && L.hucre.length) {
+            L.hucre.forEach(h => {
+                const x = h.x * S, y = h.y * S;
+                // belirgin hale: uyarıda soluk turuncu, yanışta kızıl (additive)
+                ctx.save(); ctx.globalCompositeOperation = 'lighter';
+                const hg = ctx.createRadialGradient(x + S / 2, y + S / 2, 2, x + S / 2, y + S / 2, 30);
+                hg.addColorStop(0, L.faz === 'uyari' ? 'rgba(255,170,40,0.55)' : 'rgba(255,70,20,0.7)'); hg.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.globalAlpha = 0.5 + 0.5 * titre; ctx.fillStyle = hg; ctx.fillRect(x + S / 2 - 30, y + S / 2 - 30, 60, 60); ctx.restore();
+                if (L.faz === 'uyari') {
+                    ctx.fillStyle = cb ? PALET.yem : '#ffae2b';
+                    ctx.globalAlpha = 0.28 + 0.3 * titre; ctx.fillRect(x, y, S, S); ctx.globalAlpha = 1;
+                    ctx.strokeStyle = cb ? '#ffffff' : '#ffe27a'; ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    for (let k = 4; k < S * 2; k += 7) { ctx.moveTo(x + Math.min(k, S), y + Math.max(0, k - S)); ctx.lineTo(x + Math.max(0, k - S), y + Math.min(k, S)); }
+                    ctx.stroke();
+                    ctx.setLineDash([4, 3]); ctx.strokeStyle = cb ? '#ffffff' : '#ffae2b'; ctx.lineWidth = 2; ctx.strokeRect(x + 1, y + 1, S - 2, S - 2); ctx.setLineDash([]);
+                    ctx.fillStyle = '#2a1200'; ctx.fillRect(x + S / 2 - 2, y + 4, 4, 8); ctx.fillRect(x + S / 2 - 2, y + 14, 4, 3); // ünlem: renkten bağımsız
+                } else {
+                    ctx.fillStyle = cb ? PALET.curuk : '#ff3a10';
+                    ctx.globalAlpha = 0.8 + 0.2 * titre; ctx.fillRect(x, y, S, S); ctx.globalAlpha = 1;
+                    ctx.strokeStyle = cb ? '#ffffff' : '#fff0c0'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+                    ctx.beginPath(); ctx.moveTo(x + 4, y + 4); ctx.lineTo(x + S - 4, y + S - 4); ctx.moveTo(x + S - 4, y + 4); ctx.lineTo(x + 4, y + S - 4); ctx.stroke();
+                }
+            });
+        }
+        // Rün: ışıklı kristal rün (cb: sarı); şekil (elmas + çizgi) renkten bağımsız
+        Tema.runeler().forEach((r, i) => {
+            const cx = r.x * S + S / 2, cy = r.y * S + S / 2, p = REDUCED ? 0.7 : 0.6 + 0.4 * Math.sin(t * 3 + i * 2);
+            const col = cb ? PALET.tron : '#5ff0e8', col2 = cb ? '#ffffff' : '#b48cff';
+            ctx.globalCompositeOperation = 'lighter';
+            const gr = ctx.createRadialGradient(cx, cy, 1, cx, cy, 16); gr.addColorStop(0, cb ? 'rgba(240,228,66,0.5)' : 'rgba(110,240,230,0.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = p; ctx.fillStyle = gr; ctx.fillRect(cx - 16, cy - 16, 32, 32);
+            ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+            ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(cx, cy - 8); ctx.lineTo(cx + 6, cy); ctx.lineTo(cx, cy + 8); ctx.lineTo(cx - 6, cy); ctx.closePath(); ctx.stroke();
+            ctx.strokeStyle = col2; ctx.lineWidth = 1.6;
+            ctx.beginPath(); ctx.moveTo(cx, cy - 4); ctx.lineTo(cx, cy + 5); ctx.moveTo(cx - 3, cy - 1); ctx.lineTo(cx + 3, cy - 4); ctx.stroke();
+        });
+        ctx.restore();
+    }
+    // Rün çarpanı kalan süresi (sağ üst, tuval içi)
+    function drawRunSayac() {
+        const k = Math.max(0, Math.min(1, Tema.runKalan() / Tema.RUN_SURE)), cb = settings.cb;
+        ctx.save();
+        ctx.font = '13px "Press Start 2P", monospace';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = cb ? PALET.tron : '#7af7ee';
+        ctx.shadowColor = cb ? PALET.tron : '#7af7ee'; ctx.shadowBlur = REDUCED ? 0 : 8;
+        ctx.fillText('RÜN x2  ' + (Tema.runKalan() / 1000).toFixed(1) + ' SN', CONFIG.WIDTH - 22, 52);
+        ctx.shadowBlur = 0;
+        ctx.fillRect(CONFIG.WIDTH - 22 - 150 * k, 58, 150 * k, 4);
+        ctx.restore();
+    }
     const G25 = () => (typeof Gfx25 !== 'undefined' ? Gfx25 : null);
     // ---- IŞIK (src/isik.js): dinamik aydınlatma/atmosfer/efekt; yalnız çizim, yoksa atlanır ----
     const ISIK = () => (typeof Isik !== 'undefined' ? Isik : null);
@@ -2112,10 +2230,12 @@ const SnakeGame = (() => {
     function isikOpts() {
         const o = isikO;
         o.t = performance.now() / 1000; o.dpr = dpr; o.fx = settings.fx; o.reduced = REDUCED; o.cb = settings.cb;
-        o.tema = (typeof Doku !== 'undefined') ? Doku.themeFor(state.mode, state.level) : 'tas';
+        o.tema = Tema.etkin(state.mode, state.level);
+        o.karanlik = Tema.karanlik();
+        const yt = settings.cb ? null : Tema.yemTon(o.tema);
         o.bas = (chaos.rule === 'ghost' || !renderPos.length) ? (snake[0] || null) : renderPos[0];
         o.yem = state.mode === 'tron' || state.mode === 'tapinak' ? null : food;
-        o.yemRenk = food && food.type === 'super' ? '#ffdd00' : '#ffbf2e';
+        o.yemRenk = food && food.type === 'super' ? '#ffdd00' : (yt ? yt.renk : '#ffbf2e');
         o.guclar = powerups; o.engeller = obstacles; o.korlar = movingObs; o.portallar = portals; o.mermiler = bullets;
         if (!o.gucRenk) o.gucRenk = { shield: CONFIG.COLORS.powerShield, speed: CONFIG.COLORS.powerSpeed, invincible: CONFIG.COLORS.powerInvincible, clear: CONFIG.COLORS.powerClear };
         o.hiz = !!powers.speed;
@@ -2182,7 +2302,7 @@ const SnakeGame = (() => {
         try { return Market.skinFor({ cb: settings.cb }); } catch (e) { return null; }
     }
     function gfxOpts() {
-        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, skin: skinNow(), all: renderPos, theme: (typeof Doku !== 'undefined') ? Doku.themeFor(state.mode, state.level) : 'tas' };
+        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, skin: skinNow(), all: renderPos, theme: Tema.etkin(state.mode, state.level), yemTema: settings.cb ? null : Tema.yemTon(Tema.etkin(state.mode, state.level)) };
     }
     function drawBackground(now) {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
@@ -2547,7 +2667,7 @@ const SnakeGame = (() => {
         const cx = b.x * S + S / 2;
         const cy = b.y * S + S / 2;
         const t = performance.now() / 1000;
-        const bc = b.color || (b.homing ? CONFIG.COLORS.bulletHoming : CONFIG.COLORS.bullet);
+        const bc = Tema.ton('mermi', b.color || (b.homing ? CONFIG.COLORS.bulletHoming : CONFIG.COLORS.bullet), Tema.etkin(state.mode, state.level), settings.cb);
 
         // Ateş topu: dış hale + sıcak çekirdek + titreşen kıvılcım
         ctx.save();
@@ -2935,7 +3055,8 @@ const SnakeGame = (() => {
             musicNext = a.currentTime + 0.1;
             musicStep = 0;
             const d = a.createOscillator(), dg = a.createGain(), lp = a.createBiquadFilter();
-            d.type = 'sawtooth'; d.frequency.value = 55; lp.type = 'lowpass'; lp.frequency.value = 220;
+            const mz = Tema.muzik(Tema.etkin(state.mode, state.level)); // Tema: perde ve davul filtresi
+            d.type = 'sawtooth'; d.frequency.value = 55 * mz.carp; lp.type = 'lowpass'; lp.frequency.value = mz.lp;
             dg.gain.setValueAtTime(0.0001, a.currentTime); dg.gain.exponentialRampToValueAtTime(0.035, a.currentTime + 0.3);
             d.connect(lp); lp.connect(dg); dg.connect(masterGain); d.start();
             musicDrone = { osc: d, gain: dg };
@@ -2952,8 +3073,9 @@ const SnakeGame = (() => {
             if (Math.random() < 0.25) idx += Math.random() < 0.5 ? 1 : -1;
             idx = Math.max(0, Math.min(SCALE.length - 1, idx));
             const vol = inBar === 0 ? 0.07 : 0.045;
-            tone(SCALE[idx], 'triangle', beat * 0.9, vol, musicNext);
-            if (inBar === 0 || inBar === 4) tone(SCALE[idx] / 2, 'sine', beat * 1.8, 0.05, musicNext);
+            const pc = Tema.muzik(Tema.etkin(state.mode, state.level)).carp;
+            tone(SCALE[idx] * pc, 'triangle', beat * 0.9, vol, musicNext);
+            if (inBar === 0 || inBar === 4) tone(SCALE[idx] * pc / 2, 'sine', beat * 1.8, 0.05, musicNext);
             musicNext += beat * (inBar % 2 === 0 ? 1 : 0.5);
             musicStep++;
         }
@@ -3144,9 +3266,88 @@ const SnakeGame = (() => {
     function closeMiras() { document.getElementById('mirasPanel').classList.remove('active'); panelClosed(); }
     
     // ======================== MARKET (kostümler ve efektler) ========================
+    let marketSekme = 'skin'; // 'skin' | 'tema'
+    function marketSekmeSec(k) {
+        marketSekme = k === 'tema' ? 'tema' : 'skin';
+        renderMarket();
+        const b = document.getElementById(marketSekme === 'tema' ? 'mkSekTema' : 'mkSekSkin');
+        if (b) b.focus();
+    }
+    // Temalar bölümü: zemin dokusu önizlemesi, ad, kural özeti, fiyat / Seç / Seçili
+    function renderTemalar() {
+        const sec = Market.temaSecili();
+        let h = '<section class="mk-grup" aria-label="Harita temaları"><h3 style="color:#e8c46a">Harita temaları</h3><div class="mk-izgara">';
+        Tema.hepsi().forEach(t => {
+            const sahip = Market.temaSahip(t.id), on = t.id === sec, yeter = Market.temaYeter(t.id);
+            let dugme;
+            if (on) dugme = `<button class="toggle buy giyili" disabled aria-pressed="true">${ikon('check')}Seçili</button>`;
+            else if (sahip) dugme = `<button class="toggle buy giy" data-act="temaSec" data-id="${t.id}" aria-label="${t.ad} temasını seç">Seç</button>`;
+            else dugme = `<button class="toggle buy${yeter ? ' can' : ''}" data-act="temaBuy" data-id="${t.id}" ${yeter ? '' : 'disabled'} aria-label="${t.ad} temasını ${t.fiyat} Kül karşılığında al${yeter ? '' : ', Kül yetersiz'}">${ikon('flame')}${t.fiyat} Kül</button>`;
+            h += `<article class="mk-kart mk-tema${on ? ' on' : ''}" data-tema="${t.id}"><canvas class="mk-onizle mk-tonizle" data-tema="${t.id}" role="img" aria-label="${t.ad} önizleme"></canvas><div class="mk-alt"><div class="mk-bilgi"><b>${t.ad}</b><em>${t.ozet}</em></div>${dugme}</div></article>`;
+        });
+        h += '</div></section>';
+        document.getElementById('marketList').innerHTML = h;
+        const dpr2 = Math.min(2, window.devicePixelRatio || 1);
+        document.querySelectorAll('#marketList canvas.mk-tonizle').forEach(c => {
+            c.width = Math.round(208 * dpr2); c.height = Math.round(76 * dpr2);
+            temaOnizle(c, c.dataset.tema);
+        });
+    }
+    // Statik önizleme: boyalı zemin dokusu + yem + temanın kuralını anlatan küçük simge
+    function temaOnizle(c, id) {
+        const t = Tema.get(id) || Tema.hepsi()[0];
+        const zemin = id === 'otomatik' ? 'tas' : id;
+        if (typeof Doku !== 'undefined') Doku.onizle(c, zemin, t.onizle, 1);
+        const g = c.getContext('2d'), k = c.width / 208;
+        g.save(); g.scale(k, k);
+        const yt = id === 'otomatik' ? null : t.yem;
+        // yem noktası
+        g.fillStyle = yt ? yt.renk : '#ffbf2e'; g.shadowColor = g.fillStyle; g.shadowBlur = 10;
+        g.beginPath(); g.arc(150, 40, 6, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+        // kural simgesi (renk körü için şekil): kaya=karanlık daire, buz=ok, lav=çarpı, bataklık=nokta, rün=elmas
+        g.lineWidth = 2.4; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = 'rgba(255,255,255,0.85)';
+        const cx = 54, cy = 38;
+        g.beginPath();
+        if (id === 'kaya') { g.arc(cx, cy, 14, 0, Math.PI * 2); g.stroke(); g.fillStyle = 'rgba(0,0,0,0.5)'; g.fill(); }
+        else if (id === 'buz') { g.moveTo(cx - 16, cy + 6); g.lineTo(cx + 4, cy + 6); g.lineTo(cx + 4, cy - 10); g.moveTo(cx - 3, cy - 4); g.lineTo(cx + 4, cy - 11); g.lineTo(cx + 11, cy - 4); g.stroke(); }
+        else if (id === 'lav') { g.moveTo(cx - 12, cy - 12); g.lineTo(cx + 12, cy + 12); g.moveTo(cx + 12, cy - 12); g.lineTo(cx - 12, cy + 12); g.stroke(); }
+        else if (id === 'bat') { [[-8, -4], [4, -8], [10, 4], [-2, 6]].forEach(([dx, dy]) => { g.moveTo(cx + dx + 4, cy + dy); g.arc(cx + dx, cy + dy, 4, 0, Math.PI * 2); }); g.stroke(); }
+        else if (id === 'run') { g.moveTo(cx, cy - 14); g.lineTo(cx + 10, cy); g.lineTo(cx, cy + 14); g.lineTo(cx - 10, cy); g.closePath(); g.moveTo(cx, cy - 6); g.lineTo(cx, cy + 7); g.stroke(); }
+        else if (id === 'tas') { g.rect(cx - 12, cy - 10, 24, 20); g.moveTo(cx - 12, cy); g.lineTo(cx + 12, cy); g.stroke(); }
+        else { g.arc(cx, cy, 12, 0.3, Math.PI * 1.6); g.stroke(); }
+        g.restore();
+    }
+    function temaBuy(id) {
+        if (typeof id !== 'string') return false;
+        const ok = Market.temaAl(id);
+        if (ok) { playSound('powerup'); Market.temaSec(id); }
+        refreshMirasBtn();
+        if (document.getElementById('marketPanel').classList.contains('active')) {
+            renderMarket();
+            const yb = document.querySelector('#marketList .mk-kart.on button') || document.querySelector('#marketPanel .close');
+            if (yb) yb.focus();
+        }
+        return ok;
+    }
+    function temaSec(id) {
+        if (typeof id !== 'string') return false;
+        const ok = Market.temaSec(id);
+        if (ok) playSound('start');
+        if (document.getElementById('marketPanel').classList.contains('active')) {
+            renderMarket();
+            const yb = document.querySelector('#marketList .mk-kart.on button') || document.querySelector('#marketPanel .close');
+            if (yb) yb.focus();
+        }
+        return ok;
+    }
     function renderMarket() {
         const $ = id => document.getElementById(id);
         $('marketKul').textContent = Miras.kul;
+        ['skin', 'tema'].forEach(k => {
+            const b = $(k === 'tema' ? 'mkSekTema' : 'mkSekSkin');
+            if (b) { b.classList.toggle('on', marketSekme === k); b.setAttribute('aria-selected', marketSekme === k ? 'true' : 'false'); b.tabIndex = marketSekme === k ? 0 : -1; }
+        });
+        if (marketSekme === 'tema') { Market.onizleDurdur(); renderTemalar(); return; }
         const giyili = Market.equipped();
         let h = '';
         Object.keys(Market.NADIRLIK).sort((a, b) => Market.NADIRLIK[a].sira - Market.NADIRLIK[b].sira).forEach(nk => {
@@ -3191,7 +3392,7 @@ const SnakeGame = (() => {
         return ok;
     }
     function openMarket() { refreshMirasBtn(); renderMarket(); document.getElementById('marketPanel').classList.add('active'); panelOpen('marketPanel'); }
-    function closeMarket() { Market.onizleDurdur(); document.getElementById('marketPanel').classList.remove('active'); panelClosed(); }
+    function closeMarket() { Market.onizleDurdur(); marketSekme = 'skin'; document.getElementById('marketPanel').classList.remove('active'); panelClosed(); }
 
     // ======================== PERSISTENCE ========================
     function saveData() {
@@ -3245,11 +3446,11 @@ const SnakeGame = (() => {
         nextLevel,
         input,
         togglePause,
-        openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic, openMiras, closeMiras, openMarket, closeMarket, marketBuy, marketEquip,
+        openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic, openMiras, closeMiras, openMarket, closeMarket, marketBuy, marketEquip, marketSekmeSec, temaBuy, temaSec,
         ...(TEST_MODE ? { _tapinak: { run: () => tp, meta: () => tpMeta, tick: () => tick(), atil: () => tapinakAtil(), sec: i => tapinakSec(i) } } : {}),
         // Test API'si (_debug, _ach) yalnız ?test=1 ile açılan sayfada; paketli oyunda yok.
         ...(TEST_MODE ? { _miras: { buy: mirasBuy, render: renderMiras }, _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
-        _debug: { tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), draw: () => draw(), extra: () => ({ portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
+        _debug: { tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), draw: () => draw(), extra: () => ({ tmHiz, tmBekle, effSpeed: effSpeed(), portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
     };
     return PUBLIC;
 })();

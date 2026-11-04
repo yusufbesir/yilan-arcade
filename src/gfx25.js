@@ -1088,7 +1088,8 @@ const Gfx25 = (() => {
         }
 
         // parıltı (önbellekli halka sprite; shadowBlur yok)
-        const hc = isSuper ? 'rgba(255,221,0,0.5)' : (o.cb ? 'rgba(230,159,0,0.42)' : 'rgba(255,191,46,0.42)');
+        const yt = o.cb ? null : o.yemTema; // tema tonu: parıltı rengi + elma renk kaydırması (yalnız görünüm)
+        const hc = isSuper ? 'rgba(255,221,0,0.5)' : (o.cb ? 'rgba(230,159,0,0.42)' : (yt ? yt.parilti : 'rgba(255,191,46,0.42)'));
         glow(ctx, cx, cy, hc, 22 * pulse, 1);
         if (o.cb) {
             ctx.strokeStyle = o.pal.yemHalka; ctx.lineWidth = 2; ctx.setLineDash(isSuper ? [3, 3] : []);
@@ -1108,12 +1109,16 @@ const Gfx25 = (() => {
                 ctx.restore();
             }
         } else {
+            const kay = () => { if (yt && yt.hue) { try { ctx.filter = 'hue-rotate(' + yt.hue + 'deg)'; } catch (e) { /* filtre yok: aynı renk */ } } };
             ctx.save();
             ctx.translate(cx, cy);
             if (SP('apple')) {
                 ctx.restore();
+                ctx.save(); kay();
                 Sprites.draw(ctx, 'apple', 0, cx, cy + 4, pulse);
+                ctx.restore();
             } else {
+                kay();
                 ctx.scale(pulse, pulse);
                 blit(ctx, appleSprite(false), 0, 0);
                 ctx.restore();

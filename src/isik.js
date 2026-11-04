@@ -26,6 +26,8 @@ const Isik = (() => {
         tas: { koyu: 'rgb(7,9,22)', A: 0.36, bas: 'rgb(255,214,160)', sis: 'rgb(150,165,205)', sisA: 0.06, grade: [36, 54, 120], gradeA: 0.16, sicak: 'rgb(255,178,96)', atm: 'toz' },
         kaya: { koyu: 'rgb(5,11,9)', A: 0.35, bas: 'rgb(255,204,140)', sis: 'rgb(120,150,128)', sisA: 0.055, grade: [24, 64, 46], gradeA: 0.16, sicak: 'rgb(255,150,70)', atm: 'kul' },
         buz: { koyu: 'rgb(5,14,34)', A: 0.30, bas: 'rgb(200,232,255)', sis: 'rgb(200,228,255)', sisA: 0.075, grade: [50, 100, 170], gradeA: 0.15, sicak: 'rgb(170,215,255)', atm: 'kar' },
+        bat: { koyu: 'rgb(4,13,6)', A: 0.38, bas: 'rgb(222,255,170)', sis: 'rgb(110,175,90)', sisA: 0.12, grade: [28, 84, 30], gradeA: 0.18, sicak: 'rgb(170,235,110)', atm: 'spor' },
+        run: { koyu: 'rgb(13,6,28)', A: 0.36, bas: 'rgb(205,185,255)', sis: 'rgb(150,110,225)', sisA: 0.065, grade: [84, 38, 150], gradeA: 0.17, sicak: 'rgb(110,235,235)', atm: 'run' },
         lav: { koyu: 'rgb(26,6,3)', A: 0.36, bas: 'rgb(255,190,120)', sis: 'rgb(255,120,60)', sisA: 0.05, grade: [130, 34, 8], gradeA: 0.17, sicak: 'rgb(255,120,40)', atm: 'koz' }
     };
     const ODA_TEMA = { baslangic: 'tas', savas: 'tas', boss: 'lav', gizli: 'kaya', hazine: 'buz' };
@@ -258,7 +260,7 @@ const Isik = (() => {
     };
     let tohum = 1234567;
     function rnd() { tohum = (tohum * 1664525 + 1013904223) >>> 0; return tohum / 4294967296; }
-    const ATM_SAYI = { toz: 38, kul: 44, kar: 60, koz: 48 };
+    const ATM_SAYI = { toz: 38, kul: 44, kar: 60, koz: 48, spor: 46, run: 40 };
     function parcacikDogur(i, W, H, ilk) {
         const atm = TEMA[P.tema].atm;
         P.faz[i] = rnd() * TAU;
@@ -282,6 +284,14 @@ const Isik = (() => {
                 P.y[i] = ilk ? rnd() * H : -6; P.vx[i] = 7 + rnd() * 8; P.vy[i] = 16 + rnd() * 20;
                 P.max[i] = 18 + rnd() * 10; P.s[i] = 0.9 + rnd() * 1.4;
             }
+        } else if (atm === 'spor') { // bataklık sporu: yavaş yükselip dalgalanan yeşil tozcuk
+            P.y[i] = ilk ? rnd() * H : H * (0.5 + rnd() * 0.55); P.vx[i] = (rnd() - 0.5) * 5; P.vy[i] = -(3 + rnd() * 7);
+            P.max[i] = 6 + rnd() * 6; P.s[i] = 1.2 + rnd() * 1.8;
+            if (rnd() < 0.15) P.tip[i] = 1; // iri parlak spor
+        } else if (atm === 'run') { // rün külleri: mor tozcuk + turkuaz parıltı
+            P.y[i] = ilk ? rnd() * H : H + 4; P.vx[i] = (rnd() - 0.5) * 6; P.vy[i] = -(5 + rnd() * 12);
+            P.max[i] = 5 + rnd() * 5; P.s[i] = 1 + rnd() * 1.2;
+            if (rnd() < 0.2) { P.tip[i] = 1; P.vx[i] = 0; P.vy[i] = -2; P.s[i] = 1.8 + rnd(); }
         } else { // koz: yükselen kor
             P.y[i] = ilk ? rnd() * H : H + 4 - rnd() * H * 0.3; P.vx[i] = (rnd() - 0.5) * 8; P.vy[i] = -(18 + rnd() * 30);
             P.max[i] = 2.5 + rnd() * 3.5; P.s[i] = 0.9 + rnd() * 1.2;
@@ -297,7 +307,7 @@ const Isik = (() => {
         const hz = o.reduced ? 0.4 : 1, t = o.t;
         for (let i = 0; i < P.n; i++) {
             P.life[i] -= dt;
-            const sal = P.tip[i] === 0 && P.tema === 'koz' ? Math.sin(t * 2 + P.faz[i]) * 6 : P.tema === 'kar' && !P.tip[i] ? Math.sin(t * 0.9 + P.faz[i]) * 5 : 0;
+            const sal = P.tip[i] === 0 && P.tema === 'koz' ? Math.sin(t * 2 + P.faz[i]) * 6 : (P.tema === 'bat' || P.tema === 'run') ? Math.sin(t * 0.8 + P.faz[i]) * 4 : P.tema === 'kar' && !P.tip[i] ? Math.sin(t * 0.9 + P.faz[i]) * 5 : 0;
             P.x[i] += (P.vx[i] + sal) * dt * hz; P.y[i] += P.vy[i] * dt * hz;
             if (P.life[i] <= 0 || P.y[i] < -10 || P.y[i] > H + 10 || P.x[i] < -10 || P.x[i] > W + 10) parcacikDogur(i, W, H, false);
         }
@@ -307,9 +317,9 @@ const Isik = (() => {
         ctx.save();
         // 1) ışıklı tür (toz zerresi, kıvılcım, kar, parıltı, kor): additive
         ctx.globalCompositeOperation = 'lighter';
-        const renk0 = atm === 'toz' ? '#ffe2b8' : atm === 'kul' ? '#ffb070' : atm === 'kar' ? '#e8f4ff' : '#ff9a3c';
+        const renk0 = atm === 'toz' ? '#ffe2b8' : atm === 'kul' ? '#ffb070' : atm === 'kar' ? '#e8f4ff' : atm === 'spor' ? '#a6f06a' : atm === 'run' ? '#b48cff' : '#ff9a3c';
         for (let pass = 0; pass < 2; pass++) {
-            ctx.fillStyle = pass === 0 ? renk0 : (atm === 'kar' ? '#ffffff' : atm === 'koz' ? '#ffd27a' : '#ffd8a0');
+            ctx.fillStyle = pass === 0 ? renk0 : (atm === 'kar' ? '#ffffff' : atm === 'koz' ? '#ffd27a' : atm === 'spor' ? '#e4ffb0' : atm === 'run' ? '#5ff0e8' : '#ffd8a0');
             for (let i = 0; i < P.n; i++) {
                 const tip = P.tip[i];
                 if (atm === 'kul' && tip === 0) continue;          // kül ayrı (koyu)
@@ -319,11 +329,13 @@ const Isik = (() => {
                 if (atm === 'toz') a *= 0.32 * (0.6 + 0.4 * Math.sin(o.t * 1.3 + P.faz[i]));
                 else if (atm === 'kar') a *= tip ? 0.85 * Math.abs(Math.sin(o.t * 7 + P.faz[i])) : 0.42;
                 else if (atm === 'koz') a *= 0.75 * (0.7 + 0.3 * Math.sin(o.t * 11 + P.faz[i]));
+                else if (atm === 'spor') a *= (tip ? 0.55 : 0.4) * (0.6 + 0.4 * Math.sin(o.t * 2.2 + P.faz[i]));
+                else if (atm === 'run') a *= tip ? 0.8 * Math.abs(Math.sin(o.t * 3 + P.faz[i])) : 0.38;
                 else a *= 0.8;
                 if (a < 0.01) continue;
                 ctx.globalAlpha = a;
                 const s = P.s[i];
-                if (atm === 'kar' && tip) { // dört köşeli parıltı
+                if ((atm === 'kar' || atm === 'run') && tip) { // dört köşeli parıltı
                     ctx.fillRect(P.x[i] - s, P.y[i] - 0.35, s * 2, 0.7);
                     ctx.fillRect(P.x[i] - 0.35, P.y[i] - s, 0.7, s * 2);
                 } else ctx.fillRect(P.x[i] - s / 2, P.y[i] - s / 2, s, s);
@@ -637,6 +649,41 @@ const Isik = (() => {
         ctx.globalCompositeOperation = 'source-over';
     }
 
+    // ---------- Kaya Mağarası kuralı: başın çevresinde küçük ışık dairesi, dışı karanlık ----------
+    // Daire ön-pişirilmiş küçük bir leke; dışı 4 düz dikdörtgen (kare başı birkaç doldurma, tam ekran gradyan yok)
+    const KR = { c: null, key: '', R: 104, A: 0.66 };
+    function karanlikCiz(ctx, o, S) {
+        const W = o.W, H = o.H, R = KR.R, A = KR.A * Math.min(1, 0.4 + (o.karanlik || 0));
+        const key = dpr + '|' + R + '|' + A.toFixed(2);
+        if (KR.key !== key) {
+            const px = Math.ceil(R * 2 * dpr), c = tuval(px, px), g = c.getContext('2d');
+            const gr = g.createRadialGradient(px / 2, px / 2, px * 0.06, px / 2, px / 2, px / 2);
+            gr.addColorStop(0, 'rgba(2,6,5,0)'); gr.addColorStop(0.5, 'rgba(2,6,5,' + (A * 0.1) + ')');
+            gr.addColorStop(0.8, 'rgba(2,6,5,' + (A * 0.55) + ')'); gr.addColorStop(1, 'rgba(2,6,5,' + A + ')');
+            g.fillStyle = gr; g.fillRect(0, 0, px, px);
+            KR.c = c; KR.key = key;
+        }
+        const hx = Math.round(((o.bas.x + 0.5) * S - R) * dpr) / dpr, hy = Math.round(((o.bas.y + 0.5) * S - R) * dpr) / dpr;
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(2,6,5,' + A + ')';
+        const x0 = Math.max(0, Math.min(W, hx)), x1 = Math.max(0, Math.min(W, hx + R * 2));
+        const y0 = Math.max(0, Math.min(H, hy)), y1 = Math.max(0, Math.min(H, hy + R * 2));
+        ctx.fillRect(0, 0, W, y0);
+        ctx.fillRect(0, y1, W, H - y1);
+        ctx.fillRect(0, y0, x0, y1 - y0);
+        ctx.fillRect(x1, y0, W - x1, y1 - y0);
+        ctx.drawImage(KR.c, hx, hy, R * 2, R * 2);
+        // yem karanlıkta da seçilsin: yumuşak ışıltı (ödül temasının kendisi)
+        const yem = o.yem;
+        if (yem && yem.x >= 0 && yem.y >= 0) {
+            ctx.globalCompositeOperation = 'lighter';
+            isikN(ctx, o.yemRenk || '#ffbf2e', (yem.x + 0.5) * S, (yem.y + 0.5) * S + 3, 40, 0.42 * (reduced ? 1 : 0.85 + 0.15 * Math.sin((o.t || 0) * 4)));
+        }
+        ctx.restore();
+    }
+
     // ====================================================================
     // ÜST KATMAN (parçacıkların üstü): atmosfer, halkalar, şok dalgası, kıvılcım, kenar flaşı, derecelendirme
     // ====================================================================
@@ -650,6 +697,8 @@ const Isik = (() => {
             for (let i = 0; i < oda.dusmanlar.length; i++) vurusKontrol(oda.dusmanlar[i], oda.dusmanlar[i].x, oda.dusmanlar[i].y);
             if (oda.boss) vurusKontrol(oda.boss, oda.boss.x, oda.boss.y);
         }
+        // 0) tema kuralı: karanlık (Kaya Mağarası)
+        if (o.karanlik > 0 && o.bas && !tp) { dpr = o.dpr || dpr; reduced = !!o.reduced; try { karanlikCiz(ctx, o, S); } catch (e) {} }
         // 1) tema parçacıkları
         const n = Math.min(ATM_MAX, Math.round(ATM_SAYI[TEMA[tema].atm] * Math.min(1, fx) * (reduced ? 0.35 : 1)));
         P.tema = P.tema || tema;

@@ -1,7 +1,7 @@
 // ========================================================================
 // MARKET - yılan kostümleri (skin) ve özgün efektleri. Para birimi Kül (Miras).
 // Her şey kodla çizilir; dış varlık yok. Kayıt: localStorage 'twilightMarket'
-// { v:1, sahip:[id...], giyili:id }. Efektler parçacıktır (kare başına en çok 40),
+// { v:1, sahip:[id...], giyili:id, sahipTema:[id...], tema:id } (tema alanları isteğe bağlı; eksikse varsayılan). Efektler parçacıktır (kare başına en çok 40),
 // reduced / fx kapalı / renk körü açıkken efekt çizilmez; renk körüyken skin de uygulanmaz.
 // ========================================================================
 const Market = (() => {
@@ -71,13 +71,18 @@ const Market = (() => {
     }
 
     // ---------- kayıt ----------
-    function bos() { return { sahip: [VARSAYILAN], giyili: VARSAYILAN, bilinmeyen: [], tema: undefined }; }
+    // Temalar (src/tema.js): Taş ve Otomatik bedava ve daima sahipli; seçili tema ham değeriyle korunur
+    const TEMA_VARSAYILAN = ['otomatik', 'tas'];
+    function bos() { return { sahip: [VARSAYILAN], giyili: VARSAYILAN, bilinmeyen: [], tema: undefined, sahipTema: TEMA_VARSAYILAN.slice(), bilinmeyenTema: [] }; }
+    const temaTanim = id => (typeof Tema !== 'undefined' ? Tema.get(id) : null);
     let durum = bos();
     const tanim = id => SKINS.find(s => s.id === id) || null;
 
     function kaydet() {
         const o = { v: 1, sahip: durum.sahip.concat(durum.bilinmeyen), giyili: durum.giyili };
-        if (durum.tema !== undefined) o.tema = durum.tema; // sonraki aşama: temaya dokunma, koru
+        const ekTema = durum.sahipTema.filter(id => !TEMA_VARSAYILAN.includes(id)).concat(durum.bilinmeyenTema);
+        if (ekTema.length) o.sahipTema = TEMA_VARSAYILAN.concat(ekTema); // yalnız satın alınmış tema varsa yazılır (eski kayıt biçimi aynı kalır)
+        if (durum.tema !== undefined) o.tema = durum.tema; // geçersiz/yeni sürüm değeri de ham haliyle korunur
         try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {}
     }
 
@@ -98,6 +103,13 @@ const Market = (() => {
         }
         if (typeof ham.giyili === 'string' && durum.sahip.includes(ham.giyili)) durum.giyili = ham.giyili;
         if (ham.tema !== undefined) durum.tema = ham.tema;
+        if (Array.isArray(ham.sahipTema)) {
+            ham.sahipTema.forEach(id => {
+                if (typeof id !== 'string' || id.length > 40) return;
+                if (id === 'otomatik' || temaTanim(id)) { if (!durum.sahipTema.includes(id)) durum.sahipTema.push(id); }
+                else if (!durum.bilinmeyenTema.includes(id) && durum.bilinmeyenTema.length < 50) durum.bilinmeyenTema.push(id);
+            });
+        }
     }
 
     // ---------- işlemler ----------
@@ -121,6 +133,30 @@ const Market = (() => {
         durum.giyili = id;
         kaydet();
         return true;
+    }
+    // ---------- temalar ----------
+    const temaSahip = id => durum.sahipTema.includes(id);
+    function temaYeter(id) { const t = temaTanim(id); return !!t && !temaSahip(id) && balance() >= t.fiyat; }
+    function temaAl(id) {
+        const t = temaTanim(id);
+        if (!t || temaSahip(id)) return false;
+        if (typeof Miras === 'undefined' || !Miras.harca || balance() < t.fiyat) return false;
+        if (t.fiyat > 0 && !Miras.harca(t.fiyat)) return false;
+        durum.sahipTema.push(id);
+        kaydet();
+        return true;
+    }
+    function temaSec(id) {
+        if (id !== 'otomatik' && !temaTanim(id)) return false;
+        if (!temaSahip(id)) return false;
+        durum.tema = id;
+        kaydet();
+        return true;
+    }
+    // Geçerli ve sahip olunan seçim; aksi halde Otomatik (eski oyun davranışı)
+    function temaSecili() {
+        const t = durum.tema;
+        return typeof t === 'string' && (t === 'otomatik' || temaTanim(t)) && temaSahip(t) ? t : 'otomatik';
     }
     function reset() { durum = bos(); try { localStorage.removeItem(KEY); } catch (e) {} }
     const equipped = () => durum.giyili;
@@ -605,6 +641,7 @@ const Market = (() => {
         load: yukle, reset, buy, equip, owned, equipped, balance, canAfford, affordableNew,
         skinFor, fxOn, efekt, efektSifirla, efektKur, onizleBaslat, onizleDurdur, onizlemeSayisi,
         get: tanim,
-        state: () => ({ v: 1, sahip: durum.sahip.slice(), giyili: durum.giyili, tema: durum.tema })
+        temaSahip, temaYeter, temaAl, temaSec, temaSecili,
+        state: () => ({ v: 1, sahip: durum.sahip.slice(), giyili: durum.giyili, tema: durum.tema, sahipTema: durum.sahipTema.slice() })
     };
 })();

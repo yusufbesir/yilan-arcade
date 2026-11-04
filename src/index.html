@@ -1436,6 +1436,13 @@
     .mk-kart .toggle:disabled { opacity: 1; color: #8da1b5; cursor: default; }
     .mk-kart .toggle.buy.giyili:disabled { color: var(--nane); }
     @media (max-width: 520px) { .mk-izgara { grid-template-columns: 1fr; } }
+    /* Market sekmeleri (Skinler / Temalar) */
+    .mk-sekmeler { display: flex; gap: 8px; margin: 0 0 14px; }
+    .mk-sek { font-family: var(--serif); font-size: 16px; letter-spacing: 2px; padding: 8px 20px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(8, 14, 26, 0.55); color: var(--yz3); cursor: pointer; }
+    .mk-sek:hover { color: var(--yz2); border-color: rgba(232, 196, 106, 0.4); }
+    .mk-sek.on { color: #f1dca0; border-color: rgba(232, 196, 106, 0.6); background: rgba(232, 196, 106, 0.1); }
+    .mk-tema.on { border-top-color: #e8c46a; }
+    .mk-tema .mk-bilgi em { min-height: 2.8em; }
 </style>
 </head>
 <body>
@@ -1746,7 +1753,11 @@
         <div class="panel market-panel">
             <h2 id="marketTitle"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-gem"/></svg><span>Market</span></h2>
             <div class="panel-body">
-                <div class="market-head"><span class="mh-ac">Kostümler ve efektler</span><span class="mh-kul"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KÜL <b id="marketKul">0</b></span></div>
+                <div class="market-head"><span class="mh-ac">Kostümler, efektler ve harita temaları</span><span class="mh-kul"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KÜL <b id="marketKul">0</b></span></div>
+                <div class="mk-sekmeler" role="tablist" aria-label="Market bölümleri">
+                    <button class="mk-sek on" role="tab" id="mkSekSkin" aria-selected="true" data-act="marketSekme" data-id="skin">Skinler</button>
+                    <button class="mk-sek" role="tab" id="mkSekTema" aria-selected="false" tabindex="-1" data-act="marketSekme" data-id="tema">Temalar</button>
+                </div>
                 <div id="marketList"></div>
             </div>
             <button class="menu-btn close" data-act="closeMarket">KAPAT</button>
@@ -1755,6 +1766,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     
     <script src="miras.js"></script>
+    <script src="tema.js"></script>
     <script src="market.js"></script>
     <script src="doku.js"></script>
     <script src="sprite-map.js"></script>

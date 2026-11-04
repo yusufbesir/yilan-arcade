@@ -7,8 +7,9 @@
 const Doku = (() => {
     'use strict';
     const TAU = Math.PI * 2;
-    const TEMALAR = ['tas', 'kaya', 'buz', 'lav'];
-    const AD = { tas: 'taş avlu', kaya: 'kaya mağarası', buz: 'buz karo', lav: 'lav' };
+    const TEMALAR = ['tas', 'kaya', 'buz', 'lav'];            // Bölüm Modu "Otomatik" döngüsü (değişmez)
+    const TUM = ['tas', 'kaya', 'buz', 'lav', 'bat', 'run'];  // Market temaları dahil tüm zemin temaları
+    const AD = { tas: 'taş avlu', kaya: 'kaya mağarası', buz: 'buz karo', lav: 'lav', bat: 'bataklık', run: 'rün tapınağı' };
 
     // Seviye/moda göre tema (oynanış değişmez; yalnız görünüm)
     function themeFor(mode, level) {
@@ -36,6 +37,13 @@ const Doku = (() => {
         'block.buz': { tex: 'Rock058', scale: 104, mean: 0.46, con: 1.0, tint: [0.75, 0.95, 1.25], tk: 0.75, bump: 1.7, lit: 2.0, spec: 0.22 },
         'block.lav': { tex: 'Rock064', scale: 104, mean: 0.33, con: 1.0, tint: [1.2, 0.85, 0.75], tk: 0.6, bump: 1.7, lit: 2.0, spec: 0.06 },
         'block.ember': { tex: 'Lava004', scale: 96, mean: 0.5, con: 1.0, tint: [1, 1, 1], tk: 0, bump: 1, lit: 0.8, spec: 0 },
+        // Bataklık: Ground068 zemin + Leather008 duvar/engel (yeşil-çamur tonu); Rün Tapınağı: Tiles141/PavingStones138 mor-turkuaz
+        'floor.bat': { tex: 'Ground068', scale: 210, mean: 0.15, con: 0.85, tint: [0.62, 1.12, 0.66], tk: 0.7, bump: 1.4, lit: 1.4, spec: 0.04 },
+        'wall.bat': { tex: 'Leather008', scale: 150, mean: 0.3, con: 0.95, tint: [0.7, 1.1, 0.62], tk: 0.65, bump: 1.4, lit: 1.7, spec: 0.05 },
+        'block.bat': { tex: 'Leather008', scale: 104, mean: 0.36, con: 1.0, tint: [0.72, 1.12, 0.6], tk: 0.6, bump: 1.5, lit: 1.9, spec: 0.06 },
+        'floor.run': { tex: 'Tiles141', scale: 200, mean: 0.17, con: 1.0, tint: [1.12, 0.74, 1.3], tk: 0.8, bump: 2.4, lit: 1.8, spec: 0.2 },
+        'wall.run': { tex: 'PavingStones138', scale: 150, mean: 0.3, con: 0.95, tint: [1.1, 0.75, 1.28], tk: 0.7, bump: 1.5, lit: 1.8, spec: 0.08 },
+        'block.run': { tex: 'PavingStones138', scale: 104, mean: 0.38, con: 1.0, tint: [1.08, 0.78, 1.25], tk: 0.65, bump: 1.6, lit: 1.9, spec: 0.1 },
         'moss': { tex: 'Moss002', scale: 120, mean: 0.2, con: 1.0, tint: [0.75, 1.1, 0.75], tk: 0.25, bump: 1.4, lit: 1.2, spec: 0 },
         'lavaglow': { tex: 'Lava004', scale: 160, mean: 0.58, con: 1.0, tint: [1, 1, 1], tk: 0, bump: 1, lit: 0.5, spec: 0 }
     };
@@ -160,18 +168,21 @@ const Doku = (() => {
 
     // ---------- kuyruk: kare başına en fazla bir makro ----------
     function kindsFor(theme) {
+        if (!TUM.includes(theme)) theme = 'tas';
         const k = ['floor.' + theme, 'wall.' + theme, 'block.' + theme, 'block.ember'];
-        if (theme === 'tas' || theme === 'kaya') k.push('moss');
+        if (theme === 'tas' || theme === 'kaya' || theme === 'bat') k.push('moss');
         if (theme === 'lav') k.push('lavaglow');
         return k;
     }
     function ready(theme, dpr) {
+        if (!TUM.includes(theme)) theme = 'tas';
         if (state === 'idle') load();
         if (state !== 'ready') return false;
         return kindsFor(theme).every(k => macros.has(k + '|' + dpr));
     }
     // true: hazır; false: yedek çizim sürsün (bu çağrıda bir makro üretilebilir)
     function pump(theme, dpr) {
+        if (!TUM.includes(theme)) theme = 'tas';
         if (ready(theme, dpr)) return true;
         if (state !== 'ready') return false;
         const eksik = kindsFor(theme).find(k => !macros.has(k + '|' + dpr));
@@ -296,6 +307,43 @@ const Doku = (() => {
         g.restore();
     }
 
+    // Rün Tapınağı: zemine işlenmiş soluk mor-turkuaz rün oyukları (ışıklı rünler oyunda ayrıca çizilir)
+    function runeler(g, W, H, R) {
+        g.save();
+        g.lineCap = 'round'; g.lineJoin = 'round';
+        for (let i = 0; i < 16; i++) {
+            const x = 40 + R() * (W - 80), y = 40 + R() * (H - 80), s = 7 + R() * 5, tur = i % 4;
+            g.strokeStyle = i % 3 === 0 ? 'rgba(80,235,230,0.22)' : 'rgba(170,120,255,0.24)';
+            g.lineWidth = 1.6;
+            g.beginPath();
+            if (tur === 0) { g.moveTo(x, y - s); g.lineTo(x, y + s); g.moveTo(x, y - s * 0.2); g.lineTo(x + s * 0.8, y - s); }
+            else if (tur === 1) { g.moveTo(x - s * 0.7, y - s); g.lineTo(x + s * 0.7, y + s); g.moveTo(x + s * 0.7, y - s); g.lineTo(x - s * 0.7, y + s); }
+            else if (tur === 2) { g.moveTo(x - s * 0.7, y + s); g.lineTo(x, y - s); g.lineTo(x + s * 0.7, y + s); g.moveTo(x - s * 0.4, y + s * 0.2); g.lineTo(x + s * 0.4, y + s * 0.2); }
+            else { g.arc(x, y, s * 0.7, 0, TAU); g.moveTo(x, y - s); g.lineTo(x, y + s); }
+            g.stroke();
+        }
+        g.restore();
+    }
+
+    // Market kartı önizlemesi: zemin dokusunun renk haritası, tema tonuyla boyanmış (makro doku kurmaz; ucuz)
+    function onizle(c, theme, ton, dpr) {
+        const g = c.getContext('2d');
+        const w = c.width, h = c.height;
+        g.clearRect(0, 0, w, h);
+        const K = KIND['floor.' + theme];
+        const im = K && state === 'ready' ? imgs[K.tex + '_Color'] : null;
+        if (im && im.naturalWidth) {
+            const k = Math.max(w / im.naturalWidth, h / im.naturalHeight) * 1.6;
+            g.drawImage(im, 0, 0, im.naturalWidth, im.naturalHeight, 0, 0, im.naturalWidth * k, im.naturalHeight * k);
+        } else { g.fillStyle = '#121a2a'; g.fillRect(0, 0, w, h); }
+        g.globalCompositeOperation = 'multiply';
+        g.fillStyle = ton || '#667'; g.fillRect(0, 0, w, h);
+        g.globalCompositeOperation = 'source-over';
+        const vg = g.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, w * 0.62);
+        vg.addColorStop(0, 'rgba(0,0,0,0.05)'); vg.addColorStop(1, 'rgba(0,0,8,0.7)');
+        g.fillStyle = vg; g.fillRect(0, 0, w, h);
+    }
+
     // Zemin tuvali. o: { seed, torches:[{x,y}], moss:0..1, cracks:n, grid:bool, torchRgb }
     function floor(theme, W, H, S, dpr, o) {
         if (!ready(theme, dpr)) return null;
@@ -312,7 +360,7 @@ const Doku = (() => {
         blotch(g, W, H, R, 19, 13, 200, 255, 'multiply', 0.55);
         blotch(g, W, H, R, 11, 8, 90, 170, 'overlay', 0.35);
         // yosun / çatlak
-        const moss = o.moss == null ? (theme === 'kaya' ? 0.9 : theme === 'tas' ? 0.55 : 0) : o.moss;
+        const moss = o.moss == null ? (theme === 'kaya' ? 0.9 : theme === 'tas' ? 0.55 : theme === 'bat' ? 1 : 0) : o.moss;
         if (moss > 0) mossLayer(g, W, H, dpr, R, edgePoints(R, W, H, Math.round(14 * moss) + 3, 60), 70, 0.5 * Math.min(1, moss + 0.15));
         const nc = o.cracks == null ? 11 : o.cracks;
         for (let i = 0; i < nc; i++) crack(g, R, 20 + R() * (W - 40), 20 + R() * (H - 40), 26 + R() * 50, 0.9);
@@ -326,6 +374,7 @@ const Doku = (() => {
             }
             g.restore();
         }
+        if (theme === 'run') runeler(g, W, H, R);
         if (o.grid !== false) {
             g.strokeStyle = 'rgba(0,0,12,0.13)'; g.lineWidth = 1;
             g.beginPath();
@@ -334,14 +383,14 @@ const Doku = (() => {
             g.stroke();
         }
         // ışık havuzları: orta ortam + meşale
-        const warm = theme === 'buz' ? '150,200,255' : theme === 'lav' ? '255,120,50' : '255,190,110';
+        const warm = theme === 'buz' ? '150,200,255' : theme === 'lav' ? '255,120,50' : theme === 'bat' ? '150,230,110' : theme === 'run' ? '150,110,255' : '255,190,110';
         pool(g, W * 0.5, H * 0.46, W * 0.5, theme === 'buz' ? '120,170,255' : '255,205,130', 0.055);
         (o.torches || []).forEach(t => pool(g, t.x, t.y, o.torchR || 150, warm, theme === 'lav' ? 0.2 : 0.2));
         // kenar kararması + köşelerde hafif sis
         const vg = g.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, W * 0.62);
         vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,6,0.5)');
         g.fillStyle = vg; g.fillRect(0, 0, W, H);
-        const fogRgb = theme === 'lav' ? '60,18,10' : theme === 'buz' ? '70,110,170' : '50,70,120';
+        const fogRgb = theme === 'lav' ? '60,18,10' : theme === 'buz' ? '70,110,170' : theme === 'bat' ? '40,95,40' : theme === 'run' ? '70,40,130' : '50,70,120';
         [[0, 0], [W, 0], [0, H], [W, H]].forEach(([x, y]) => {
             const gr = g.createRadialGradient(x, y, 0, x, y, Math.min(W, H) * 0.55);
             gr.addColorStop(0, 'rgba(' + fogRgb + ',0.22)'); gr.addColorStop(1, 'rgba(' + fogRgb + ',0)');
@@ -351,6 +400,6 @@ const Doku = (() => {
     }
 
     load();
-    return { themeFor, TEMALAR, AD, load, ready, pump, pattern, floor, crack, pool, edgePoints, mossLayer, rng, get state() { return state; }, get stamp() { return stamp; } };
+    return { themeFor, TEMALAR, TUM, AD, onizle, load, ready, pump, pattern, floor, crack, pool, edgePoints, mossLayer, rng, get state() { return state; }, get stamp() { return stamp; } };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = Doku;
