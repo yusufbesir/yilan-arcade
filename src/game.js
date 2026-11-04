@@ -162,6 +162,8 @@ const SnakeGame = (() => {
             const act = el.dataset.act;
             if (act === 'toggle') { setSetting(el.dataset.key, !settings[el.dataset.key]); return; }
             if (act === 'mirasBuy') { mirasBuy(el.dataset.id); return; }
+            if (act === 'marketBuy') { marketBuy(el.dataset.id); return; }
+            if (act === 'marketEquip') { marketEquip(el.dataset.id); return; }
             if (act === 'input') { input(Number(el.dataset.dx), Number(el.dataset.dy)); return; }
             if (Object.prototype.hasOwnProperty.call(PUBLIC, act) && typeof PUBLIC[act] === 'function') PUBLIC[act]();
         });
@@ -2082,6 +2084,12 @@ const SnakeGame = (() => {
             } else drawSnakeBody(pos, i, total);
         }
         
+        // Market efekti (kostüme özgü parçacıklar; reduced / fx kapalı / renk körü / Tapınak'ta yok)
+        if (typeof Market !== 'undefined' && state.mode !== 'tapinak') {
+            const mp = chaos.rule === 'ghost' ? renderPos.slice(0, 1) : renderPos;
+            Market.efekt(ctx, { pts: mp, S: CONFIG.CELL, t: nowT / 1000, aktif: state.running && !state.paused && !state.over, cb: settings.cb, reduced: REDUCED, fx: settings.fx, yon: dir });
+        }
+
         // Auras
         if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
         if (powers.shield) drawAura(snake[0], '#00ccff', 22);
@@ -2168,8 +2176,13 @@ const SnakeGame = (() => {
         return c;
     }
 
+    // Market kostümü: Tapınak karakteri etkilenmez, renk körüyken ve hatada eski yeşil görünüm
+    function skinNow() {
+        if (state.mode === 'tapinak' || typeof Market === 'undefined') return null;
+        try { return Market.skinFor({ cb: settings.cb }); } catch (e) { return null; }
+    }
     function gfxOpts() {
-        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, all: renderPos, theme: (typeof Doku !== 'undefined') ? Doku.themeFor(state.mode, state.level) : 'tas' };
+        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, skin: skinNow(), all: renderPos, theme: (typeof Doku !== 'undefined') ? Doku.themeFor(state.mode, state.level) : 'tas' };
     }
     function drawBackground(now) {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
@@ -3018,6 +3031,7 @@ const SnakeGame = (() => {
         if (document.getElementById('settingsPanel').classList.contains('active')) { closeSettings(); return true; }
         if (document.getElementById('achPanel').classList.contains('active')) { closeAchievements(); return true; }
         if (document.getElementById('mirasPanel').classList.contains('active')) { closeMiras(); return true; }
+        if (document.getElementById('marketPanel').classList.contains('active')) { closeMarket(); return true; }
         return false;
     }
     
@@ -3082,17 +3096,24 @@ const SnakeGame = (() => {
     // ======================== MİRAS (kalıcı tecrübe) ========================
     function mirasVer(elId, ver, won) {
         const el = document.getElementById(elId);
-        if (state.mirasVerildi || !ver) { if (el && !ver) el.textContent = ''; return; }
+        if (state.mirasVerildi || !ver) {
+            if (el && !ver) { el.textContent = ''; const m0 = document.getElementById(elId + 'Market'); if (m0) m0.textContent = ''; }
+            return;
+        }
         state.mirasVerildi = true;
         const r = Miras.award({ mode: state.mode, score: state.score, won: !!won });
         state.mirasSonuc = r;
         if (el) el.textContent = '🔥 +' + r.gained + ' KÜL';
+        const mm = document.getElementById(elId + 'Market'); // bakiye bir kostüme yetiyorsa küçük ipucu
+        if (mm) mm.textContent = (typeof Market !== 'undefined' && Market.affordableNew()) ? "Market'te yeni kostüm alabilirsin" : '';
         if (r.levelUp) showToast('🔥 MİRAS SEVİYE ' + r.level + '!');
         refreshMirasBtn();
     }
     function refreshMirasBtn() {
         const el = document.getElementById('mirasInfo');
         if (el) el.textContent = 'Sv.' + Miras.seviye + ' · ' + Miras.kul;
+        const mk = document.getElementById('marketInfo');
+        if (mk) mk.textContent = Miras.kul;
     }
     function renderMiras() {
         const $ = id => document.getElementById(id);
@@ -3122,6 +3143,56 @@ const SnakeGame = (() => {
     function openMiras() { renderMiras(); document.getElementById('mirasPanel').classList.add('active'); panelOpen('mirasPanel'); }
     function closeMiras() { document.getElementById('mirasPanel').classList.remove('active'); panelClosed(); }
     
+    // ======================== MARKET (kostümler ve efektler) ========================
+    function renderMarket() {
+        const $ = id => document.getElementById(id);
+        $('marketKul').textContent = Miras.kul;
+        const giyili = Market.equipped();
+        let h = '';
+        Object.keys(Market.NADIRLIK).sort((a, b) => Market.NADIRLIK[a].sira - Market.NADIRLIK[b].sira).forEach(nk => {
+            const N = Market.NADIRLIK[nk];
+            const liste = Market.SKINS.filter(s => s.nadir === nk);
+            if (!liste.length) return;
+            h += `<section class="mk-grup" aria-label="${N.ad}"><h3 style="color:${N.renk}">${N.ad}</h3><div class="mk-izgara">`;
+            liste.forEach(s => {
+                const sahip = Market.owned(s.id), on = s.id === giyili, yeter = Market.canAfford(s.id);
+                let dugme;
+                if (on) dugme = `<button class="toggle buy giyili" disabled aria-pressed="true">${ikon('check')}Giyili</button>`;
+                else if (sahip) dugme = `<button class="toggle buy giy" data-act="marketEquip" data-id="${s.id}" aria-label="${s.ad} kostümünü giy">Giy</button>`;
+                else dugme = `<button class="toggle buy${yeter ? ' can' : ''}" data-act="marketBuy" data-id="${s.id}" ${yeter ? '' : 'disabled'} aria-label="${s.ad} kostümünü ${s.fiyat} Kül karşılığında al${yeter ? '' : ', Kül yetersiz'}">${ikon('flame')}${s.fiyat} Kül</button>`;
+                h += `<article class="mk-kart${on ? ' on' : ''}" data-nadir="${nk}" style="--nd:${N.renk}"><canvas class="mk-onizle" data-id="${s.id}" role="img" aria-label="${s.ad} önizleme"></canvas><div class="mk-alt"><div class="mk-bilgi"><b>${s.ad}</b><span class="mk-nadir">${N.ad}</span><em>${s.acik}</em></div>${dugme}</div></article>`;
+            });
+            h += '</div></section>';
+        });
+        $('marketList').innerHTML = h;
+        Market.onizleBaslat([...document.querySelectorAll('#marketList canvas.mk-onizle')].map(c => ({ canvas: c, id: c.dataset.id })), { reduced: REDUCED, fx: settings.fx });
+    }
+    function marketBuy(id) {
+        if (typeof id !== 'string') return false;
+        const ok = Market.buy(id);
+        if (ok) { playSound('powerup'); Market.equip(id); }
+        refreshMirasBtn();
+        if (document.getElementById('marketPanel').classList.contains('active')) {
+            renderMarket();
+            const yb = document.querySelector('#marketList [data-id="' + id + '"][data-act]:not(:disabled)') || document.querySelector('#marketPanel .close');
+            if (yb) yb.focus();
+        }
+        return ok;
+    }
+    function marketEquip(id) {
+        if (typeof id !== 'string') return false;
+        const ok = Market.equip(id);
+        if (ok) playSound('start');
+        if (document.getElementById('marketPanel').classList.contains('active')) {
+            renderMarket();
+            const yb = document.querySelector('#marketList .mk-kart.on button') || document.querySelector('#marketPanel .close');
+            if (yb) yb.focus();
+        }
+        return ok;
+    }
+    function openMarket() { refreshMirasBtn(); renderMarket(); document.getElementById('marketPanel').classList.add('active'); panelOpen('marketPanel'); }
+    function closeMarket() { Market.onizleDurdur(); document.getElementById('marketPanel').classList.remove('active'); panelClosed(); }
+
     // ======================== PERSISTENCE ========================
     function saveData() {
         try {
@@ -3174,7 +3245,7 @@ const SnakeGame = (() => {
         nextLevel,
         input,
         togglePause,
-        openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic, openMiras, closeMiras,
+        openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic, openMiras, closeMiras, openMarket, closeMarket, marketBuy, marketEquip,
         ...(TEST_MODE ? { _tapinak: { run: () => tp, meta: () => tpMeta, tick: () => tick(), atil: () => tapinakAtil(), sec: i => tapinakSec(i) } } : {}),
         // Test API'si (_debug, _ach) yalnız ?test=1 ile açılan sayfada; paketli oyunda yok.
         ...(TEST_MODE ? { _miras: { buy: mirasBuy, render: renderMiras }, _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },

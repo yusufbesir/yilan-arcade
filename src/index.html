@@ -1407,6 +1407,35 @@
     @media (max-width: 520px) { .menu-container .menu-actions { grid-template-columns: repeat(2, 1fr); } .mi-tx b { font-size: 19px; } .menu-container .mode-card.classic .mi-tx b { font-size: 28px; } }
     html.reduced .menu-container .mode-card, html.reduced .modes-wrap .mode-card { transition: none; }
     html.reduced .menu-container .mode-card:hover, html.reduced .modes-wrap .mode-card:hover { transform: none; }
+    /* Market (0.9.3): kostüm kartları; tek vurgu altın + nadirlik renkleri */
+    .menu-container .mode-card .mi-sag .kul-ik { width: 16px; height: 16px; fill: currentColor; color: #ff8a3d; }
+    .market-msg { font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--yz2); margin: 0 0 8px; }
+    .market-msg:empty { display: none; }
+    .market-panel { width: min(880px, 100%); }
+    .market-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 8px 0 16px; }
+    .market-head .mh-ac { font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--yz2); }
+    .market-head .mh-kul { font-family: var(--serif); font-size: 14px; letter-spacing: 2px; color: var(--yz2); }
+    .mk-grup { margin: 0 0 20px; }
+    .mk-grup h3 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 20px; letter-spacing: 2px; margin: 0 0 12px 2px; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+    .mk-izgara { display: grid; grid-template-columns: repeat(auto-fill, minmax(236px, 1fr)); gap: 12px; }
+    .mk-kart { display: flex; flex-direction: column; gap: 8px; padding: 10px 10px 12px; border-radius: 14px; background: rgba(8, 14, 26, 0.55); border: 1px solid rgba(255, 255, 255, 0.08); border-top: 3px solid var(--nd, #9aa3ad); transition: border-color .15s, background .15s; }
+    .mk-kart[data-nadir="efsane"] { background: linear-gradient(180deg, rgba(232, 196, 106, 0.12), rgba(8, 14, 26, 0.55)); box-shadow: 0 0 18px rgba(232, 196, 106, 0.14); }
+    .mk-kart.on { border-color: rgba(232, 196, 106, 0.55); border-top-color: var(--nd, #e8c46a); background: rgba(232, 196, 106, 0.08); }
+    .mk-onizle { display: block; width: 100%; aspect-ratio: 208 / 76; border-radius: 10px; background: radial-gradient(ellipse at 50% 60%, rgba(40, 62, 96, 0.55), rgba(5, 9, 18, 0.9)); }
+    .mk-alt { display: flex; flex-direction: column; gap: 8px; flex: 1; justify-content: space-between; }
+    .mk-bilgi { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .mk-bilgi b { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 19px; line-height: 1.2; color: #f1dca0; }
+    .mk-nadir { font-family: var(--serif); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--nd, #9aa3ad); }
+    .mk-bilgi em { font-family: var(--serif); font-style: normal; font-size: 13px; line-height: 1.4; color: var(--yz3); }
+    .mk-kart .toggle.buy { align-self: stretch; min-width: 0; justify-content: center; padding: 8px 14px; gap: 8px; font-family: var(--serif); font-size: 15px; letter-spacing: 1px; }
+    .mk-kart .toggle.buy::before { display: none; }
+    .mk-kart .toggle.buy .ik { width: 14px; height: 14px; vertical-align: 0; }
+    .mk-kart .toggle.buy.can { background: linear-gradient(180deg, #f0d283, #d9ae48); border-color: #f3dc9a; color: var(--altin-ink); box-shadow: 0 4px 14px rgba(232, 196, 106, 0.22); }
+    .mk-kart .toggle.buy.can:hover:not(:disabled) { background: linear-gradient(180deg, #f6dd96, #e2b84f); color: var(--altin-ink); transform: translateY(-2px); }
+    .mk-kart .toggle.buy.giyili { color: var(--nane); border-color: rgba(143, 227, 168, 0.5); background: rgba(143, 227, 168, 0.1); }
+    .mk-kart .toggle:disabled { opacity: 1; color: #8da1b5; cursor: default; }
+    .mk-kart .toggle.buy.giyili:disabled { color: var(--nane); }
+    @media (max-width: 520px) { .mk-izgara { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -1439,6 +1468,7 @@
 
             <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.500l13 7.500-13 7.500z"/></symbol>
             <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 8.500V13l3 2M9.500 3h5"/></g></symbol>
+            <symbol id="i-gem" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><path d="M6.500 4h11l4 5.500L12 21 2.500 9.500z"/><path d="M2.500 9.500h19M9 4L7 9.500 12 21l5-11.500L15 4"/></g></symbol>
             <symbol id="i-temple" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.500L12 4l9 5.500zM5 20h14M6.500 11.500v6M12 11.500v6M17.500 11.500v6"/></g></symbol>
             <symbol id="i-portal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round"><circle cx="12" cy="12" r="8.500"/><path d="M12 7.500a4.500 4.500 0 104.500 4.500"/></g></symbol>
             <symbol id="i-calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"><rect x="3.500" y="5" width="17" height="15" rx="2"/><path d="M3.500 10h17M8 3v4M16 3v4"/></g></symbol>
@@ -1478,6 +1508,11 @@
                             <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-temple"/></svg></span>
                             <span class="mi-tx"><b>Tapınak</b><em>Oda oda keşif ve savaş</em></span>
                             <span class="mi-sag"><span class="rk">Rekor <span id="menuTapinakHigh">0</span></span></span>
+                        </div>
+                        <div class="mode-card market menu-item" tabindex="0" role="button" data-act="openMarket">
+                            <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-gem"/></svg></span>
+                            <span class="mi-tx"><b>Market</b><em>Kostümler ve efektler</em></span>
+                            <span class="mi-sag"><svg class="ik kul-ik" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg><span id="marketInfo">0</span></span>
                         </div>
                         <div class="mode-card miras menu-item" tabindex="0" role="button" data-act="openMiras">
                             <span class="mi-ik"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-flame"/></svg></span>
@@ -1621,6 +1656,7 @@
                                 <div class="overlay-score"><span class="os-label" id="finalLabel">SKOR:</span> <span class="os-val" id="finalScore">0</span></div>
                                 <p class="overlay-message rekor-msg" id="newRecordMsg" style="display:none;"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg><span>YENİ REKOR!</span></p>
                                 <p class="overlay-message kul-msg" id="kulMsg"></p>
+                                <p class="overlay-message market-msg" id="kulMsgMarket"></p>
                                 <ol class="top-list" id="topList"></ol>
                                 <div class="overlay-buttons">
                                     <button class="overlay-btn primary" data-act="restart"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-retry"/></svg><span>TEKRAR</span></button>
@@ -1636,6 +1672,7 @@
                                 <div class="star-rating" id="starsDisplay" role="img" aria-label="3 yıldız"><svg class="ik yildiz on" aria-hidden="true" focusable="false"><use href="#i-star"/></svg><svg class="ik yildiz on" aria-hidden="true" focusable="false"><use href="#i-star"/></svg><svg class="ik yildiz on" aria-hidden="true" focusable="false"><use href="#i-star"/></svg></div>
                                 <div class="overlay-score"><span class="os-label">SKOR:</span> <span class="os-val" id="levelEndScore">0</span></div>
                                 <p class="overlay-message kul-msg" id="kulMsgWin"></p>
+                                <p class="overlay-message market-msg" id="kulMsgWinMarket"></p>
                                 <div class="overlay-buttons">
                                     <button class="overlay-btn primary" data-act="nextLevel"><span>SONRAKİ</span><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-next"/></svg></button>
                                     <button class="overlay-btn secondary" data-act="showLevels"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-grid"/></svg><span>BÖLÜMLER</span></button>
@@ -1705,9 +1742,20 @@
             <button class="menu-btn close" data-act="closeMiras">KAPAT</button>
         </div>
     </div>
+    <div class="panel-overlay" id="marketPanel" role="dialog" aria-modal="true" aria-labelledby="marketTitle">
+        <div class="panel market-panel">
+            <h2 id="marketTitle"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-gem"/></svg><span>Market</span></h2>
+            <div class="panel-body">
+                <div class="market-head"><span class="mh-ac">Kostümler ve efektler</span><span class="mh-kul"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-flame"/></svg>KÜL <b id="marketKul">0</b></span></div>
+                <div id="marketList"></div>
+            </div>
+            <button class="menu-btn close" data-act="closeMarket">KAPAT</button>
+        </div>
+    </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     
     <script src="miras.js"></script>
+    <script src="market.js"></script>
     <script src="doku.js"></script>
     <script src="sprite-map.js"></script>
     <script src="sprites.js"></script>

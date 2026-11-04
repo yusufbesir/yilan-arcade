@@ -89,11 +89,21 @@ const Miras = (() => {
         return true;
     }
 
+    // Market gibi dış harcamalar için: Kül düşer (tecrübe/seviye etkilenmez). Yetmezse false.
+    function harca(n) {
+        n = Math.floor(n);
+        if (!(n >= 0) || n > durum.kul) return false;
+        durum.kul -= n;
+        kaydet();
+        return true;
+    }
+    function bakiye() { return durum.kul; }
+
     function reset() { durum = bos(); try { localStorage.removeItem(KEY); } catch (e) {} }
 
     return {
         YETENEK, MAX_TIER,
-        award, buy, value, tier, cost, reset, load: yukle,
+        award, buy, value, tier, cost, reset, load: yukle, harca, bakiye,
         get kul() { return durum.kul; },
         get toplamXp() { return durum.toplamXp; },
         get seviye() { return durum.seviye; },
