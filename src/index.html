@@ -131,8 +131,8 @@
         /* Screen Container */
         .screen {
             display: none;
-            width: 660px;
-            max-width: 85vw;
+            width: 960px;
+            max-width: 94vw;
         }
         
         .screen.active {
@@ -257,6 +257,8 @@
         .mode-card.chaos .mode-text h3 { color: #ff5ec4; }
         .mode-card.daily { border-color: #5ec4ff; }
         .mode-card.daily .mode-text h3 { color: #5ec4ff; }
+        .mode-card.tapinak { border-color: #e8c46a; }
+        .mode-card.tapinak .mode-text h3 { color: #e8c46a; }
         .mode-card.campaign .mode-text h3 { color: #00ccff; }
         
         .mode-text p {
@@ -912,6 +914,24 @@
         .ach .ic { font-size: 22px; }
         .ach b { display: block; font-size: 8px; color: var(--nors-altin); margin-bottom: 4px; }
         .ach span { font-size: 6px; color: #9fb4c7; line-height: 1.6; }
+        /* ===== Miras paneli ===== */
+        .miras-head { display: flex; justify-content: space-between; font-size: 8px; color: #cfe0ec; letter-spacing: 1px; margin-bottom: 8px; }
+        .miras-head b { color: var(--nors-altin); font-size: 11px; margin-left: 4px; }
+        .miras-bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+        .miras-bar div { height: 100%; width: 0; background: linear-gradient(90deg, #b8742a, var(--nors-altin)); border-radius: 999px; }
+        .miras-bartxt { font-size: 6px; color: #7f93a6; text-align: right; margin: 4px 0 12px; }
+        .miras-list { display: grid; gap: 8px; }
+        .miras-card { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); }
+        .miras-card.on { border-color: rgba(232,196,106,0.45); background: rgba(232,196,106,0.08); }
+        .miras-card .ic { font-size: 22px; }
+        .miras-card b { display: block; font-size: 8px; color: var(--nors-altin); margin-bottom: 4px; }
+        .miras-card b i { font-style: normal; color: #9fb4c7; margin-left: 6px; letter-spacing: 2px; }
+        .miras-card span { display: block; font-size: 6px; color: #9fb4c7; line-height: 1.7; }
+        .miras-card .now { color: #cfe0ec; }
+        .miras-card .toggle { min-width: 74px; }
+        .miras-card .toggle:disabled { opacity: 0.4; cursor: default; }
+        .kul-msg { color: var(--nors-altin); font-size: 9px; }
+        .kul-msg:empty { display: none; }
         /* ===== Başarım bildirimi ===== */
         .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 30px); opacity: 0; background: rgba(18,28,44,0.95); border: 1px solid var(--nors-altin); border-radius: 999px; padding: 12px 20px; font-size: 8px; color: var(--nors-altin); z-index: 30000; transition: transform var(--nors-sure) var(--nors-yay), opacity var(--nors-sure); pointer-events: none; white-space: nowrap; }
         .toast.show { transform: translate(-50%, 0); opacity: 1; }
@@ -1075,6 +1095,20 @@
                         </div>
                     </div>
                     
+                    <div class="mode-card tapinak" tabindex="0" role="button" data-act="startTapinak">
+                        <div class="mode-header">
+                            <span class="mode-icon">🏛️</span>
+                            <div class="mode-text">
+                                <h3>TAPINAK</h3>
+                                <p>Oda oda savaş, armağan seç, Kül Jarlı'nı yen. Yetenekler kalıcı!</p>
+                            </div>
+                        </div>
+                        <div class="mode-stats">
+                            <span class="high-score">🏆 REKOR: <span id="menuTapinakHigh">0</span></span>
+                            <span class="mode-badge">🗝 KEŞİF</span>
+                        </div>
+                    </div>
+                    
                     <div class="mode-card campaign" tabindex="0" role="button" data-act="showLevels">
                         <div class="mode-header">
                             <span class="mode-icon">🏆</span>
@@ -1092,12 +1126,14 @@
                     <div class="menu-actions">
                         <button class="menu-btn" data-act="openSettings">⚙ AYARLAR</button>
                         <button class="menu-btn" data-act="openAchievements">🏅 BAŞARIMLAR <span id="achCount">0/0</span></button>
+                        <button class="menu-btn" data-act="openMiras">🔥 MİRAS <span id="mirasInfo">Sv.1 · 0</span></button>
                         <button id="soundBtn" class="menu-btn" data-act="toggleSound">🔊 SES: AÇIK</button>
                         <button id="musicBtn" class="menu-btn" data-act="toggleMusic">🎵 MÜZİK: AÇIK</button>
                     </div>
                     <div class="controls-help">
                         <span class="key-hint">← → ↑ ↓</span> veya <span class="key-hint">W A S D</span> Hareket<br>
                         <span class="key-hint">P</span> Duraklat &nbsp; <span class="key-hint">R</span> Yeniden Başlat &nbsp; <span class="key-hint">M</span> Menü &nbsp; <span class="key-hint">N</span> Ses &nbsp; <span class="key-hint">B</span> Müzik &nbsp; <span class="key-hint">Boşluk</span> Ateş &nbsp; <span class="key-hint">1-2-3</span> Yükseltme
+                        <span class="key-hint">SPACE</span> Kuyruktan ateş &nbsp; <span class="key-hint">SHIFT</span> Atılım (Tapınak)
                     </div>
                 </div>
             </div>
@@ -1145,7 +1181,7 @@
                     </div>
                     
                     <div class="canvas-container">
-                        <canvas id="gameCanvas" width="660" height="480" role="img" aria-label="Oyun alanı"></canvas>
+                        <canvas id="gameCanvas" width="960" height="640" role="img" aria-label="Oyun alanı"></canvas>
                         
                         <!-- Pause Overlay -->
                         <div class="game-overlay" id="pauseOverlay" role="dialog" aria-modal="true" aria-labelledby="pauseOverlayTitle">
@@ -1161,6 +1197,7 @@
                                 <!-- eski: 💀 GAME OVER --><h2 class="overlay-title gameover" id="gameoverTitle">💀 OYUN BİTTİ</h2>
                                 <div class="overlay-score"><span id="finalLabel">SKOR:</span> <span id="finalScore">0</span></div>
                                 <p class="overlay-message" id="newRecordMsg" style="display:none;">🎉 YENİ REKOR! 🎉</p>
+                                <p class="overlay-message kul-msg" id="kulMsg"></p>
                                 <ol class="top-list" id="topList"></ol>
                                 <div class="overlay-buttons">
                                     <button class="overlay-btn primary" data-act="restart">🔄 TEKRAR</button>
@@ -1175,6 +1212,7 @@
                                 <h2 class="overlay-title complete" id="completeOverlayTitle">✨ TAMAMLANDI!</h2>
                                 <div class="star-rating" id="starsDisplay">⭐⭐⭐</div>
                                 <div class="overlay-score">SKOR: <span id="levelEndScore">0</span></div>
+                                <p class="overlay-message kul-msg" id="kulMsgWin"></p>
                                 <div class="overlay-buttons">
                                     <button class="overlay-btn primary" data-act="nextLevel">➡️ SONRAKİ</button>
                                     <button class="overlay-btn secondary" data-act="showLevels">📋 BÖLÜMLER</button>
@@ -1227,8 +1265,21 @@
             <button class="menu-btn close" data-act="closeAchievements">KAPAT</button>
         </div>
     </div>
+    <div class="panel-overlay" id="mirasPanel">
+        <div class="panel">
+            <h2>Miras</h2>
+            <div class="miras-head"><span>SEVİYE <b id="mirasLevel">1</b></span><span>KÜL <b id="mirasKul">0</b></span></div>
+            <div class="miras-bar"><div id="mirasBar"></div></div>
+            <div class="miras-bartxt" id="mirasBarTxt">0 / 40</div>
+            <div class="miras-list" id="mirasList"></div>
+            <button class="menu-btn close" data-act="closeMiras">KAPAT</button>
+        </div>
+    </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     
+    <script src="miras.js"></script>
+    <script src="gfx25.js"></script>
+    <script src="tapinak.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

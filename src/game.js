@@ -6,8 +6,8 @@ const SnakeGame = (() => {
     // ======================== CONFIGURATION ========================
     const CONFIG = {
         CELL: 20,
-        WIDTH: 660,
-        HEIGHT: 480,
+        WIDTH: 960,
+        HEIGHT: 640,
         BASE_SPEED: 140,
         COLORS: {
             bg: '#080810',
@@ -96,8 +96,8 @@ const SnakeGame = (() => {
     let REDUCED = SYS_REDUCED;
     const TEST_MODE = /[?&]test=1\b/.test(location.search);
     let settings = { speed: 1, fx: 1, vol: 0.6, reduced: false, shake: true, music: true, bigHud: false, cb: false, tron2p: false };
-    const effSpeed = () => Math.max(30, Math.round(state.speed / settings.speed));
-    const STARS = Array.from({ length: 46 }, (_, i) => ({ x: (i * 97.13) % 660, y: (i * 53.71) % 480, r: 0.6 + (i % 3) * 0.5, s: 0.4 + (i % 5) * 0.25, p: i }));
+    const effSpeed = () => Math.max(30, Math.round(state.speed * (state.calm > 0 ? 1 + Miras.value('sakin') : 1) / settings.speed)); // Miras: Sakin Başlangıç
+    const STARS = Array.from({ length: 46 }, (_, i) => ({ x: (i * 97.13) % 960, y: (i * 53.71) % 640, r: 0.6 + (i % 3) * 0.5, s: 0.4 + (i % 5) * 0.25, p: i }));
     const CLASSIC_LIKE = ['classic', 'portal', 'daily'];
     
     let powers = { shield: false, speed: false, invincible: false };
@@ -107,7 +107,7 @@ const SnakeGame = (() => {
     let frameRequest = null;
     
     // Saved Data
-    let records = { classic: 0, bullet: 0, tailgun: 0, survivor: 0, timeattack: 0, portal: 0, tron: 0, chaos: 0, daily: 0, dailyDate: '', top: {} };
+    let records = { classic: 0, bullet: 0, tailgun: 0, survivor: 0, timeattack: 0, portal: 0, tron: 0, chaos: 0, daily: 0, tapinak: 0, dailyDate: '', top: {} };
     let unlocked = {};
     let progress = { unlocked: 1, stars: {} };
     
@@ -140,6 +140,7 @@ const SnakeGame = (() => {
         refreshSoundBtn();
         refreshAchCount();
         refreshMenuStats();
+        refreshMirasBtn();
         
         document.addEventListener('keydown', onKey);
         // Klavye erişimi: odaktaki mod kartı Enter/Space ile tıklanmış sayılır (iç düğmeler kendi davranışını korur)
@@ -159,6 +160,7 @@ const SnakeGame = (() => {
             if (!el) return;
             const act = el.dataset.act;
             if (act === 'toggle') { setSetting(el.dataset.key, !settings[el.dataset.key]); return; }
+            if (act === 'mirasBuy') { mirasBuy(el.dataset.id); return; }
             if (act === 'input') { input(Number(el.dataset.dx), Number(el.dataset.dy)); return; }
             if (Object.prototype.hasOwnProperty.call(PUBLIC, act) && typeof PUBLIC[act] === 'function') PUBLIC[act]();
         });
@@ -223,8 +225,8 @@ const SnakeGame = (() => {
         document.getElementById('menuTailHigh').textContent = records.tailgun;
         document.getElementById('menuSurvHigh').textContent = records.survivor;
         rollDaily();
-        [['menuTimeHigh', 'timeattack'], ['menuPortalHigh', 'portal'], ['menuTronHigh', 'tron'], ['menuChaosHigh', 'chaos'], ['menuDailyHigh', 'daily']].forEach(([id, k]) => {
-            document.getElementById(id).textContent = records[k];
+        [['menuTimeHigh', 'timeattack'], ['menuPortalHigh', 'portal'], ['menuTronHigh', 'tron'], ['menuChaosHigh', 'chaos'], ['menuDailyHigh', 'daily'], ['menuTapinakHigh', 'tapinak']].forEach(([id, k]) => {
+            const el = document.getElementById(id); if (el) el.textContent = records[k];
         });
         document.getElementById('menuProgress').textContent = Math.max(0, progress.unlocked - 1);
     }
@@ -573,8 +575,23 @@ const SnakeGame = (() => {
         powerMeta = {};
         refreshPowerDisplay();
         
+        applyMirasPerks();
         spawnFood();
         updateHUD();
+    }
+    
+    // Miras yetenekleri oyun başında (tron'da yok; Günlük'te adil kalsın diye yalnız can/kalkan/sakin)
+    function applyMirasPerks() {
+        state.calm = 0; state.istahAcc = 0; state.mirasSonuc = null; state.mirasVerildi = false;
+        if (state.mode === 'tron') return;
+        if (state.lives > 1) state.lives += Miras.value('can');
+        const ks = Miras.value('kalkan');
+        if (ks > 0) {
+            powers.shield = true;
+            armTimer('shield', ks * 1000, () => { powers.shield = false; refreshPowerDisplay(); });
+            refreshPowerDisplay();
+        }
+        if (Miras.value('sakin') > 0) state.calm = 3;
     }
     
     function setupLevel(level) {
@@ -644,6 +661,7 @@ const SnakeGame = (() => {
         prevSnake = snake.map(c => ({ x: c.x, y: c.y }));
         lastTickAt = performance.now();
         if (state.mode === 'tron') { tickTron(); return; }
+        if (state.mode === 'tapinak') { tickTapinak(); return; }
         if (state.mode === 'timeattack') {
             state.timeLeft -= state.speed / 1000;
             if (state.timeLeft <= 0) { state.timeLeft = 0; updateHUD(); endGame(); return; }
@@ -693,7 +711,7 @@ const SnakeGame = (() => {
         snake.unshift(head);
         
         // Eat food
-        if (head.x === food.x && head.y === food.y) {
+        if ((head.x === food.x && head.y === food.y) || magnetHit(head)) {
             eatFood();
         } else {
             snake.pop();
@@ -719,6 +737,16 @@ const SnakeGame = (() => {
         
         // Klasik benzeri modlarda hız kademesi: her 5 yemde bir, 1-10 (eski kod skor 5'in katıyken her tikte hızlanıyordu)
         if (CLASSIC_LIKE.includes(state.mode)) applySpeedLevel();
+    }
+    // Miras: Mıknatıs Kemer - yalnız klasik benzeri modlarda (Günlük hariç), yeme komşu hücreden çeker
+    function magnetHit(head) {
+        const k = Miras.value('miknatis');
+        if (!k || state.mode === 'daily' || !CLASSIC_LIKE.includes(state.mode) || !food) return false;
+        const dx = food.x - head.x, dy = food.y - head.y;
+        if (Math.abs(dx) + Math.abs(dy) === 1) return true;
+        if (k >= 2 && Math.abs(dx) === 1 && Math.abs(dy) === 1) return true;
+        if (k >= 3 && dx === dir.x * 2 && dy === dir.y * 2) return true;
+        return false;
     }
     function speedLevel() { return Math.min(10, 1 + Math.floor(state.score / 5)); }
     function applySpeedLevel() {
@@ -802,6 +830,11 @@ const SnakeGame = (() => {
         }
         let pts = food.type === 'super' ? 5 : 1;
         if (chaos.rule === 'triple') pts *= 3;
+        if (state.mode !== 'daily' && state.mode !== 'tron') { // Miras: Altın İştah (kesirler birikir)
+            state.istahAcc = (state.istahAcc || 0) + pts * Miras.value('istah');
+            const ek = Math.floor(state.istahAcc + 1e-9);
+            state.istahAcc -= ek; pts += ek;
+        }
         burst(food.x + 0.5, food.y + 0.5, food.type === 'super' ? '#ffdd00' : '#ffbf2e', food.type === 'super' ? 22 : 12);
         state.score += pts;
         if (state.mode === 'timeattack') state.timeLeft += food.type === 'super' ? 5 : 2;
@@ -813,6 +846,7 @@ const SnakeGame = (() => {
                 document.getElementById('hudTarget').classList.add('gecildi'); // HUD'daki DÜN kutusu kalıcı yeşile döner (reduced: animasyonsuz)
             }
         }
+        if (state.calm > 0 && --state.calm === 0 && loopInterval) { clearInterval(loopInterval); loopInterval = setInterval(tick, effSpeed()); }
         updateHUD();
         playSound(food.type === 'super' ? 'supereat' : 'eat');
         checkAch('eat');
@@ -1197,6 +1231,7 @@ const SnakeGame = (() => {
 
             // ======================== KUYRUK SİLAHI ========================
     function fire() {
+        if (state.mode === 'tapinak') { tapinakAtes(); return; }
         if (state.mode !== 'tailgun' || state.paused || state.over || state.complete) return;
         if (snake.length <= 3 || shotCooldown > 0) return;
         const tail = snake.pop();
@@ -1639,7 +1674,107 @@ const SnakeGame = (() => {
         document.getElementById('finalLabel').textContent = kayitYok ? 'KAZANAN:' : 'SKOR:';
         document.getElementById('gameoverTitle').textContent = kayitYok ? '🏁 DÜELLO BİTTİ' : '💀 OYUN BİTTİ';
         document.getElementById('newRecordMsg').style.display = isRecord ? 'block' : 'none';
+        mirasVer('kulMsg', !kayitYok, state.mode === 'tapinak' && !!(tp && tp.kazandi));
+        if (state.mode === 'tapinak') { const gTitle = document.getElementById('gameoverTitle'); if (gTitle) gTitle.textContent = tp && tp.kazandi ? '🏛️ TAPINAKTAN ÇIKTIN' : '💀 KOŞU BİTTİ'; }
         document.getElementById('gameoverOverlay').classList.add('active');
+    }
+    
+    // ======================== TAPINAK (mantık ve çizim: tapinak.js) ========================
+    let tp = null, tpMeta = null;
+    function startTapinak(seed) {
+        if (typeof Tapinak === 'undefined') return;
+        startSimple('tapinak', 110, { high: records.tapinak, levelLabel: 'ODA', lives: true });
+        document.getElementById('fireBtn').style.display = '';
+        food = { x: -50, y: -50, type: 'normal' }; // tapınakta yem yok; düşmanların ruh özleri büyütür
+        tpMeta = Tapinak.yukle();
+        tpMeta.kosu++;
+        Tapinak.kaydet(tpMeta);
+        tp = Tapinak.yeniKosu(typeof seed === 'number' && isFinite(seed) ? seed : (Date.now() ^ (Math.random() * 1e9)) >>> 0, tpMeta.yetenek);
+        tapinakSenkron();
+        prevSnake = snake.map(c => ({ x: c.x, y: c.y }));
+        tapinakOlaylar(Tapinak.olaylariAl(tp));
+        showBanner('TAPINAK · SPACE: ATEŞ' + (tp.yetenek.atilim ? ' · SHIFT: ATILIM' : ''), true);
+        showGame();
+        beginLoop();
+        playSound('start');
+    }
+    function tapinakSenkron() {
+        snake = tp.snake;
+        dir = { ...tp.dir };
+        nextDir = { ...tp.want };
+        state.score = tp.skor;
+        state.lives = tp.can;
+    }
+    function tickTapinak() {
+        if (!tp) return;
+        if (nextDir.x !== dir.x || nextDir.y !== dir.y) tp.want = { ...nextDir };
+        Tapinak.adim(tp);
+        tapinakSenkron();
+        tapinakOlaylar(Tapinak.olaylariAl(tp));
+    }
+    function tapinakEylem(f) {
+        if (!tp || state.paused || state.over || state.complete) return false;
+        const ok = f(tp);
+        tapinakSenkron();
+        tapinakOlaylar(Tapinak.olaylariAl(tp));
+        return ok;
+    }
+    function tapinakAtes() { return tapinakEylem(r => Tapinak.ates(r)); }
+    function tapinakAtil() { return tapinakEylem(r => Tapinak.atil(r)); }
+    function tapinakSec(i) { return tapinakEylem(r => Tapinak.sec(r, i)); }
+    function tapinakOlaylar(evs) {
+        let bitis = null;
+        evs.forEach(e => {
+            switch (e.t) {
+                case 'oda': {
+                    const n = Object.keys(tp.odalar).filter(k => tp.odalar[k].ziyaret).length;
+                    document.getElementById('hudLevel').textContent = n + '/9';
+                    showBanner(e.ad, true);
+                    break;
+                }
+                case 'ates': playSound('shield'); break;
+                case 'oldu': burst(e.x, e.y, '#9fe8ff', 14, 1.1); playSound('eat'); break;
+                case 'govde': spark(e.x, e.y); break;
+                case 'oz': playSound('eat'); break;
+                case 'hasar': burst(e.x, e.y, '#ff2244', 22, 1.3); addShake(7); flashCanvas('#ff0033'); playSound('hit'); break;
+                case 'kalkan': flashCanvas('#00ccff'); playSound('shield'); break;
+                case 'temiz': showBanner(e.tur === 'savas' ? 'ODA TEMİZLENDİ · ARMAĞAN SEÇ' : e.tur === 'boss' ? 'KÜL JARLI DÜŞTÜ · SUNAK VE ÇIKIŞ' : 'ODA TEMİZLENDİ · SUNAĞA DOKUN', true); playSound('powerup'); break;
+                case 'armagan': showBanner(e.ad + ': ' + e.acik, true); playSound('supereat'); break;
+                case 'yetenek':
+                    tpMeta.yetenek[e.id] = true;
+                    Tapinak.kaydet(tpMeta);
+                    showBanner('YENİ YETENEK: ' + e.ad, true);
+                    showToast('🏛️ ' + e.ad + ' · ' + e.acik);
+                    playSound('ach');
+                    break;
+                case 'lutuf': showBanner('ŞİFA SUNAĞI: CAN DOLDU', true); playSound('powerup'); break;
+                case 'sandik': showBanner('ALTIN KASA: +1 CAN', true); playSound('supereat'); break;
+                case 'kirildi': burst(e.x, e.y, '#c08a5a', 24, 1.4); addShake(5); playSound('hit'); break;
+                case 'kilit': burst(e.x, e.y, '#e8c46a', 20, 1.2); playSound('powerup'); break;
+                case 'atilim': burst(e.x1, e.y1, '#7fe3ff', 10, 0.9); playSound('powerup'); break;
+                case 'ipucu': showBanner(e.metin); break;
+                case 'faz': showBanner('KÜL JARLI · FAZ ' + e.faz, true); addShake(8); playSound('hit'); break;
+                case 'sarsinti': addShake(6); break;
+                case 'bossOldu': burst(e.x, e.y, '#ffb347', 60, 2.2); addShake(12); playSound('complete'); break;
+                case 'bitti': bitis = e; break;
+            }
+        });
+        state.score = tp.skor;
+        state.lives = tp.can;
+        updateHUD();
+        if (bitis && !state.over) tapinakBitir(!!bitis.won);
+    }
+    function tapinakBitir(won) {
+        state.score = tp.skor;
+        if (won) tpMeta.zafer++;
+        Tapinak.kaydet(tpMeta);
+        endGame();
+    }
+    function drawTapinakLayer() {
+        if (tp) Tapinak.ciz(ctx, tp, { dpr, t: performance.now() / 1000, reduced: REDUCED, cb: settings.cb, dusmanRenk: PALET.dusman });
+    }
+    function drawTapinakTop() {
+        if (tp) Tapinak.cizUst(ctx, tp, { dpr, t: performance.now() / 1000, reduced: REDUCED, bas: renderPos[0] });
     }
     
     function winLevel() {
@@ -1668,12 +1803,13 @@ const SnakeGame = (() => {
         
         document.getElementById('starsDisplay').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
         document.getElementById('levelEndScore').textContent = state.score;
+        mirasVer('kulMsgWin', true, true);
         document.getElementById('completeOverlay').classList.add('active');
     }
     
     function restart() {
         closeOverlays();
-        const starters = { classic: startClassic, bullet: startBullet, tailgun: startTailgun, survivor: startSurvivor, timeattack: startTimeAttack, portal: startPortal, tron: startTron, chaos: startChaos, daily: startDaily };
+        const starters = { classic: startClassic, bullet: startBullet, tailgun: startTailgun, survivor: startSurvivor, timeattack: startTimeAttack, portal: startPortal, tron: startTron, chaos: startChaos, daily: startDaily, tapinak: () => startTapinak() };
         if (starters[state.mode]) starters[state.mode]();
         else startCampaign(state.level);
     }
@@ -1718,6 +1854,11 @@ const SnakeGame = (() => {
         if (state.mode === 'survivor' && sv.choosing && ['1', '2', '3'].includes(key)) {
             pickUpgrade(Number(key) - 1);
             return;
+        }
+        
+        if (state.mode === 'tapinak') {
+            if (key === 'shift') { tapinakAtil(); e.preventDefault(); return; }
+            if (key === '1' || key === '2') { tapinakSec(Number(key) - 1); return; }
         }
         
         if (key === ' ') {
@@ -1822,7 +1963,7 @@ const SnakeGame = (() => {
         
         if (state.mode !== 'classic') {
             let hearts = '';
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < Math.max(3, state.lives); i++) {
                 hearts += i < state.lives ? '❤️' : '🖤';
             }
             document.getElementById('hudLives').textContent = hearts;
@@ -1852,10 +1993,12 @@ const SnakeGame = (() => {
         drawBackground(nowT);
         
         // Static obstacles
-        obstacles.forEach(o => drawBlock(o.x, o.y, settings.cb ? PALET.engel : C.obstacle, '#55557a'));
+        if (G25()) G25().drawBlocks(ctx, obstacles, settings.cb ? PALET.engel : C.obstacle, false, nowT / 1000, CELL, false);
+        else obstacles.forEach(o => drawBlock(o.x, o.y, settings.cb ? PALET.engel : C.obstacle, '#55557a'));
         
         // Moving obstacles
-        movingObs.forEach(o => drawBlock(Math.floor(o.x), Math.floor(o.y), C.movingObs, '#ffaa44', true));
+        if (G25()) G25().drawBlocks(ctx, movingObs, C.movingObs, true, nowT / 1000, CELL, true);
+        else movingObs.forEach(o => drawBlock(Math.floor(o.x), Math.floor(o.y), C.movingObs, '#ffaa44', true));
         
         // Powerups
         powerups.forEach(p => drawPowerup(p));
@@ -1869,6 +2012,7 @@ const SnakeGame = (() => {
         // Lasers, warnings, boss
         if (state.mode === 'bullet') drawBulletLayer();
         if (state.mode === 'tailgun') drawTailgunLayer();
+        if (state.mode === 'tapinak') drawTapinakLayer();
         if (state.mode === 'survivor') drawSurvivorLayer();
         
         // Bullets
@@ -1890,14 +2034,16 @@ const SnakeGame = (() => {
         // Auras
         if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
         if (powers.shield) drawAura(snake[0], '#00ccff', 22);
+        if (state.mode === 'tapinak') drawTapinakTop();
         
-        if (['classic', 'bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron', 'daily'].includes(state.mode)) drawBanner(); // daily eksikti: Günlük afişleri hiç çizilmiyordu
+        if (['classic', 'bullet', 'tailgun', 'survivor', 'chaos', 'portal', 'timeattack', 'tron', 'daily', 'tapinak'].includes(state.mode)) drawBanner(); // daily eksikti: Günlük afişleri hiç çizilmiyordu
         drawParticles();
         drawVignette();
         if (state.mode === 'survivor' && sv.choosing) drawLevelUp();
         ctx.restore();
     }
     
+    const G25 = () => (typeof Gfx25 !== 'undefined' ? Gfx25 : null);
     let nors = { bg: null, key: '' };
     let renderPos = [];
 
@@ -1948,8 +2094,12 @@ const SnakeGame = (() => {
         return c;
     }
 
+    function gfxOpts() {
+        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, all: renderPos };
+    }
     function drawBackground(now) {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
+        if (G25()) { G25().drawBackground(ctx, now, gfxOpts()); return; }
         const key = dpr + ':' + W + 'x' + H;
         if (!nors.bg || nors.key !== key) { nors.bg = buildNorsBackground(); nors.key = key; }
         ctx.drawImage(nors.bg, 0, 0, W, H);
@@ -2026,6 +2176,7 @@ const SnakeGame = (() => {
     }
 
     function drawSnakeHead(pos) {
+        if (G25()) { G25().drawSnakeHead(ctx, pos, dir, performance.now() / 1000, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const t = performance.now() / 1000;
         const cx = pos.x * S + S / 2;
@@ -2088,6 +2239,7 @@ const SnakeGame = (() => {
     }
 
     function drawSnakeBody(pos, idx, total) {
+        if (G25()) { G25().drawSnakeBody(ctx, pos, idx, total, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const k = total > 1 ? idx / (total - 1) : 0;
         const r = Math.max(5.2, 8.6 - k * 3.2);
@@ -2152,6 +2304,7 @@ const SnakeGame = (() => {
         ctx.restore();
     }
     function drawFood() {
+        if (G25()) { G25().drawFood(ctx, food, performance.now() / 1000, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const t = performance.now() / 1000;
         const isSuper = food.type === 'super';
@@ -2319,6 +2472,12 @@ const SnakeGame = (() => {
     }
 
     function drawPowerup(p) {
+        if (G25()) {
+            const o = gfxOpts();
+            o.colors = { shield: CONFIG.COLORS.powerShield, speed: CONFIG.COLORS.powerSpeed, invincible: CONFIG.COLORS.powerInvincible, clear: CONFIG.COLORS.powerClear };
+            G25().drawPowerup(ctx, p, performance.now() / 1000, o);
+            return;
+        }
         const S = CONFIG.CELL;
         const px = p.x * S;
         const py = p.y * S;
@@ -2391,6 +2550,7 @@ const SnakeGame = (() => {
     }
 
     function drawPortal(p) {
+        if (G25()) { G25().drawPortal(ctx, p, performance.now() / 1000, gfxOpts()); return; }
         const S = CONFIG.CELL;
         const t = performance.now() / 1000;
         [p.a, p.b].forEach(c => {
@@ -2819,6 +2979,44 @@ const SnakeGame = (() => {
     }
     function closeAchievements() { document.getElementById('achPanel').classList.remove('active'); panelClosed(); }
     
+    // ======================== MİRAS (kalıcı tecrübe) ========================
+    function mirasVer(elId, ver, won) {
+        const el = document.getElementById(elId);
+        if (state.mirasVerildi || !ver) { if (el && !ver) el.textContent = ''; return; }
+        state.mirasVerildi = true;
+        const r = Miras.award({ mode: state.mode, score: state.score, won: !!won });
+        state.mirasSonuc = r;
+        if (el) el.textContent = '🔥 +' + r.gained + ' KÜL';
+        if (r.levelUp) showToast('🔥 MİRAS SEVİYE ' + r.level + '!');
+        refreshMirasBtn();
+    }
+    function refreshMirasBtn() {
+        const el = document.getElementById('mirasInfo');
+        if (el) el.textContent = 'Sv.' + Miras.seviye + ' · ' + Miras.kul;
+    }
+    function renderMiras() {
+        const $ = id => document.getElementById(id);
+        const p = Miras.progress();
+        $('mirasLevel').textContent = p.seviye;
+        $('mirasKul').textContent = Miras.kul;
+        $('mirasBar').style.width = Math.round(p.mevcut / p.gerek * 100) + '%';
+        $('mirasBarTxt').textContent = p.mevcut + ' / ' + p.gerek;
+        $('mirasList').innerHTML = Miras.YETENEK.map(t => {
+            const k = Miras.tier(t.id), c = Miras.cost(t.id);
+            const pips = '●'.repeat(k) + '○'.repeat(Miras.MAX_TIER - k);
+            const sonraki = c === null ? 'TAM' : t.fmt(t.etki[k + 1]);
+            const d = c === null ? 'disabled' : (Miras.kul < c ? 'disabled' : '');
+            return `<div class="miras-card ${k ? 'on' : ''}"><span class="ic">${t.ic}</span><div class="mi"><b>${t.ad} <i>${pips}</i></b><span>${t.acik}</span><span class="now">${k ? 'Şimdi: ' + t.fmt(t.etki[k]) : 'Alınmadı'}${c === null ? '' : ' → ' + sonraki}</span></div><button class="toggle" data-act="mirasBuy" data-id="${t.id}" ${d}>${c === null ? 'TAM' : c + ' KÜL'}</button></div>`;
+        }).join('');
+    }
+    function mirasBuy(id) {
+        if (Miras.buy(id)) playSound('powerup');
+        renderMiras();
+        refreshMirasBtn();
+    }
+    function openMiras() { renderMiras(); document.getElementById('mirasPanel').classList.add('active'); }
+    function closeMiras() { document.getElementById('mirasPanel').classList.remove('active'); }
+    
     // ======================== PERSISTENCE ========================
     function saveData() {
         try {
@@ -2861,6 +3059,7 @@ const SnakeGame = (() => {
         startTron,
         startChaos,
         startDaily,
+        startTapinak,
         toggleSound,
         fire,
         pickUpgrade,
@@ -2869,9 +3068,10 @@ const SnakeGame = (() => {
         nextLevel,
         input,
         togglePause,
-        openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic,
+        openSettings, closeSettings, setSetting, getSettings, openAchievements, closeAchievements, toggleMusic, openMiras, closeMiras,
+        ...(TEST_MODE ? { _tapinak: { run: () => tp, meta: () => tpMeta, tick: () => tick(), atil: () => tapinakAtil(), sec: i => tapinakSec(i) } } : {}),
         // Test API'si (_debug, _ach) yalnız ?test=1 ile açılan sayfada; paketli oyunda yok.
-        ...(TEST_MODE ? { _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
+        ...(TEST_MODE ? { _miras: { buy: mirasBuy, render: renderMiras }, _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
         _debug: { tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), extra: () => ({ portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
     };
     return PUBLIC;
