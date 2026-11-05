@@ -73,7 +73,7 @@ const path = require('path');
     btn.click(); await new Promise(r => setTimeout(r, 30));
     o.c_panoYok = ipucu.textContent === 'Kopyalanamadı';
     SnakeGame.showMenu();
-    SnakeGame.startClassic(); D.get().snake[0].x = -2; D.tick();
+    SnakeGame.startClassic(); D.get().snake[0].x = -2; D.tick(); D.tick(); // ölüm eşiği: ilk ölümcül tik bekler, ikincisi öldürür
     o.c_digerModdaYok = document.getElementById('copyBtn').style.display === 'none' && document.getElementById('copyHint').textContent === '';
     SnakeGame.showMenu();
 

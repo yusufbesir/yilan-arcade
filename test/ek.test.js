@@ -198,6 +198,47 @@ const assert = require('assert');
     return new Promise(res => setTimeout(() => { Storage.prototype.setItem = orig; res(document.getElementById('toast').textContent); }, 300));
   });
   assert.ok(/Kayıt yazılamadı/.test(r.kayitUyari), 'kayıt uyarısı yok: ' + r.kayitUyari);
+  // 16) Ölüm eşiği: duvara çarpacak hamle bir kez bekler, ikincisi (60 tik içinde) öldürür; kapalıyken hemen
+  await baslat('startClassic');
+  r.esik = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get();
+    const h = g.snake[0]; h.x = 47; h.y = 5; g.snake[1].x = 46; g.snake[1].y = 5; g.snake[2].x = 45; g.snake[2].y = 5;
+    g.dir.x = 1; g.dir.y = 0; g.nextDir.x = 1; g.nextDir.y = 0;
+    const l0 = g.state.lives;
+    T(); const a = { lives: d.get().state.lives, x: d.get().snake[0].x, over: d.get().state.over };
+    T(); const b = { lives: d.get().state.lives, over: d.get().state.over };
+    return { l0, a, b };
+  });
+  assert.ok(r.esik.a.lives === r.esik.l0 && r.esik.a.x === 47, 'eşik ilk hamleyi beklemedi: ' + JSON.stringify(r.esik));
+  assert.ok(r.esik.b.lives < r.esik.l0 || r.esik.b.over, 'eşik ikinci hamlede öldürmedi: ' + JSON.stringify(r.esik));
+  // 17) Yankı yemi: yem yenince 3 tik sonra yankı belirir, yenince +1
+  await baslat('startClassic');
+  r.yanki = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(), h = g.snake[0], f = d.extra().food;
+    f.x = h.x + g.nextDir.x; f.y = h.y + g.nextDir.y; f.type = 'normal';
+    T(); const y = d.get().state.yanki; return y ? { x: y.x, y: y.y, wait: y.wait } : null;
+  });
+  assert.ok(r.yanki && r.yanki.wait === 3, 'yankı oluşmadı: ' + JSON.stringify(r.yanki));
+  r.yankiKapali = await page.evaluate(() => {
+    SnakeGame.setSetting('ek', { yanki: false });
+    const d = SnakeGame._debug; d.get().state.yanki = null;
+    const g = d.get(), h = g.snake[0], f = d.extra().food; f.x = h.x + g.nextDir.x; f.y = h.y + g.nextDir.y; T();
+    const v = d.get().state.yanki; SnakeGame.setSetting('ek', {}); return v;
+  });
+  assert.strictEqual(r.yankiKapali, null, 'kapalıyken yankı oluştu');
+  // 18) Kuyruk rengi: yemler sayılır; çizim hatasız
+  r.renk = await page.evaluate(() => { const d = SnakeGame._debug; d.draw(); return d.get().state.yemRenk.length; });
+  assert.ok(r.renk >= 1, 'yem rengi kaydedilmedi');
+  // 19) Renk kapısı: portaldan çıkınca ilk yem x2
+  await baslat('startPortal');
+  r.kapi = await page.evaluate(() => {
+    const d = SnakeGame._debug, ex = d.extra(), g = d.get(), h = g.snake[0];
+    ex.portals.length = 0; ex.portals.push({ a: { x: h.x + 1, y: h.y }, b: { x: h.x + 5, y: h.y }, color: '#f90', cool: 0 });
+    T(); const kl = d.get().state.kapiLeft;
+    const h2 = d.get().snake[0], f = d.extra().food; f.x = h2.x + g.nextDir.x; f.y = h2.y + g.nextDir.y; f.type = 'normal';
+    const s0 = d.get().state.score; T(); return { kl, d: d.get().state.score - s0 };
+  });
+  assert.ok(r.kapi.kl > 0 && r.kapi.d >= 2, 'renk kapısı çalışmadı: ' + JSON.stringify(r.kapi));
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
