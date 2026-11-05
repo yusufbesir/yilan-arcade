@@ -371,6 +371,18 @@ const assert = require('assert');
     SnakeGame.setSetting('ek', {}); return { sunuldu, durdu, secildi };
   });
   assert.ok(r.kumar.sunuldu && r.kumar.durdu && r.kumar.secildi, 'kumar çalışmadı: ' + JSON.stringify(r.kumar));
+  // 32) Kaygan buz karosu (Bölüm): 5. bölümde karolar var, 1. bölümde yok; karo üstünde dönüş bir tik gecikir; kapalıyken gecikmez
+  r.buz = await page.evaluate(() => {
+    const d = SnakeGame._debug; SnakeGame.startCampaign(1); const l1 = !!d.get().state.buz;
+    SnakeGame.startCampaign(5); const st = d.get().state; const var5 = !!st.buz && st.buz.size > 6;
+    d.draw();
+    const g = d.get(), h = g.snake[0]; st.buz.add(h.x + ',' + h.y);
+    g.nextDir.x = 0; g.nextDir.y = 1; const dir0 = { ...g.dir };
+    d.tick(); const ilk = { ...d.get().dir };
+    d.tick(); const ikinci = { ...d.get().dir };
+    return { l1, var5, gecikti: ilk.x === dir0.x && ilk.y === dir0.y, sonra: ikinci.y === 1 };
+  });
+  assert.ok(!r.buz.l1 && r.buz.var5 && r.buz.gecikti && r.buz.sonra, 'buz karosu çalışmadı: ' + JSON.stringify(r.buz));
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();

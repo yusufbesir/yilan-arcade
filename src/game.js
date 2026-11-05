@@ -128,6 +128,7 @@ const SnakeGame = (() => {
         ['kuyrukrenk', 'KUYRUK RENGİ', 'Son 10 yemin türü kuyruk halkalarında küçük renk noktası olarak görünür (yalnız çizim)'],
         ['renkkapi', 'RENK KAPISI', 'Portal: portaldan çıkınca 12 tik içinde yenen yem x2, baş portal renginde parlar'],
         ['surunme', 'SÜRÜNME DALGASI', 'Yılanın gövdesi hafifçe dalgalanır, yem yenince gövdede şişlik baştan kuyruğa ilerler (yalnız çizim; hareket azaltmada kapalı)'],
+        ['buzkaro', 'KAYGAN BUZ KAROLARI', 'Bölüm: bazı bölümlerde buz karoları; üstündeyken dönüş bir tik gecikir (karolar açık mavi görünür)'],
         ['kumar', 'KAOS KUMARI', 'Kaos: her 10 yemde rastgele iki kuraldan birini sen seçersin (1 / 2); açıkken süreye bağlı rastgele kural gelmez', false],
         ['ritim', 'RİTİM YEMİ', 'Zamana Karşı: müziğin ana vuruşuna denk yem yersen +0,5 sn (müzik kapalıysa çalışmaz)'],
         ['mayin', 'KUYRUK MAYINI', 'Kuyruk Silahı: O tuşu kuyruk ucundan halka bırakıp mayın yapar; düşman yaklaşınca patlar, 30 tikte kaybolur'],
@@ -651,7 +652,7 @@ const SnakeGame = (() => {
         document.getElementById('hudTarget').classList.remove('ragnarok');
         state.bolumTik = 0;
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
-        state.tohum = null; state.mayinlar = []; state.mayinCool = 0;
+        state.buz = null; state.buzBekliyor = false; state.tohum = null; state.mayinlar = []; state.mayinCool = 0;
         state.hRec = []; state.hEat = []; state.hayGecti = false; state.hay = (state.mode === 'classic' && ek('hayalet') && records.hay) ? records.hay : null;
         if (state.mode === 'classic' && ek('tohum')) { // Tohum kodu: yalnız yem konumları bu akıştan gelir
             state.tohum = state.tohumSonraki || Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
@@ -685,6 +686,28 @@ const SnakeGame = (() => {
         if (Miras.value('sakin') > 0) state.calm = 3;
     }
     
+    function buzKaroUret(level) { // Kaygan Buz: 5, 8, 11... bölümlerinde 4 adet 3x2 karo; konumlar bölüm numarasından (rastgelelik tüketmez)
+        state.buz = null;
+        if (level < 5 || level % 3 !== 2) return;
+        const set = new Set(); let h = level * 2654435761 >>> 0;
+        const sonraki = (n) => { h = (Math.imul(h, 1664525) + 1013904223) >>> 0; return h % n; };
+        const midY = Math.floor(ROWS / 2);
+        for (let k = 0; k < 4; k++) {
+            const x0 = 14 + sonraki(COLS - 18), y0 = 2 + sonraki(ROWS - 5);
+            for (let dx = 0; dx < 3; dx++) for (let dy = 0; dy < 2; dy++) {
+                const x = x0 + dx, y = y0 + dy;
+                if (Math.abs(y - midY) <= 1 && x < 16) continue; // başlangıç şeridi temiz kalır
+                if (!obstacles.some(o => o.x === x && o.y === y)) set.add(x + ',' + y);
+            }
+        }
+        state.buz = set;
+    }
+    function drawBuz() {
+        if (!state.buz || !ek('buzkaro') || state.mode !== 'campaign') return;
+        const S = CONFIG.CELL; ctx.save(); ctx.fillStyle = 'rgba(160, 220, 255, 0.28)'; ctx.strokeStyle = 'rgba(210, 240, 255, 0.45)'; ctx.lineWidth = 1;
+        state.buz.forEach(k => { const [x, y] = k.split(',').map(Number); ctx.fillRect(x * S, y * S, S, S); ctx.strokeRect(x * S + 0.5, y * S + 0.5, S - 1, S - 1); });
+        ctx.restore();
+    }
     function setupLevel(level) {
         // Static obstacles
         const obsCount = Math.floor(level / 1.5);
@@ -693,6 +716,7 @@ const SnakeGame = (() => {
             if (pos) obstacles.push(pos);
         }
         
+        buzKaroUret(level);
         // Moving obstacles from level 8
         if (level >= 8) {
             const movCount = Math.min(Math.floor((level - 8) / 3) + 1, 7);
@@ -779,7 +803,13 @@ const SnakeGame = (() => {
         }
         
         if (state.mode === 'campaign') state.bolumTik++;
-        if (!Tema.kaymaBekle(dir, nextDir)) { // Buzul: dönüş bir tik gecikir
+        let buzGec = false; // Kaygan Buz karosu: üstündeyken dönüş bir tik gecikir
+        if (ek('buzkaro') && state.buz && state.mode === 'campaign') {
+            const dondu = nextDir.x !== dir.x || nextDir.y !== dir.y;
+            if (dondu && !state.buzBekliyor && state.buz.has(snake[0].x + ',' + snake[0].y)) { state.buzBekliyor = true; buzGec = true; }
+            else state.buzBekliyor = false;
+        }
+        if (!buzGec && !Tema.kaymaBekle(dir, nextDir)) { // Buzul: dönüş bir tik gecikir
             dir = { ...nextDir };
             if (turnQ.length) { const q = turnQ.shift(); if (!(q.x === -dir.x && q.y === -dir.y)) nextDir = q; } // dönüş tamponu: sıradaki dönüş bir sonraki tikte
         }
@@ -2500,6 +2530,7 @@ const SnakeGame = (() => {
             Market.efekt(ctx, { pts: mp, S: CONFIG.CELL, t: nowT / 1000, aktif: state.running && !state.paused && !state.over, cb: settings.cb, reduced: REDUCED, fx: settings.fx, yon: dir });
         }
 
+        drawBuz();
         drawHayalet();
         drawAlaca(renderPos);
         // Auras
