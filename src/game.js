@@ -128,6 +128,8 @@ const SnakeGame = (() => {
         ['kuyrukrenk', 'KUYRUK RENGİ', 'Son 10 yemin türü kuyruk halkalarında küçük renk noktası olarak görünür (yalnız çizim)'],
         ['renkkapi', 'RENK KAPISI', 'Portal: portaldan çıkınca 12 tik içinde yenen yem x2, baş portal renginde parlar'],
         ['surunme', 'SÜRÜNME DALGASI', 'Yılanın gövdesi hafifçe dalgalanır, yem yenince gövdede şişlik baştan kuyruğa ilerler (yalnız çizim; hareket azaltmada kapalı)'],
+        ['hedefcesit', 'HEDEF ÇEŞİTLERİ', 'Bölüm: her 4. bölümde (3, 7, 11...) skor hedefine ek koşul: 12 tik düz gidiş, dört köşeye uğra veya uzunluk hedefi'],
+        ['sirali', 'SIRALI YEM', 'Bölüm: 4, 9, 14... bölümlerde 1-2-3 numaralı yemler; sırayla ye (+1 her biri, set tamamlanınca +2), yanlış sırada set yenilenir'],
         ['buzkaro', 'KAYGAN BUZ KAROLARI', 'Bölüm: bazı bölümlerde buz karoları; üstündeyken dönüş bir tik gecikir (karolar açık mavi görünür)'],
         ['kumar', 'KAOS KUMARI', 'Kaos: her 10 yemde rastgele iki kuraldan birini sen seçersin (1 / 2); açıkken süreye bağlı rastgele kural gelmez', false],
         ['ritim', 'RİTİM YEMİ', 'Zamana Karşı: müziğin ana vuruşuna denk yem yersen +0,5 sn (müzik kapalıysa çalışmaz)'],
@@ -717,6 +719,7 @@ const SnakeGame = (() => {
         }
         
         buzKaroUret(level);
+        hedefKur(level); siraKur(level);
         // Moving obstacles from level 8
         if (level >= 8) {
             const movCount = Math.min(Math.floor((level - 8) / 3) + 1, 7);
@@ -884,6 +887,7 @@ const SnakeGame = (() => {
         temaAdim(head);
         ekYemAdim(head);
         if (state.over) return;
+        if (state.mode === 'campaign') { hedefAdim(head); siraAdim(head); }
         
         // Mode updates
         if (state.mode === 'bullet') {
@@ -898,7 +902,7 @@ const SnakeGame = (() => {
         
         if (state.mode === 'campaign') {
             tickMovingObs();
-            if (state.score >= state.target) {
+            if (state.score >= state.target && hedefTamam()) {
                 winLevel();
             }
         }
@@ -1137,7 +1141,83 @@ const SnakeGame = (() => {
         }
         if (--e.left <= 0) state.ekYem = null;
     }
+    // Hedef çeşitleri: skor hedefine ek koşul (yıldız kuralı değişmez); rand tüketmez
+    const HEDEF_AD = { duz: 'DÜZ', gezgin: 'KÖŞE', uzun: 'UZUN' };
+    function hedefKur(level) {
+        state.hedef = null;
+        if (!ek('hedefcesit') || state.mode !== 'campaign' || level < 3 || level % 4 !== 3) return;
+        const tur = ['duz', 'gezgin', 'uzun'][Math.floor(level / 4) % 3];
+        state.hedef = { tur, run: 0, enUzun: 0, kose: 0, son: null };
+        const m = { duz: 'EK HEDEF: 12 TİK DÜZ GİT', gezgin: 'EK HEDEF: DÖRT KÖŞEYE UĞRA', uzun: 'EK HEDEF: UZUNLUK ' + (state.target + 6) };
+        showBanner(m[tur], false, 2200, 'soluk');
+    }
+    function hedefTamam() {
+        const h = state.hedef; if (!h) return true;
+        return h.tur === 'duz' ? h.enUzun >= 12 : h.tur === 'gezgin' ? h.kose === 15 : snake.length >= state.target + 6;
+    }
+    function hedefMetin() {
+        const h = state.hedef; if (!h) return '';
+        const v = h.tur === 'duz' ? Math.min(12, h.enUzun) + '/12' : h.tur === 'gezgin' ? [1, 2, 4, 8].filter(b => h.kose & b).length + '/4' : snake.length + '/' + (state.target + 6);
+        return ' · ' + HEDEF_AD[h.tur] + ' ' + v;
+    }
+    function hedefAdim(head) {
+        const h = state.hedef; if (!h || !ek('hedefcesit')) return;
+        const eski = hedefMetin();
+        if (h.son && h.son.x === dir.x && h.son.y === dir.y) h.run++; else h.run = 1;
+        h.son = { x: dir.x, y: dir.y };
+        if (h.run > h.enUzun) h.enUzun = h.run;
+        const sol = head.x < 4, sag = head.x >= COLS - 4, ust = head.y < 4, alt = head.y >= ROWS - 4;
+        if (sol && ust) h.kose |= 1; if (sag && ust) h.kose |= 2; if (sol && alt) h.kose |= 4; if (sag && alt) h.kose |= 8;
+        const yeni = hedefMetin();
+        if (yeni !== eski) document.getElementById('hudTarget').textContent = `${state.score}/${state.target}` + yeni;
+    }
+
+    // Sıralı yem: bölümde 1-2-3 numaralı üç yem; sırayla yenirse +1'er, set tamamlanınca +2 ve yeni set
+    function siraKur(level) {
+        state.sira = null;
+        if (!ek('sirali') || state.mode !== 'campaign' || level < 4 || level % 5 !== 4) return;
+        state.sira = { items: [], next: 1 };
+        siraSet();
+        showBanner('SIRALI YEM: 1-2-3', false, 2000, 'soluk');
+    }
+    function siraSet() {
+        const sr = state.sira; sr.items = []; sr.next = 1;
+        for (let n = 1; n <= 3; n++) {
+            for (let i = 0; i < 40; i++) {
+                const pos = findEmpty();
+                if (pos && !sr.items.some(c => c.x === pos.x && c.y === pos.y) && !(food && food.x === pos.x && food.y === pos.y)) { sr.items.push({ x: pos.x, y: pos.y, n }); break; }
+            }
+        }
+    }
+    function siraAdim(head) {
+        const sr = state.sira; if (!sr || !ek('sirali')) return;
+        const k = sr.items.findIndex(c => c.x === head.x && c.y === head.y);
+        if (k < 0) return;
+        const c = sr.items[k];
+        if (c.n === sr.next) {
+            sr.items.splice(k, 1); sr.next++;
+            state.score += 1; rekorKontrol(); updateHUD(); playSound('eat'); burst(c.x + 0.5, c.y + 0.5, '#9fe6ff', 12, 1.1);
+            if (sr.next > 3) { state.score += 2; rekorKontrol(); updateHUD(); showBanner('SIRA TAMAM +3', true, 1300, 'altin'); playSound('supereat'); siraSet(); }
+        } else {
+            showBanner('SIRA BOZULDU', false, 1000, 'soluk'); playSound('hit'); burst(c.x + 0.5, c.y + 0.5, '#7a4ea8', 10, 1);
+            siraSet();
+        }
+    }
+    function drawSira() {
+        const sr = state.sira; if (!sr || !ek('sirali')) return;
+        const S = CONFIG.CELL, t = performance.now() / 1000;
+        ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 13px sans-serif';
+        for (const c of sr.items) {
+            const sonraki = c.n === sr.next, cx = c.x * S + S / 2, cy = c.y * S + S / 2;
+            ctx.globalAlpha = sonraki ? 1 : 0.55; ctx.shadowColor = '#9fe6ff'; ctx.shadowBlur = sonraki ? 14 : 4;
+            ctx.fillStyle = sonraki ? '#bff1ff' : '#5b7f90';
+            ctx.beginPath(); ctx.arc(cx, cy, 8 + (sonraki ? Math.sin(t * 6) : 0), 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0; ctx.fillStyle = '#0b1820'; ctx.fillText(String(c.n), cx, cy + 1);
+        }
+        ctx.restore();
+    }
     function drawEkYem() {
+        drawSira();
         const yk = state.yanki;
         if (yk && yk.wait <= 0) {
             const S = CONFIG.CELL, t = performance.now() / 1000;
@@ -2436,7 +2516,7 @@ const SnakeGame = (() => {
         }
         
         if (state.mode === 'campaign') {
-            document.getElementById('hudTarget').textContent = `${state.score}/${state.target}`;
+            document.getElementById('hudTarget').textContent = `${state.score}/${state.target}` + hedefMetin();
         }
         if (state.mode === 'timeattack') {
             const ht = document.getElementById('hudTarget'), sn = Math.max(0, Math.ceil(state.timeLeft)) + ' sn';
