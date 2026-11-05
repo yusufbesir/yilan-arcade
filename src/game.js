@@ -115,6 +115,8 @@ const SnakeGame = (() => {
         ['elit', 'ELİT SANDIK', 'Hayatta Kalma: her 20. öldürmede tam seviyelik altın elmas düşer'],
         ['guc', 'GÜÇ HALKASI', 'Aktif güçlendirmenin kalan süresi yılanın başında ince halka olarak görünür'],
         ['rtekrar', 'R İLE YENİDEN DENE', 'Oyun sırasında R tuşu menüye dönmeden oyunu baştan başlatır'],
+        ['kabuk', 'KABUK DEĞİŞTİRME', 'Klasik: 30 halkada K tuşu ile deri atılır, kuyruk 5 halkaya iner, 40 tik puan x2'],
+        ['isi', 'ISI HARİTASI', 'Oyun sonu ekranında yılanın en çok geçtiği hücrelerin küçük ısı haritası'],
         ['olum', 'ÖLÜM EŞİĞİ', 'Klasik/Portal/Zamana Karşı: ölümcül hamlede bir tik bekler, dönmen için süre verir (60 tikte bir)'],
         ['yanki', 'YANKI YEMİ', 'Klasik: yem yenince 3 tik sonra aynı yerde soluk yankı belirir, yersen +1 puan'],
         ['kuyrukrenk', 'KUYRUK RENGİ', 'Son 10 yemin türü kuyruk halkalarında küçük renk noktası olarak görünür (yalnız çizim)'],
@@ -628,7 +630,7 @@ const SnakeGame = (() => {
         tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0, gaps: new Set(), gapN: 0 };
         chaos = { rule: null, left: 0, next: 120, saved: 0, pending: null, kisa: '' };
         state.timeLeft = 60;
-        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.esikCool = 0; state.yanki = null; state.yemRenk = []; state.kapiLeft = 0; state.kapiRenk = null; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
+        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.esikCool = 0; state.kabukLeft = 0; state.kabukHazir = false; state.isi = null; state.yanki = null; state.yemRenk = []; state.kapiLeft = 0; state.kapiRenk = null; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
         document.getElementById('hudTarget').classList.remove('ragnarok');
         state.bolumTik = 0;
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
@@ -773,6 +775,7 @@ const SnakeGame = (() => {
         }
         
         if (state.kapiLeft > 0) state.kapiLeft--;
+        if (state.kabukLeft > 0) state.kabukLeft--;
         if (state.esikCool > 0) state.esikCool--;
         // Ölüm eşiği: ölümcül hamlede tik bir kez beklenir (60 tikte bir), oyuncu dönebilsin
         if (ek('olum') && state.esikCool <= 0 && ['classic', 'portal', 'timeattack'].includes(state.mode)
@@ -810,6 +813,7 @@ const SnakeGame = (() => {
         }
         
         snake.unshift(head);
+        if (ek('isi')) { if (!state.isi) state.isi = new Uint16Array(COLS * ROWS); const ix = head.y * COLS + head.x; if (ix >= 0 && ix < state.isi.length && state.isi[ix] < 65535) state.isi[ix]++; }
         
         // Eat food
         if ((head.x === food.x && head.y === food.y) || magnetHit(head)) {
@@ -864,6 +868,14 @@ const SnakeGame = (() => {
     }
     
     // ======================== DAMAGE & COLLISION ========================
+    // Kabuk değiştirme: kuyruk 5 halkaya iner, 40 tik puan x2 (isteğe bağlı risk/ödül)
+    function kabukAt() {
+        for (let i = 5; i < snake.length; i++) burst(snake[i].x + 0.5, snake[i].y + 0.5, '#7ad7ff', 3, 0.8);
+        snake.length = 5; prevSnake.length = Math.min(prevSnake.length, 5);
+        state.kabukLeft = 40; state.kabukHazir = false;
+        showBanner('KABUK DEĞİŞTİ x2', true, 1400, 'altin'); playSound('powerup'); addShake(3);
+    }
+
     function damage() {
         if (powers.invincible) return;
         state.waveHit = true; // kusursuz dalga: kalkan emse de vuruş sayılır
@@ -950,9 +962,11 @@ const SnakeGame = (() => {
             pts *= 2; showBanner('KIVRIM x2'); burst(food.x + 0.5, food.y + 0.5, '#7ad7ff', 14, 1.2);
         }
         if (state.mode === 'portal' && state.kapiLeft > 0 && ek('renkkapi')) { pts *= 2; showBanner('KAPI x2'); state.kapiLeft = 0; }
+        if (state.kabukLeft > 0 && ek('kabuk')) pts *= 2;
         state.score += pts;
         rekorKontrol();
         state.yemSay++;
+        if (state.mode === 'classic' && ek('kabuk') && snake.length >= 30 && !state.kabukHazir) { state.kabukHazir = true; showBanner('KABUK HAZIR: K', false, 1500, 'soluk'); }
         if (ek('kuyrukrenk')) { state.yemRenk.unshift(food.type === 'super' ? '#ffdd00' : '#ff7a45'); if (state.yemRenk.length > 10) state.yemRenk.pop(); }
         if (state.mode === 'classic' && ek('yanki') && !state.yanki) state.yanki = { x: food.x, y: food.y, wait: 4, left: 4 };
         if (state.mode === 'classic' && ek('zbonus') && state.yemSay % 5 === 0 && !state.ekYem) ekYemUret('bonus', 56);
@@ -1888,7 +1902,24 @@ const SnakeGame = (() => {
         const kb = document.getElementById('copyBtn'); // Günlük: sonucu panoya kopyala (yalnız tıklamayla)
         document.getElementById('copyHint').textContent = '';
         kb.style.display = state.mode === 'daily' ? '' : 'none';
+        isiCiz();
         document.getElementById('gameoverOverlay').classList.add('active');
+    }
+    // Koşu ısı haritası: oyun sonu ekranında yılanın en çok geçtiği hücreler (yalnız çizim)
+    function isiCiz() {
+        const cv = document.getElementById('isiHarita');
+        if (!cv) return;
+        const a = state.isi;
+        if (!ek('isi') || !a || state.mode === 'tron' || state.mode === 'tapinak') { cv.style.display = 'none'; return; }
+        let mx = 1; for (let i = 0; i < a.length; i++) if (a[i] > mx) mx = a[i];
+        cv.width = COLS * 2; cv.height = ROWS * 2; cv.style.display = '';
+        const c = cv.getContext('2d');
+        c.fillStyle = '#0b0d14'; c.fillRect(0, 0, cv.width, cv.height);
+        for (let i = 0; i < a.length; i++) if (a[i]) {
+            const k = Math.sqrt(a[i] / mx);
+            c.fillStyle = 'rgb(' + Math.round(60 + 195 * k) + ',' + Math.round(40 + 150 * k * k) + ',' + Math.round(30 * (1 - k)) + ')';
+            c.fillRect((i % COLS) * 2, Math.floor(i / COLS) * 2, 2, 2);
+        }
     }
     function sonucMetni() { return 'Twilight of the Serpents · Günlük ' + (state.dailyKey || todayKey()) + ' · Skor ' + state.score; }
     function kopyalaSonuc() {
@@ -2069,6 +2100,10 @@ const SnakeGame = (() => {
             return;
         }
         
+        if (key === 'k' && state.mode === 'classic' && ek('kabuk') && state.kabukHazir && state.running && !state.paused && !state.over && snake.length >= 30) {
+            kabukAt();
+            return;
+        }
         if (key === 'n') {
             toggleSound();
             return;
