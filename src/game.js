@@ -127,6 +127,7 @@ const SnakeGame = (() => {
         ['yanki', 'YANKI YEMİ', 'Klasik: yem yenince 3 tik sonra aynı yerde soluk yankı belirir, yersen +1 puan'],
         ['kuyrukrenk', 'KUYRUK RENGİ', 'Son 10 yemin türü kuyruk halkalarında küçük renk noktası olarak görünür (yalnız çizim)'],
         ['renkkapi', 'RENK KAPISI', 'Portal: portaldan çıkınca 12 tik içinde yenen yem x2, baş portal renginde parlar'],
+        ['surunme', 'SÜRÜNME DALGASI', 'Yılanın gövdesi hafifçe dalgalanır, yem yenince gövdede şişlik baştan kuyruğa ilerler (yalnız çizim; hareket azaltmada kapalı)'],
         ['rozet', 'ROZETLER', 'Başarımlar panelinde 10 sessiz rozet gösterir (oyun içinde görünmez)', false],
     ];
     const EK_KAPALI = new Set(EK_LISTE.filter(x => x[3] === false).map(x => x[0]));
@@ -977,6 +978,7 @@ const SnakeGame = (() => {
     }
     
     function eatFood() {
+        if (typeof YilanAnim !== 'undefined' && food.type !== 'curuk' && ek('surunme')) YilanAnim.yedi(performance.now());
         if (food.type === 'curuk') {
             burst(food.x + 0.5, food.y + 0.5, '#7a4ea8', 16, 1.2);
             snake.splice(Math.max(3, snake.length - 3)); // yeni baş eklendi: büyüme yok + 2 halka kısalır, en az 3 kalır
@@ -2573,7 +2575,7 @@ const SnakeGame = (() => {
         try { return Market.skinFor({ cb: settings.cb }); } catch (e) { return null; }
     }
     function gfxOpts() {
-        return { CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, skin: skinNow(), all: renderPos, theme: Tema.etkin(state.mode, state.level), yemTema: settings.cb ? null : Tema.yemTon(Tema.etkin(state.mode, state.level)) };
+        return { yanim: ek('surunme'), hizMs: state.speed, calisiyor: state.running && !state.paused && !state.over, CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, skin: skinNow(), all: renderPos, theme: Tema.etkin(state.mode, state.level), yemTema: settings.cb ? null : Tema.yemTon(Tema.etkin(state.mode, state.level)) };
     }
     function drawBackground(now) {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
