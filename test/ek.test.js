@@ -298,6 +298,27 @@ const assert = require('assert');
     SnakeGame.setSetting('ek', { yutma: false }); d.draw(); SnakeGame.setSetting('ek', {}); return v;
   });
   assert.ok(r.yutma, 'yutma zamanı kaydedilmedi');
+  // 26) Tohum kodu: aynı kodla aynı ilk yem konumu; kapalıyken kod yok
+  await baslat('startClassic');
+  r.tohum = await page.evaluate(() => {
+    const d = SnakeGame._debug, k = d.get().state.tohum, f1 = { x: d.extra().food.x, y: d.extra().food.y };
+    d.get().state.over = true;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 't' }));
+    const f2 = d.extra().food;
+    return { k, k2: d.get().state.tohum, ok: !!k, ayni: f1.x === f2.x && f1.y === f2.y };
+  });
+  assert.ok(r.tohum.ok && /^[A-Z2-9]{5}$/.test(r.tohum.k) && r.tohum.k === r.tohum.k2 && r.tohum.ayni, 'tohum çalışmadı: ' + JSON.stringify(r.tohum));
+  // 27) Parlama atılımı (Tron, O): enerji dolunca 3 hücre sıçrar, ara hücrelerde iz kalmaz
+  await baslat('startTron');
+  r.parlama = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(); g.tron ? 0 : 0;
+    const tr = d.extra().tron; tr.enerji = 30;
+    const h0 = { ...d.get().snake[0] }, dr = { ...d.get().dir }, n0 = d.get().snake.length;
+    d.get().state.paused = false; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'o' })); d.get().state.paused = true; T();
+    const s = d.get().snake, h = s[0];
+    return { dx: h.x - h0.x, dy: h.y - h0.y, ex: dr.x * 3, ey: dr.y * 3, e: tr.enerji, ara: s.some(c => c.x === h0.x + dr.x && c.y === h0.y + dr.y && (c.x !== h0.x || c.y !== h0.y)) };
+  });
+  assert.ok(r.parlama.dx === r.parlama.ex && r.parlama.dy === r.parlama.ey && r.parlama.e === 0 && !r.parlama.ara, 'parlama çalışmadı: ' + JSON.stringify(r.parlama));
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();

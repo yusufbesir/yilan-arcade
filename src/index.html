@@ -1072,6 +1072,19 @@
         background: rgba(5, 10, 20, 0.62);
         backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
         border-radius: 0 0 16px 16px; padding: 16px; overflow-y: auto; align-items: safe center;
+        scrollbar-width: thin; scrollbar-color: rgba(169, 214, 240, 0.35) transparent;
+    }
+    #tohumMsg { position: absolute; top: 10px; left: 12px; margin: 0; font-size: 8px; letter-spacing: 1px; color: var(--yz3); }
+    #tohumMsg:empty { display: none; }
+    .game-overlay::-webkit-scrollbar { width: 6px; }
+    .game-overlay::-webkit-scrollbar-track { background: transparent; }
+    .game-overlay::-webkit-scrollbar-thumb { background: rgba(169, 214, 240, 0.35); border-radius: 3px; }
+    @media (max-height: 760px) and (min-width: 481px) {
+        .game-overlay .overlay-box { padding: 16px 24px; }
+        .game-overlay .ov-ikon { width: 40px; height: 40px; margin-bottom: 8px; }
+        .game-overlay .ov-ikon .ik { width: 20px; height: 20px; }
+        .game-overlay .overlay-score { margin: 8px 0; }
+        .game-overlay .overlay-buttons { margin-top: 12px; }
     }
     .overlay-box {
         width: min(440px, 100%); padding: 24px 32px; line-height: normal;
@@ -1699,6 +1712,7 @@
                                 <canvas id="isiHarita" role="img" aria-label="Koşu ısı haritası: yılanın geçtiği hücreler" style="display:none;max-width:100%;position:absolute;top:10px;right:10px;width:72px;image-rendering:pixelated;border:1px solid #333;margin:0"></canvas>
                                 <div class="copy-satir"><button class="copy-btn" id="copyBtn" data-act="kopyalaSonuc" style="display:none"><svg class="ik" aria-hidden="true" focusable="false"><use href="#i-copy"/></svg><span>Sonucu kopyala</span></button></div>
                                 <p class="overlay-message" id="copyHint" role="status" aria-live="polite"></p>
+                                <p class="overlay-message" id="tohumMsg" role="status"></p>
                                 <div class="overlay-buttons">
                                     <button class="overlay-btn primary" data-act="restart"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-retry"/></svg><span>TEKRAR</span></button>
                                     <button class="overlay-btn secondary" data-act="showMenu"><svg class="ik " aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>MENÜ</span></button>
