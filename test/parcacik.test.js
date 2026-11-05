@@ -16,6 +16,9 @@ const assert = require('assert');
   const acik = await page.evaluate(() => { const f = SnakeGame._debug.fx(); f.burst(10, 10, '#ffcc00', 12, 1); SnakeGame._debug.draw(); return f.particles.filter(p => p.s !== undefined).length; });
   console.log('sprite parçacık sayısı (açık):', acik);
   assert.ok(acik > 0, 'sprite atanmadı');
+  // file:// altında atlas tuvali kirletmemeli (getImageData atmamalı)
+  const kirli = await page.evaluate(() => { try { document.getElementById('gameCanvas').getContext('2d').getImageData(0, 0, 1, 1); return false; } catch (e) { return String(e); } });
+  assert.strictEqual(kirli, false, 'tuval kirlendi: ' + kirli);
   assert.deepStrictEqual(errors, [], 'sayfa hatası: ' + errors.join('|'));
   await browser.close();
   console.log('parcacik testi geçti');
