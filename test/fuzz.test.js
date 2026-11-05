@@ -25,6 +25,9 @@ const path = require('path');
     // kayıtlar / başarımlar / günlük
     [K_DATA, 'null'], [K_DATA, '[]'], [K_DATA, '{'], [K_DATA, '"{"'], [K_DATA, '-1'],
     [K_DATA, J({ records: null, progress: null, unlocked: null })],
+    [K_DATA, J({ records: { hay: { s: 1e308, p: 'x', e: [1] } } })],
+    [K_DATA, J({ records: { hay: { s: 5, p: 'abcdefgh', e: new Array(900).fill(1) } } })],
+    [K_DATA, J({ records: { hay: { s: 5, p: BIG, e: [] } } })],
     [K_DATA, J({ records: [], progress: [], unlocked: [] })],
     [K_DATA, J({ records: { classic: -1, bullet: 1e308, survivor: 'NaN', daily: null, dailyDate: 5 } })],
     [K_DATA, J({ records: { top: { classic: [{ s: 'x' }, null, 7, { s: 1e308 }, { s: -5 }] } } })],
@@ -59,6 +62,7 @@ const path = require('path');
       const bad = [];
       Object.keys(rec).forEach(key => {
         if (key === 'top' || key === 'dailyDate' || key === 'dailyPrev') return;
+        if (key === 'hay') { if (rec.hay !== null && !(typeof rec.hay.s === 'number' && isFinite(rec.hay.s) && typeof rec.hay.p === 'string' && rec.hay.p.length <= 5000 && Array.isArray(rec.hay.e) && rec.hay.e.length <= 500)) bad.push('records.hay bozuk'); return; }
         if (!(typeof rec[key] === 'number' && isFinite(rec[key]) && rec[key] >= 0)) bad.push('records.' + key + '=' + String(rec[key]));
       });
       if (Object.getPrototypeOf(rec.top) !== Object.prototype) bad.push('records.top prototipi bozuk');

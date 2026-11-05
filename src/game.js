@@ -128,6 +128,8 @@ const SnakeGame = (() => {
         ['kuyrukrenk', 'KUYRUK RENGİ', 'Son 10 yemin türü kuyruk halkalarında küçük renk noktası olarak görünür (yalnız çizim)'],
         ['renkkapi', 'RENK KAPISI', 'Portal: portaldan çıkınca 12 tik içinde yenen yem x2, baş portal renginde parlar'],
         ['surunme', 'SÜRÜNME DALGASI', 'Yılanın gövdesi hafifçe dalgalanır, yem yenince gövdede şişlik baştan kuyruğa ilerler (yalnız çizim; hareket azaltmada kapalı)'],
+        ['mayin', 'KUYRUK MAYINI', 'Kuyruk Silahı: O tuşu kuyruk ucundan halka bırakıp mayın yapar; düşman yaklaşınca patlar, 30 tikte kaybolur'],
+        ['hayalet', 'HAYALET YILAN', 'Klasik: en iyi koşunun izi soluk bir ışık olarak yanında ilerler; önüne geçince "hayaleti geçtin" yazar'],
         ['parlama', 'PARLAMA ATILIMI', 'Tron: iz uzadıkça enerji dolar (30 tik); dolunca O tuşu 3 hücre iz bırakmadan sıçratır'],
         ['tohum', 'TOHUM KODU', 'Klasik: oyun sonunda kısa kod gösterilir, T tuşu aynı kodla (aynı yem düzeniyle) yeniden başlatır'],
         ['rozet', 'ROZETLER', 'Başarımlar panelinde 10 sessiz rozet gösterir (oyun içinde görünmez)', false],
@@ -148,7 +150,7 @@ const SnakeGame = (() => {
     let frameRequest = null;
     
     // Saved Data
-    let records = { classic: 0, bullet: 0, tailgun: 0, survivor: 0, timeattack: 0, portal: 0, tron: 0, chaos: 0, daily: 0, tapinak: 0, dailyDate: '', top: {} };
+    let records = { classic: 0, bullet: 0, tailgun: 0, survivor: 0, timeattack: 0, portal: 0, tron: 0, chaos: 0, daily: 0, tapinak: 0, dailyDate: '', top: {}, hay: null };
     let unlocked = {};
     let progress = { unlocked: 1, stars: {} };
     
@@ -645,7 +647,8 @@ const SnakeGame = (() => {
         document.getElementById('hudTarget').classList.remove('ragnarok');
         state.bolumTik = 0;
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
-        state.tohum = null;
+        state.tohum = null; state.mayinlar = []; state.mayinCool = 0;
+        state.hRec = []; state.hEat = []; state.hayGecti = false; state.hay = (state.mode === 'classic' && ek('hayalet') && records.hay) ? records.hay : null;
         if (state.mode === 'classic' && ek('tohum')) { // Tohum kodu: yalnız yem konumları bu akıştan gelir
             state.tohum = state.tohumSonraki || Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
             state.tohumSonraki = null;
@@ -833,6 +836,7 @@ const SnakeGame = (() => {
         }
         
         snake.unshift(head);
+        if (state.mode === 'classic' && ek('hayalet') && state.hRec.length < 5000) { state.hRec.push(head.y * COLS + head.x); hayaletKontrol(); }
         if (ek('isi')) { if (!state.isi) state.isi = new Uint16Array(COLS * ROWS); const ix = head.y * COLS + head.x; if (ix >= 0 && ix < state.isi.length && state.isi[ix] < 65535) state.isi[ix]++; }
         
         // Eat food
@@ -1021,6 +1025,7 @@ const SnakeGame = (() => {
         state.score += pts;
         rekorKontrol();
         state.yemSay++;
+        if (state.hEat && state.mode === 'classic' && state.hEat.length < 500) state.hEat.push(state.hRec.length);
         if (state.mode === 'classic' && ek('kabuk') && snake.length >= 30 && !state.kabukHazir) { state.kabukHazir = true; showBanner('KABUK HAZIR: K', false, 1500, 'soluk'); }
         if (ek('kuyrukrenk')) { state.yemRenk.unshift(food.type === 'super' ? '#ffdd00' : '#ff7a45'); if (state.yemRenk.length > 10) state.yemRenk.pop(); }
         if (state.mode === 'classic' && ek('yanki') && !state.yanki) state.yanki = { x: food.x, y: food.y, wait: 4, left: 4 };
@@ -1122,6 +1127,18 @@ const SnakeGame = (() => {
     const GUC_SURE = { shield: 12000, speed: 6500, invincible: 5000 };
     const GUC_RENK = { shield: '#e8c46a', speed: '#5ad2ff', invincible: '#c58bff' };
     // Alacakaranlık saati: skor arttıkça ekran kararır, baş çevresi aydınlık kalır (yalnız çizim)
+    function hayaletKontrol() { // oyuncu, hayaletin aynı tikteki yem sayısını aşarsa bir kez haber verir
+        const h = state.hay; if (!h || state.hayGecti) return;
+        const t = state.hRec.length;
+        if (state.hEat.length > h.e.filter(n => n <= t).length && h.e.length > 0) { state.hayGecti = true; showBanner('HAYALETİ GEÇTİN', false, 1400); }
+    }
+    function drawHayalet() {
+        const h = state.hay; if (!h || !ek('hayalet') || state.mode !== 'classic') return;
+        const t = Math.min(state.hRec.length, h.p.length - 1), S = CONFIG.CELL;
+        ctx.save(); ctx.fillStyle = '#9fd8ff';
+        for (let k = 0; k < 6; k++) { const i = t - k; if (i < 0) break; const c = h.p.charCodeAt(i) - 48; ctx.globalAlpha = 0.28 - k * 0.04; ctx.beginPath(); ctx.arc((c % COLS + 0.5) * S, (Math.floor(c / COLS) + 0.5) * S, S * (0.42 - k * 0.04), 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+    }
     function drawAlaca(rp) {
         if (!ek('alaca') || state.mode !== 'classic' || !rp || !rp[0]) return;
         const k = Math.min(1, state.score / 100) * 0.6;
@@ -1627,12 +1644,40 @@ const SnakeGame = (() => {
             }
         }
         
+        mayinAdim();
         if (Math.random() < 0.004) spawnPowerup();
         tickPowerups();
     }
     
+    function mayinAdim() { // Kuyruk Mayını: süre azalır, yaklaşan düşman mayını patlatır (yarıçap 2)
+        if (state.mayinCool > 0) state.mayinCool--;
+        if (!state.mayinlar || !state.mayinlar.length) return;
+        state.mayinlar = state.mayinlar.filter(m => {
+            if (--m.left <= 0) return false;
+            if (!enemies.some(e => Math.hypot(e.x - m.x, e.y - m.y) < 1.0)) return true;
+            let n = 0;
+            enemies = enemies.filter(e => { if (Math.hypot(e.x - m.x, e.y - m.y) < 2.0) { n++; return false; } return true; });
+            state.score += 2 * n; updateHUD();
+            burst(m.x + 0.5, m.y + 0.5, '#ffb347', 20, 1.4); addShake(4); playSound('hit');
+            return false;
+        });
+    }
+    function mayinBirak() {
+        if (state.mode !== 'tailgun' || !ek('mayin') || !state.running || state.paused || state.over || state.mayinCool > 0 || snake.length <= 3) return;
+        const t = snake.pop();
+        state.mayinlar.push({ x: t.x, y: t.y, left: 30 });
+        state.mayinCool = 8;
+        playSound('shield');
+    }
+    
     function drawTailgunLayer() {
         const CELL = CONFIG.CELL;
+        (state.mayinlar || []).forEach(m => {
+            const on = m.left > 8 || Math.floor(m.left / 2) % 2 === 0;
+            ctx.save(); ctx.globalAlpha = on ? 0.95 : 0.4; ctx.fillStyle = '#ffb347'; ctx.strokeStyle = '#fff3d0'; ctx.lineWidth = 2;
+            const cx = (m.x + 0.5) * CELL, cy = (m.y + 0.5) * CELL, r = CELL * 0.34;
+            ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r, cy); ctx.lineTo(cx, cy + r); ctx.lineTo(cx - r, cy); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+        });
         const lazer = settings.cb ? PALET.ton(PALET.yilan, 0.45) : Tema.ton('mermi', '#00e5ff', Tema.etkin(state.mode, state.level), false); // tema tonu; cb: PALET
         playerShots.forEach(s => {
             ctx.shadowColor = lazer;
@@ -1945,6 +1990,7 @@ const SnakeGame = (() => {
             isRecord = true;
         }
         
+        if (state.mode === 'classic' && ek('hayalet') && state.hRec && state.hRec.length > 5 && state.score > (records.hay ? records.hay.s : 0)) records.hay = { s: state.score, p: state.hRec.map(i => String.fromCharCode(48 + i)).join(''), e: state.hEat.slice() };
         if (!records.top) records.top = {};
         const entry = { s: state.score, d: Date.now() };
         let top = records.top[state.mode] || [];
@@ -2153,6 +2199,7 @@ const SnakeGame = (() => {
             return;
         }
         
+        if (key === 'o' && state.mode === 'tailgun') { mayinBirak(); return; }
         if (key === 'o' && state.mode === 'tron' && ek('parlama') && state.running && !state.paused && !state.over && !tron.twoP && tron.enerji >= 30) {
             tron.sicra = true;
             return;
@@ -2426,6 +2473,7 @@ const SnakeGame = (() => {
             Market.efekt(ctx, { pts: mp, S: CONFIG.CELL, t: nowT / 1000, aktif: state.running && !state.paused && !state.over, cb: settings.cb, reduced: REDUCED, fx: settings.fx, yon: dir });
         }
 
+        drawHayalet();
         drawAlaca(renderPos);
         // Auras
         if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
@@ -3744,6 +3792,8 @@ const SnakeGame = (() => {
                 Object.keys(records).forEach(k => { if (k !== 'top' && k !== 'dailyDate' && skor(r[k])) records[k] = r[k]; });
                 if (typeof r.dailyDate === 'string') records.dailyDate = r.dailyDate;
                 if (r.dailyPrev && typeof r.dailyPrev.d === 'string' && typeof r.dailyPrev.s === 'number' && isFinite(r.dailyPrev.s)) records.dailyPrev = { d: r.dailyPrev.d, s: r.dailyPrev.s };
+                records.hay = null;
+                if (r.hay && typeof r.hay === 'object' && skor(r.hay.s) && typeof r.hay.p === 'string' && r.hay.p.length >= 6 && r.hay.p.length <= 5000 && Array.isArray(r.hay.e) && r.hay.e.length <= 500 && r.hay.e.every(n => Number.isInteger(n) && n >= 0 && n <= 5000)) records.hay = { s: r.hay.s, p: r.hay.p, e: r.hay.e.slice() };
                 records.top = {};
                 if (r.top && typeof r.top === 'object') Object.keys(r.top).forEach(m => { if (m !== '__proto__' && Array.isArray(r.top[m])) records.top[m] = r.top[m].filter(t => t && skor(t.s)).slice(0, 5); }); // fuzz: __proto__ anahtarı prototipi bozmasın
                 const pr = data.progress && typeof data.progress === 'object' ? data.progress : {};

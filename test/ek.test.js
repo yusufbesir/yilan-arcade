@@ -319,6 +319,35 @@ const assert = require('assert');
     return { dx: h.x - h0.x, dy: h.y - h0.y, ex: dr.x * 3, ey: dr.y * 3, e: tr.enerji, ara: s.some(c => c.x === h0.x + dr.x && c.y === h0.y + dr.y && (c.x !== h0.x || c.y !== h0.y)) };
   });
   assert.ok(r.parlama.dx === r.parlama.ex && r.parlama.dy === r.parlama.ey && r.parlama.e === 0 && !r.parlama.ara, 'parlama çalışmadı: ' + JSON.stringify(r.parlama));
+  // 28) Hayalet yılan: koşu bitince kayıt alınır, yeni koşuda hayalet çizilir ve geçilince bir kez haber verilir
+  await baslat('startClassic');
+  r.hayalet = await page.evaluate(() => {
+    const d = SnakeGame._debug; T(); T(); T(); T();
+    d.get().state.score = 7; d.get().state.paused = false;
+    for (let i = 0; i < 400 && !d.get().state.over; i++) { SnakeGame.input(-1, 0); d.tick(); SnakeGame.input(1, 0); d.tick(); }
+    SnakeGame.startClassic();
+    const g = d.get(), recs = d.extra().records, h = recs.hay;
+    const kayit = !!h && h.s === 7 && h.p.length >= 4;
+    d.draw();
+    const hayVar = !!g.state.hay;
+    g.state.hay = { ...g.state.hay, e: [900] }; g.state.hEat = [1]; T(); const gecti = g.state.hayGecti;
+    SnakeGame.setSetting('ek', { hayalet: false }); d.draw(); SnakeGame.setSetting('ek', {});
+    return { kayit, hayVar, gecti };
+  });
+  assert.ok(r.hayalet.kayit && r.hayalet.hayVar && r.hayalet.gecti, 'hayalet çalışmadı: ' + JSON.stringify(r.hayalet));
+  // 29) Kuyruk mayını (Kuyruk Silahı, O): halka harcanır, yaklaşan düşmanı yok eder; kapalıyken bırakılmaz
+  await baslat('startTailgun');
+  r.mayin = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(); d.grow(4);
+    const n0 = d.get().snake.length;
+    d.get().state.paused = false; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'o' })); d.get().state.paused = true;
+    const st = d.get().state, m = st.mayinlar[0];
+    const harcandi = n0 - d.get().snake.length;
+    const en = g.enemies; en.length = 0; en.push({ x: m.x + 0.2, y: m.y, hp: 1 });
+    const sk0 = st.score; T();
+    return { harcandi, adet: d.get().state.mayinlar.length, skor: d.get().state.score - sk0, kalan: d.get().enemies.length };
+  });
+  assert.ok(r.mayin.harcandi === 1 && r.mayin.adet === 0 && r.mayin.skor >= 2 && r.mayin.kalan === 0, 'mayın çalışmadı: ' + JSON.stringify(r.mayin));
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
