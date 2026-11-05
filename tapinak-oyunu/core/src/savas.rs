@@ -2,11 +2,14 @@
 use crate::oda::{Izgara, CATLAK, DUVAR, H, KAPIK, SUTUN, W};
 use crate::oyuncu::{Armagan, Oyuncu};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Dusman {
     pub tip: String, pub x: f64, pub y: f64, pub r: f64, pub hp: f64, pub dogum: f64, pub faz: String, pub ac: f64,
     pub etki: Option<String>, pub mini: bool, pub kul: f64, pub boss: bool,
     pub kx: f64, pub ky: f64, pub flas: f64, pub yanik: f64, pub olu: bool,
+    // yapay zekâ alanları
+    pub ai: String, pub hiz: f64, pub hiz_k: f64, pub temas: f64, pub atilim: f64, pub uluma: bool, pub ucar: bool, pub max_hp: f64,
+    pub atk: f64, pub faz_t: f64, pub sayac: f64, pub hedef: f64, pub hizli_t: f64, pub yan: i32, pub temas_cd: f64, pub sersem: f64, pub vampir: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -16,6 +19,7 @@ pub struct Mermi { pub x: f64, pub y: f64, pub vx: f64, pub vy: f64, pub hasar: 
 pub struct Tuzak { pub x: f64, pub y: f64, pub r: f64, pub t: f64, pub hasar: f64 }
 
 pub struct Savas {
+    pub rng: crate::Rng, pub derinlik: i32,
     pub grid: Izgara, pub tuzaklar: Vec<Tuzak>, pub zaman: f64,
     pub p: Oyuncu, pub arm: Armagan, pub dusmanlar: Vec<Dusman>, pub mermiler: Vec<Mermi>,
     pub kul: f64, pub oldurme: u32, pub risk: bool, pub kul_seviye: f64, pub guc: f64, pub alev: bool,
@@ -78,6 +82,10 @@ impl Savas {
     pub fn mermi_tuzak_adim(&mut self, dt: f64) {
         self.zaman += dt;
         self.p.inv = (self.p.inv - dt).max(0.0);
+        self.tuzak_mermi_govde(dt);
+    }
+
+    fn tuzak_mermi_govde(&mut self, dt: f64) {
         for i in 0..self.tuzaklar.len() {
             self.tuzaklar[i].t -= dt;
             let t = self.tuzaklar[i].clone();
@@ -109,6 +117,141 @@ impl Savas {
         self.mermiler.retain(|m| m.omur > 0.0);
     }
 
+
+    // ---------- düşman yapay zekâsı (kovala, atılgan, nişancı, çırpınan, devasa, sürünen; diğerleri sonraki parça) ----------
+    fn dusman_engelli(&self, e_ucar: bool, z: u8) -> bool {
+        match z { DUVAR | SUTUN | CATLAK | KAPIK => true, crate::oda::UCURUM => !e_ucar, _ => false }
+    }
+    fn dusman_carpisir(&self, i: usize, x: f64, y: f64) -> bool {
+        let (r, u) = (self.dusmanlar[i].r, self.dusmanlar[i].ucar);
+        self.dusman_engelli(u, self.hucre(x - r, y - r)) || self.dusman_engelli(u, self.hucre(x + r, y - r)) || self.dusman_engelli(u, self.hucre(x - r, y + r)) || self.dusman_engelli(u, self.hucre(x + r, y + r))
+    }
+    fn dusman_hareket(&mut self, i: usize, dx: f64, dy: f64) {
+        if !self.dusman_carpisir(i, self.dusmanlar[i].x + dx, self.dusmanlar[i].y) { self.dusmanlar[i].x += dx; }
+        if !self.dusman_carpisir(i, self.dusmanlar[i].x, self.dusmanlar[i].y + dy) { self.dusmanlar[i].y += dy; }
+    }
+    fn git(&mut self, i: usize, v: f64, yon: f64, dt: f64) {
+        let (ox, oy) = (self.dusmanlar[i].x, self.dusmanlar[i].y);
+        self.dusman_hareket(i, yon.cos() * v * dt, yon.sin() * v * dt);
+        if (self.dusmanlar[i].x - ox).hypot(self.dusmanlar[i].y - oy) < v * dt * 0.3 {
+            if self.dusmanlar[i].yan == 0 { self.dusmanlar[i].yan = if self.rng.next() < 0.5 { 1 } else { -1 }; }
+            let y = yon + 1.3 * self.dusmanlar[i].yan as f64;
+            self.dusman_hareket(i, y.cos() * v * dt, y.sin() * v * dt);
+        }
+    }
+    fn dusman_atis(&mut self, i: usize, aci: f64, hiz: f64, hasar: f64, omur: f64) {
+        let (x, y) = (self.dusmanlar[i].x, self.dusmanlar[i].y);
+        self.mermiler.push(Mermi { x, y, vx: aci.cos() * hiz, vy: aci.sin() * hiz, hasar, r: 0.2, omur, delme: 0, dost: false, dusman: true, vuruldu: vec![] });
+    }
+
+    pub fn dusman_adim(&mut self, i: usize, dt: f64) {
+        use std::f64::consts::PI;
+        {
+            let e = &mut self.dusmanlar[i];
+            e.flas = (e.flas - dt).max(0.0);
+            if e.dogum > 0.0 { e.dogum -= dt; return; }
+            if e.sersem > 0.0 { e.sersem -= dt; e.flas = 0.06; return; }
+            if e.yanik > 0.0 { e.yanik -= dt; e.hp -= 5.0 * dt; if e.hp <= 0.0 { self.oldur(i); return; } }
+        }
+        let (px, py, pr) = (self.p.x, self.p.y, self.p.r);
+        {
+            let e = &mut self.dusmanlar[i];
+            if e.hizli_t > 0.0 { e.hizli_t -= dt; }
+        }
+        if self.dusmanlar[i].kx.abs() + self.dusmanlar[i].ky.abs() > 0.05 {
+            let (kx, ky) = (self.dusmanlar[i].kx, self.dusmanlar[i].ky);
+            self.dusman_hareket(i, kx * dt, ky * dt);
+            let f = 0.001f64.powf(dt);
+            self.dusmanlar[i].kx *= f; self.dusmanlar[i].ky *= f;
+        }
+        let (dx, dy) = (px - self.dusmanlar[i].x, py - self.dusmanlar[i].y);
+        let d0 = dx.hypot(dy);
+        let d = if d0 == 0.0 { 1.0 } else { d0 };
+        let ac = dy.atan2(dx);
+        let hiz;
+        {
+            let e = &mut self.dusmanlar[i];
+            e.ac = ac;
+            e.temas_cd = (e.temas_cd - dt).max(0.0);
+            hiz = e.hiz * e.hiz_k * if e.hizli_t > 0.0 { 1.3 } else { 1.0 } * (1.0 + 0.03 * self.derinlik as f64);
+            e.faz_t -= dt;
+        }
+        let mut temas_var = true;
+        let ai = self.dusmanlar[i].ai.clone();
+        match ai.as_str() {
+            "kovala" => self.git(i, hiz, ac, dt),
+            "atilgan" => {
+                let faz = self.dusmanlar[i].faz.clone();
+                if faz == "bekle" {
+                    if d > 4.0 { self.git(i, hiz, ac, dt); } else { let s = if (self.dusmanlar[i].sayac as i64) % 2 != 0 { 1.0 } else { -1.0 }; self.git(i, hiz * 0.7, ac + PI / 2.0 * s, dt); }
+                    if self.dusmanlar[i].faz_t <= 0.0 && d < 7.0 {
+                        { let e = &mut self.dusmanlar[i]; e.faz = "hazir".into(); e.faz_t = 0.5; e.hedef = ac; }
+                        if self.dusmanlar[i].uluma { for j in 0..self.dusmanlar.len() { if j != i && !self.dusmanlar[j].olu { self.dusmanlar[j].hizli_t = 5.0; } } }
+                    }
+                } else if faz == "hazir" {
+                    let e = &mut self.dusmanlar[i]; e.hedef = ac; if e.faz_t <= 0.0 { e.faz = "hamle".into(); e.faz_t = 0.38; }
+                } else {
+                    let (at, h) = (self.dusmanlar[i].atilim, self.dusmanlar[i].hedef);
+                    self.git(i, at, h, dt);
+                    if self.dusmanlar[i].faz_t <= 0.0 { let r = self.rng.next(); let e = &mut self.dusmanlar[i]; e.faz = "bekle".into(); e.faz_t = 1.2 + r; e.sayac += 1.0; }
+                }
+            }
+            "nisanci" => {
+                if d > 5.5 { self.git(i, hiz, ac, dt); } else if d < 3.5 { self.git(i, hiz, ac + PI, dt); } else { self.git(i, hiz * 0.5, ac + PI / 2.0, dt); }
+                self.dusmanlar[i].atk -= dt;
+                if self.dusmanlar[i].atk <= 0.0 {
+                    self.dusmanlar[i].atk = 2.1;
+                    if self.derinlik >= 4 { for a in [-0.28, 0.0, 0.28] { self.dusman_atis(i, ac + a, 5.0, 8.0, 5.0); } } else { self.dusman_atis(i, ac, 5.2, 10.0, 5.0); }
+                }
+            }
+            "cirpinan" => {
+                self.dusmanlar[i].sayac += dt;
+                if self.dusmanlar[i].faz == "bekle" {
+                    let a = ac + (self.dusmanlar[i].sayac * 3.0).sin() * 1.1;
+                    self.git(i, hiz * 0.9, a, dt);
+                    if self.dusmanlar[i].faz_t <= 0.0 { let e = &mut self.dusmanlar[i]; e.faz = "hamle".into(); e.faz_t = 0.45; e.hedef = ac; }
+                } else {
+                    let h = self.dusmanlar[i].hedef;
+                    self.git(i, hiz * 2.2, h, dt);
+                    if self.dusmanlar[i].faz_t <= 0.0 { let r = self.rng.next(); let e = &mut self.dusmanlar[i]; e.faz = "bekle".into(); e.faz_t = 1.4 + r; }
+                }
+            }
+            "devasa" => {
+                let faz = self.dusmanlar[i].faz.clone();
+                if faz == "bekle" {
+                    self.git(i, hiz, ac, dt);
+                    if self.dusmanlar[i].faz_t <= 0.0 && d < 3.2 { let e = &mut self.dusmanlar[i]; e.faz = "hazir".into(); e.faz_t = 0.8; }
+                } else if faz == "hazir" && self.dusmanlar[i].faz_t <= 0.0 {
+                    for k in 0..12 { self.dusman_atis(i, k as f64 * PI / 6.0, 4.0, 10.0, 1.2); }
+                    let e = &mut self.dusmanlar[i]; e.faz = "bekle".into(); e.faz_t = 2.0;
+                }
+            }
+            "surunen" => {
+                self.dusmanlar[i].sayac += dt;
+                let a = ac + (self.dusmanlar[i].sayac * 6.0).sin() * 0.9;
+                self.git(i, hiz, a, dt);
+            }
+            _ => { temas_var = true; }
+        }
+        let e = &self.dusmanlar[i];
+        if temas_var && e.temas > 0.0 && (e.x - px).hypot(e.y - py) < e.r + pr && e.temas_cd <= 0.0 && e.faz != "hayalet" {
+            let guc = (if e.faz == "hamle" { 1.6 } else { 1.0 }) * e.temas;
+            let vampir = e.vampir;
+            self.oyuncu_hasar(guc.round());
+            let e = &mut self.dusmanlar[i];
+            e.temas_cd = 0.9;
+            if vampir { e.hp = (e.hp + 15.0).min(e.max_hp); }
+        }
+    }
+
+    /// Tam adım (oyuncu hareketi hariç): düşmanlar, tuzaklar, mermiler.
+    pub fn adim_dusman_mermi(&mut self, dt: f64) {
+        self.zaman += dt;
+        self.p.inv = (self.p.inv - dt).max(0.0);
+        for i in 0..self.dusmanlar.len() { if !self.dusmanlar[i].olu { self.dusman_adim(i, dt); } }
+        self.tuzak_mermi_govde(dt);
+    }
+
     fn oldur(&mut self, i: usize) {
         if self.dusmanlar[i].olu { return; }
         let e = &mut self.dusmanlar[i];
@@ -134,11 +277,11 @@ mod tests {
             let p: Vec<&str> = satir.split(' ').collect();
             let (guc, kul_s, risk, bilek, keskin, kivilcim, alev, aclik) = (f(p[1]), f(p[2]), p[3] == "1", f(p[4]), f(p[5]), f(p[6]), p[7] == "1", f(p[8]));
             let mut p0 = Oyuncu::yeni(100.0, 2); p0.x = 11.0; p0.y = 7.0; p0.aclik = aclik;
-            let mut s = Savas { grid: [[0; W]; H], tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan { bilek, keskin, kivilcim, ..Default::default() }, dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk, kul_seviye: kul_s, guc, alev };
+            let mut s = Savas { rng: crate::Rng::new(1), derinlik: 0, grid: [[0; W]; H], tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan { bilek, keskin, kivilcim, ..Default::default() }, dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk, kul_seviye: kul_s, guc, alev };
             for e in p[9].split(';') {
                 let a: Vec<&str> = e.split(',').collect();
                 s.dusmanlar.push(Dusman { tip: a[0].into(), x: f(a[1]), y: f(a[2]), r: f(a[3]), hp: f(a[4]), dogum: f(a[5]), faz: a[6].into(), ac: f(a[7]),
-                    etki: if a[8] == "-" { None } else { Some(a[8].into()) }, mini: a[9] == "1", kul: f(a[10]), boss: false, kx: 0.0, ky: 0.0, flas: 0.0, yanik: 0.0, olu: false });
+                    etki: if a[8] == "-" { None } else { Some(a[8].into()) }, mini: a[9] == "1", kul: f(a[10]), boss: false, kx: 0.0, ky: 0.0, flas: 0.0, yanik: 0.0, olu: false, ..Default::default() });
             }
             let sonuclar: Vec<&str> = p[10].split(';').collect();
             // açılar JS'te rg() ile üretildi; satırda yok: aynı mulberry dizisini yeniden üret
@@ -176,10 +319,10 @@ mod tests {
             let mut grid = [[0u8; W]; H];
             for (y, row) in p[6].split('/').enumerate() { for (x, ch) in row.chars().enumerate() { grid[y][x] = ch.to_digit(16).unwrap() as u8; } }
             let mut p0 = Oyuncu::yeni(1000.0, 2); p0.x = 11.0; p0.y = 8.0;
-            let mut s = Savas { grid, tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan { keskin: f(p[4]), ..Default::default() }, dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk: p[3] == "1", kul_seviye: f(p[2]), guc: f(p[1]), alev: p[5] == "1" };
+            let mut s = Savas { rng: crate::Rng::new(1), derinlik: 0, grid, tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan { keskin: f(p[4]), ..Default::default() }, dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk: p[3] == "1", kul_seviye: f(p[2]), guc: f(p[1]), alev: p[5] == "1" };
             for e in p[7].split(';') {
                 let a: Vec<&str> = e.split(',').collect();
-                s.dusmanlar.push(Dusman { tip: a[0].into(), x: f(a[1]), y: f(a[2]), r: f(a[3]), hp: f(a[4]), dogum: 0.0, faz: "bekle".into(), ac: f(a[5]), etki: None, mini: false, kul: f(a[6]), boss: false, kx: 0.0, ky: 0.0, flas: 0.0, yanik: 0.0, olu: false });
+                s.dusmanlar.push(Dusman { tip: a[0].into(), x: f(a[1]), y: f(a[2]), r: f(a[3]), hp: f(a[4]), dogum: 0.0, faz: "bekle".into(), ac: f(a[5]), etki: None, mini: false, kul: f(a[6]), boss: false, kx: 0.0, ky: 0.0, flas: 0.0, yanik: 0.0, olu: false, ..Default::default() });
             }
             for m in p[8].split(';') {
                 let a: Vec<&str> = m.split(',').collect();
@@ -201,5 +344,46 @@ mod tests {
             say += 1;
         }
         assert_eq!(say, 60);
+    }
+
+    fn faz_kodu(s: &str) -> f64 { match s { "bekle" => 0.0, "hazir" => 1.0, "hamle" => 2.0, _ => 3.0 } }
+
+    #[test]
+    fn js_ile_ayni_yapay_zeka() {
+        let veri = include_str!("../testdata/ai.txt");
+        let mut say = 0;
+        for satir in veri.lines() {
+            let p: Vec<&str> = satir.split(' ').collect();
+            let sc: u32 = p[0].parse().unwrap();
+            let mut grid = [[0u8; W]; H];
+            for (y, row) in p[3].split('/').enumerate() { for (x, ch) in row.chars().enumerate() { grid[y][x] = ch.to_digit(16).unwrap() as u8; } }
+            let mut p0 = Oyuncu::yeni(100000.0, 2); p0.x = 11.0; p0.y = 8.0;
+            let mut s = Savas { rng: crate::Rng::new(f(p[2]) as u32), derinlik: f(p[1]) as i32, grid, tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan::default(), dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk: false, kul_seviye: 0.0, guc: 0.0, alev: false };
+            let tablo = |tip: &str| -> (&'static str, f64, f64, bool, f64) { match tip {
+                "draugr" => ("kovala", 2.5, 10.0, false, 4.0), "kurt" => ("atilgan", 2.4, 10.0, false, 5.0), "seidr" => ("nisanci", 1.9, 6.0, false, 6.0),
+                "kargaci" => ("cirpinan", 3.4, 8.0, false, 5.0), "buzdev" => ("devasa", 1.5, 18.0, false, 12.0), "demirkurt" => ("atilgan", 2.7, 14.0, true, 0.0),
+                _ => ("surunen", 3.0, 7.0, false, 0.0) } };
+            for e in p[4].split(';') {
+                let a: Vec<&str> = e.split(',').collect();
+                let (ai, hiz, temas, uluma, _) = tablo(a[0]);
+                let atilim = match a[0] { "kurt" => 9.5, "demirkurt" => 10.5, _ => 0.0 };
+                s.dusmanlar.push(Dusman { tip: a[0].into(), x: f(a[1]), y: f(a[2]), r: f(a[3]), hp: f(a[4]), max_hp: f(a[4]), dogum: f(a[5]), atk: f(a[6]), faz_t: f(a[7]), kx: f(a[8]), yanik: f(a[9]), hiz_k: f(a[10]),
+                    ucar: f(a[11]) == 1.0, faz: "bekle".into(), ai: ai.into(), hiz, temas, uluma, atilim, kul: 0.0, ..Default::default() });
+            }
+            let durumlar: Vec<&str> = p[5].split(';').collect();
+            for i in 1..=360 {
+                s.adim_dusman_mermi(1.0 / 60.0);
+                if i % 40 == 0 {
+                    let b: Vec<f64> = durumlar[i / 40 - 1].split(',').map(f).collect();
+                    let mut got = vec![s.p.hp, s.p.inv, s.mermiler.len() as f64, s.tuzaklar.len() as f64];
+                    for m in &s.mermiler { got.extend([m.x, m.y]); }
+                    for e in &s.dusmanlar { got.extend([e.x, e.y, e.hp, if e.olu { 1.0 } else { 0.0 }, e.faz_t, e.atk, e.sayac, e.temas_cd, e.hizli_t, faz_kodu(&e.faz)]); }
+                    assert_eq!(got.len(), b.len(), "sc {sc} adim {i} uzunluk");
+                    for (j, g) in got.iter().enumerate() { yakin(*g, b[j], &format!("sc {sc} adim {i} alan {j}")); }
+                }
+            }
+            say += 1;
+        }
+        assert_eq!(say, 50);
     }
 }
