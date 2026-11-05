@@ -239,6 +239,27 @@ const assert = require('assert');
     const s0 = d.get().state.score; T(); return { kl, d: d.get().state.score - s0 };
   });
   assert.ok(r.kapi.kl > 0 && r.kapi.d >= 2, 'renk kapısı çalışmadı: ' + JSON.stringify(r.kapi));
+  // 20) Kabuk değiştirme: 30 halkada K ile kuyruk 5'e iner, sonraki yem x2
+  await baslat('startClassic');
+  r.kabuk = await page.evaluate(() => {
+    const d = SnakeGame._debug; d.grow(28);
+    const g = d.get(), h = g.snake[0], f = d.extra().food; f.x = h.x + g.nextDir.x; f.y = h.y + g.nextDir.y; f.type = 'normal'; T();
+    const hazir = d.get().state.kabukHazir, uz = d.get().snake.length;
+    d.get().state.paused = false; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k' })); d.get().state.paused = true;
+    const s5 = d.get().snake.length;
+    const g2 = d.get(), h2 = g2.snake[0], f2 = d.extra().food; f2.x = h2.x + g2.nextDir.x; f2.y = h2.y + g2.nextDir.y; f2.type = 'normal';
+    const p0 = d.get().state.score; T();
+    return { hazir, uz, s5, dp: d.get().state.score - p0 };
+  });
+  assert.ok(r.kabuk.hazir && r.kabuk.s5 === 5 && r.kabuk.dp >= 2, 'kabuk çalışmadı: ' + JSON.stringify(r.kabuk));
+  // 21) Isı haritası: oyun sonunda canvas görünür; kapalıyken gizli
+  await baslat('startClassic');
+  r.isi = await page.evaluate(() => {
+    const d = SnakeGame._debug; T(); T();
+    d.get().state.paused = false; d.get().state.lives = 0; d.get().snake[0].x = -2; d.get().state.paused = true;
+    return d.get().state.isi ? Array.from(d.get().state.isi).filter(Boolean).length : -1;
+  });
+  assert.ok(r.isi >= 2, 'ısı izlenmedi: ' + r.isi);
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
