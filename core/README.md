@@ -1,6 +1,6 @@
 # yilan-core (Rust çekirdek)
 
-Bağımlılıksız Rust crate: tohumlu RNG (PCG32) ve Tron rakip YZ'si (`src/game.js` içindeki `tronBlocked` / `floodCount` / `aiChooseDir` mantığının saf hali). `game.js` Tron kararını (aiChooseDir) wasm üzerinden alır; wasm yüklenmezse ya da `?js=1` ile JS yedeği (`src/core/tron.js`) çalışır. Rust değişince: `cargo build --release --target wasm32-unknown-unknown` sonra `python3 -I tools/paketle/wasm_gom.py` (wasm base64 olarak `src/core/yilan_core.wasm.js`ye gömülür; `--kontrol` güncel mi bakar).
+Bağımlılıksız Rust crate: tohumlu RNG (PCG32), Tron rakip YZ'si (`src/game.js` içindeki `tronBlocked` / `floodCount` / `aiChooseDir` mantığının saf hali) ve Survivor ağır döngüleri (`src/core/survivor.js` `moveEnemies` / `moveShots` / `nearestEnemy` / `headHit`, birebir aynı f64 sonuç). `game.js` Tron kararını (aiChooseDir) ve Survivor mermi/çarpışma (`moveShots`) ile kafa çarpmasını (`headHit`) wasm üzerinden alır (`src/core/tron-wasm.js`, `src/core/survivor-wasm.js`); wasm yüklenmezse, girdi geçersizse ya da `?js=1` ile JS yedeği (`src/core/tron.js`, `src/core/survivor.js`) çalışır. Survivor `moveEnemies` ve `nearestEnemy` için wasm sürümü var ama oyuna bağlı değil (ölçüm: moveEnemies wasm'da daha yavaş, nearestEnemy autoFire içinde ve kazanç mikro saniye altı). Rust değişince: `cargo build --release --target wasm32-unknown-unknown` sonra `python3 -I tools/paketle/wasm_gom.py` (wasm base64 olarak `src/core/yilan_core.wasm.js`ye gömülür; `--kontrol` güncel mi bakar).
 
 ## Derleme ve test
 
@@ -10,10 +10,11 @@ cargo test                                                # birim testleri
 cargo build --release --target wasm32-unknown-unknown     # -> target/wasm32-unknown-unknown/release/yilan_core.wasm
 cargo build --release                                     # -> target/release/libyilan_core.so (.dll/.dylib), Python için
 node --test test/tron-uyum.test.js                        # JS referansı = wasm uyum testi (wasm önce derlenmeli)
-node test/bench.js 10000                                  # JS ve wasm hız ölçümü
+node test/bench.js 10000                                  # JS ve wasm hız ölçümü (Tron)
+node test/bench-survivor.js 2000                          # JS ve wasm hız ölçümü (Survivor; dönüşüm dahil/hariç)
 ```
 
-wasm-bindgen gerekmez: ham `extern "C"` ihracı kullanılır.
+wasm-bindgen gerekmez: ham `extern "C"` ihracı kullanılır. 0.2.0'dan beri modül tek içe aktarım ister: `{ yc_math: { atan2: Math.atan2, cos: Math.cos, sin: Math.sin } }` (`tron-wasm.js` / `survivor-wasm.js` içindeki `ithal()`); `{}` ile örneklemek LinkError verir. Neden: Rust libm'in sin/cos'u Node 22'nin Math.sin/cos'undan ~%0,8 girdide son bitte ayrışıyor (ölçüldü) ve V8'in trig gerçeklemesi derlemeye göre değişebilir; JS'in kendi işlevini içe aktarmak her V8'de birebir eşlik verir. `Math.hypot` ise içe aktarılmaz, V8 algoritması (math.tq: en büyüğe bölme + Kahan toplamı) Rust'a kopyalandı (`survivor::js_hypot`; Rust `f64::hypot` ~%30 girdide ayrışıyordu). Yerel (.so) derlemede std trig kullanılır, son bit JS ile garanti değildir.
 
 ## ABI
 
@@ -24,7 +25,13 @@ wasm-bindgen gerekmez: ham `extern "C"` ihracı kullanılır.
 | `yc_tron_choose_seeded(..., wins, seedLo, seedHi)` | Aynı, r1/r2 PCG32 tohumundan |
 | `yc_flood_count(cols, rows, blocked*, n, sx, sy)` | Erişilebilir hücre sayısı (sınır cols*rows) |
 | `yc_rng_f64(seedLo, seedHi, index)` | Tohumlu dizinin `index`. sayısı, [0,1) |
-| `yc_version()` | 0x000100 |
+| `yc_sv_move_enemies(en*, n, hx, hy, espd) -> i32` | Düşmanlar başa doğru `espd` ilerler (yerinde x/y). Dönüş n; geçersizse -1 |
+| `yc_sv_move_shots(shots*, m, en*, n, cols, rows, keep*, dead*) -> i32` | Mermiler 3 alt adım ilerler, çarpışma: mermi x/y ve düşman hp yerinde; `keep[i]` 1 kalır / 0 silinir; `dead` ölen düşman indeksleri (ölüm sırası). Dönüş ölü sayısı; geçersizse -1 |
+| `yc_sv_nearest(en*, n, hx, hy) -> i32` | En yakın düşman (<= 11) indeksi, yoksa -1, geçersizse -2 |
+| `yc_sv_head_hit(en*, n, hx, hy) -> i32` | Kafaya (< 1) değen ilk düşman indeksi, yoksa -1, geçersizse -2 |
+| `yc_version()` | 0x000200 (0x000100: yalnız Tron, içe aktarımsız) |
+
+Survivor tamponları f64: `en*` = `[x,y,hp]` x n, `shots*` = `[x,y,dx,dy,dmg]` x m (`dmg` = JS `s.dmg || 1`), `keep*` m adet i32, `dead*` n adet i32. Geçersiz: null işaretçi (uzunluk > 0 iken), uzunluk > 2^20, sonlu olmayan baş/espd/cols/rows. Sarmalayıcı ayrıca her alanı `Number.isFinite` ile denetler, geçersizse null döner ve hiçbir nesneyi değiştirmez.
 
 `snake*` / `ai*`: `[x0,y0,x1,y1,...]` i32 dizisi, baş ilk hücre. `r1`, `r2` in [0,1): JS'teki iki `Math.random()` çağrısının yerine (r1: dalgın hamle kararı, r2: seçim/eşitlik bozma). Yön sırası JS `DIRS4` ile aynı.
 
@@ -34,7 +41,8 @@ Electron renderer'da (CSP `script-src 'self' 'wasm-unsafe-eval'` gerekebilir, ya
 
 ```js
 const { instance } = await WebAssembly.instantiate(
-  await (await fetch('core/yilan_core.wasm')).arrayBuffer(), {});
+  await (await fetch('core/yilan_core.wasm')).arrayBuffer(),
+  { yc_math: { atan2: Math.atan2, cos: Math.cos, sin: Math.sin } });
 const ex = instance.exports;
 
 function yaz(hucreler) {                      // [{x,y},...] -> çekirdek belleği
@@ -62,4 +70,4 @@ Node'da aynısı: `core/test/wasm-yukle.js` (dosyadan `WebAssembly.Module`).
 
 ## Not
 
-`core/test/tron-ref.js`, `game.js` mantığının elle kopyasıdır; `game.js` Tron YZ'si değişirse hem referans hem Rust güncellenmeli (uyum testi farkı yakalar).
+`core/test/tron-ref.js`, `game.js` mantığının elle kopyasıdır; `game.js` Tron YZ'si değişirse hem referans hem Rust güncellenmeli (uyum testi farkı yakalar). Aynı şekilde `src/core/survivor.js` içindeki `moveEnemies` / `moveShots` / `nearestEnemy` / `headHit` değişirse `core/src/survivor.rs` de güncellenmeli (`test/survivor-wasm.test.js` farkı yakalar).

@@ -1,8 +1,9 @@
-//! yilan-core: Yılan Arcade Rust çekirdeği (Aşama 1-2). Bağımlılık yok.
+//! yilan-core: Yılan Arcade Rust çekirdeği (Aşama 1-2, 4: Survivor döngüleri). Bağımlılık yok.
 //! WebAssembly için ham `extern "C"` ihracı (wasm-bindgen gerekmez); aynı
 //! fonksiyonlar yerel .so/.dll olarak ctypes ile de çağrılır.
 
 pub mod rng;
+pub mod survivor;
 pub mod tron;
 
 use rng::Pcg32;
@@ -11,7 +12,7 @@ use std::alloc::{alloc as raw_alloc, dealloc as raw_dealloc, Layout};
 /// Sürüm: 0x00MMmmpp
 #[no_mangle]
 pub extern "C" fn yc_version() -> u32 {
-    0x0000_0100
+    0x0000_0200
 }
 
 /// JS/Python için bellek ayır (bayt). Başarısızsa 0 (null) döner.
@@ -116,4 +117,101 @@ pub extern "C" fn yc_rng_f64(seed_lo: u32, seed_hi: u32, index: u32) -> f64 {
         v = r.next_f64();
     }
     v
+}
+
+// ---------------- Survivor (Aşama 4) ----------------
+// Tamponlar: düşman [x,y,hp] f64 (adım 3), mermi [x,y,dx,dy,dmg] f64 (adım 5). Uzunluklar öğe sayısıdır.
+// Geçersiz girdi (null işaretçi, aşırı uzunluk, sonlu olmayan sayı) -> -1, tampona dokunulmaz.
+
+const SV_MAX: usize = 1 << 20;
+
+unsafe fn en_slice<'a>(p: *mut f64, n: usize) -> Option<&'a mut [f64]> {
+    if n > SV_MAX || (n > 0 && p.is_null()) {
+        return None;
+    }
+    if n == 0 {
+        return Some(&mut []);
+    }
+    Some(std::slice::from_raw_parts_mut(p, n * survivor::EN_STRIDE))
+}
+
+/// Düşmanları başa doğru ilerletir (yerinde). Dönüş: n ya da -1.
+///
+/// # Safety
+/// `en` en az n*3 f64 içermeli.
+#[no_mangle]
+pub unsafe extern "C" fn yc_sv_move_enemies(en: *mut f64, n: usize, hx: f64, hy: f64, espd: f64) -> i32 {
+    if !hx.is_finite() || !hy.is_finite() || !espd.is_finite() {
+        return -1;
+    }
+    match en_slice(en, n) {
+        Some(e) => {
+            survivor::move_enemies(e, hx, hy, espd);
+            n as i32
+        }
+        None => -1,
+    }
+}
+
+/// Mermileri ilerletir, çarpışmaları işler. Mermi x/y ve düşman hp yerinde güncellenir.
+/// keep: m adet i32 (1 kalır / 0 silinir), dead: n adet i32 (ölen düşman indeksleri, ölüm sırasıyla).
+/// Dönüş: ölen düşman sayısı ya da -1.
+///
+/// # Safety
+/// shots >= m*5 f64, en >= n*3 f64, keep >= m i32, dead >= n i32.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn yc_sv_move_shots(
+    shots: *mut f64, m: usize, en: *mut f64, n: usize, cols: f64, rows: f64, keep: *mut i32, dead: *mut i32,
+) -> i32 {
+    if !cols.is_finite() || !rows.is_finite() || m > SV_MAX {
+        return -1;
+    }
+    if m > 0 && (shots.is_null() || keep.is_null()) {
+        return -1;
+    }
+    if n > 0 && dead.is_null() {
+        return -1;
+    }
+    let e = match en_slice(en, n) {
+        Some(e) => e,
+        None => return -1,
+    };
+    if m == 0 {
+        return 0;
+    }
+    let s = std::slice::from_raw_parts_mut(shots, m * survivor::SHOT_STRIDE);
+    let k = std::slice::from_raw_parts_mut(keep, m);
+    let d: &mut [i32] = if n == 0 { &mut [] } else { std::slice::from_raw_parts_mut(dead, n) };
+    survivor::move_shots(s, e, cols, rows, k, d) as i32
+}
+
+/// En yakın düşman (<= 11) indeksi; yoksa -1, geçersiz girdide -2.
+///
+/// # Safety
+/// `en` en az n*3 f64 içermeli.
+#[no_mangle]
+pub unsafe extern "C" fn yc_sv_nearest(en: *mut f64, n: usize, hx: f64, hy: f64) -> i32 {
+    if !hx.is_finite() || !hy.is_finite() {
+        return -2;
+    }
+    match en_slice(en, n) {
+        Some(e) => survivor::nearest_enemy(e, hx, hy),
+        None => -2,
+    }
+}
+
+/// Kafaya (< 1) değen ilk düşman indeksi; yoksa -1, geçersiz girdide -2.
+///
+/// # Safety
+/// `en` en az n*3 f64 içermeli.
+#[no_mangle]
+pub unsafe extern "C" fn yc_sv_head_hit(en: *mut f64, n: usize, hx: f64, hy: f64) -> i32 {
+    if !hx.is_finite() || !hy.is_finite() {
+        return -2;
+    }
+    match en_slice(en, n) {
+        Some(e) => survivor::head_hit(e, hx, hy),
+        None => -2,
+    }
 }

@@ -1602,7 +1602,23 @@ const SnakeGame = (() => {
         playerShots = r.shots;
         enemies = r.enemies;
     }
-    
+    // Survivor: Rust/wasm çekirdeği (src/core/survivor-wasm.js) hazırsa mermi/çarpışma ve kafa çarpması onunla; sonuç JS ile
+    // birebir aynı (test/survivor-wasm.test.js), ölçümde ~2-3 kat hızlı (core/test/bench-survivor.js). Yüklenmediyse, ?js=1
+    // ya da girdi geçersizse (null) JS yedeği. moveEnemies JS'te kalır (wasm'da daha yavaş ölçüldü). Geri almak için
+    // tickSurvivor'da svMoveShots -> moveShots, svHeadHit(head) -> SvCore.headHit(enemies, head) yeter.
+    function svMoveShots(onKill) {
+        const W = window.YilanCore.svWasm;
+        const r = W ? W.moveShots(playerShots, enemies, COLS, ROWS, onKill) : null;
+        if (!r) return moveShots(onKill);
+        playerShots = r.shots;
+        enemies = r.enemies;
+    }
+    function svHeadHit(head) {
+        const W = window.YilanCore.svWasm;
+        const i = W ? W.headHit(enemies, head) : null;
+        return i === null ? SvCore.headHit(enemies, head) : i;
+    }
+
     function tickTailgun() {
         waveTick++;
         if (shotCooldown > 0) shotCooldown--;
@@ -1745,7 +1761,7 @@ const SnakeGame = (() => {
 
         SvCore.autoFire(sv, head, enemies, playerShots);
 
-        moveShots(enemy => {
+        svMoveShots(enemy => { // onKill mermi/düşman dizilerine dokunmaz: wasm yolunda döngü sonrası, aynı sırayla çağrılır
             state.score += 2;
             updateHUD();
             if (ek('elit') && ++state.svKill % 20 === 0) { // elit sandık: tam seviyelik altın elmas
@@ -1762,7 +1778,7 @@ const SnakeGame = (() => {
         });
 
         if (!powers.invincible) {
-            const i = SvCore.headHit(enemies, head);
+            const i = svHeadHit(head);
             if (i >= 0) {
                 enemies.splice(i, 1);
                 damage();

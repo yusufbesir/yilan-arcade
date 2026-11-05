@@ -7,7 +7,7 @@ const WASM = path.join(__dirname, '..', 'target', 'wasm32-unknown-unknown', 'rel
 // wasm-bindgen gerektirmeyen ince sarmalayıcı. Dönüş: { tronChoose, floodCount, ... }
 function yukle(wasmYolu = WASM) {
     const mod = new WebAssembly.Module(fs.readFileSync(wasmYolu));
-    const ex = new WebAssembly.Instance(mod, {}).exports;
+    const ex = new WebAssembly.Instance(mod, { yc_math: { atan2: Math.atan2, cos: Math.cos, sin: Math.sin } }).exports;
     const mem = () => new Int32Array(ex.memory.buffer);
 
     function yaz(cells) {
