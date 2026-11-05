@@ -842,6 +842,12 @@ const Gfx25 = (() => {
     // skin rengiyle çarpılır. Anahtar skin/cb'ye bağlı; her anahtar bir kez üretilir (market
     // önizlemesindeki 12 skin aynı karede sırayla çizilse de yeniden üretim yok).
     const texCache = new Map();
+    const derPats = new Map();
+    function derPat(ctx, im, key) {
+        let p = derPats.get(key);
+        if (!p) { p = ctx.createPattern(im, 'repeat'); derPats.set(key, p); }
+        return p;
+    }
     function scaleTex(skin, cb) {
         const key = cb ? 'cb' : skin ? 'skin:' + skin.id : 'orman';
         tex.key = key;
@@ -962,6 +968,21 @@ const Gfx25 = (() => {
                 // karın şeridi: ışığın karşı kenarında açık bant (dokulu modda)
                 if (l === 1 && timg) { ctx.globalAlpha = 0.38; ctx.fillStyle = pk.hi; ctx.fill(); ctx.globalAlpha = 1; }
                 if (l === 3) { ctx.globalAlpha = 0.5; ctx.fillStyle = pk.hi; ctx.fill(); ctx.globalAlpha = 1; }
+            }
+        }
+
+        // Blender yılan derisi (Ek özellik, varsayılan kapalı): taban katmanlarının üstüne yumuşak bindirme
+        if (o.deri && typeof Doku !== 'undefined' && Doku.img) {
+            const dim = Doku.img('YilanDeri' + o.deri + '_Color');
+            if (dim && dim.complete && dim.naturalWidth) {
+                let dp = null;
+                try { dp = derPat(ctx, dim, o.deri); dp.setTransform(new DOMMatrix().translate(-travel * 0.6, 0).scale(0.26)); } catch (e) { dp = null; }
+                if (dp) {
+                    ctx.save();
+                    ctx.globalAlpha = o.reduced ? 0.6 : 0.78; ctx.fillStyle = dp;
+                    for (let c = chunkBuf.length - 3; c >= 0; c -= 3) { ribbonPoly(ctx, chunkBuf[c], chunkBuf[c + 1], LAYERS_BASE[2][0], LAYERS_BASE[2][1]); ctx.fill(); }
+                    ctx.restore();
+                }
             }
         }
 
