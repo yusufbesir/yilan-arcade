@@ -3554,7 +3554,10 @@ const SnakeGame = (() => {
     function saveData() {
         try {
             localStorage.setItem('pixelSnakeArcade', JSON.stringify({ records, progress, unlocked }));
-        } catch (e) {}
+        } catch (e) {
+            // kayıt yazılamadı (kota dolu / depolama kapalı): oturum başına bir kez uyar
+            if (!saveData.uyardi) { saveData.uyardi = true; setTimeout(() => showToast('⚠ Kayıt yazılamadı: rekorlar bu oturumda saklanmayabilir'), 120); } // başarım bildirimini ezmesin
+        }
     }
     
     function loadSavedData() {
