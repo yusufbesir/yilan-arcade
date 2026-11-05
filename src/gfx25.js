@@ -632,6 +632,7 @@ const Gfx25 = (() => {
     let ribbonHead = null; // son şeridin baş konumu ve açısı (aynı karede drawSnakeHead kullanır)
     let lastHeadAng = 0;
 
+    let animOn = false; const animO = { simdi: 0, hizMs: 0, calisiyor: true, reduced: false, S: 20 };
     function buildRibbon(pts, S, lift) {
         const R = RB;
         R.n = 0; R.L = 0;
@@ -746,6 +747,8 @@ const Gfx25 = (() => {
             if (toEnd < 24) { const q = Math.sqrt(Math.max(0, toEnd) / 24); w *= 0.2 + 0.8 * (0.5 - 0.5 * Math.cos(Math.PI * q)); }
             R.w[i] = w;
         }
+        // sürünme dalgası ve yem şişliği (yalnız oyun yılanı; market önizlemesi o.yanim vermez)
+        if (animOn && typeof YilanAnim !== 'undefined') YilanAnim.uygula(R, animO);
         // baş açısı: baştan yarım hücre gerideki eğri noktasına kiriş (dönüşte açı yay boyunca akar)
         {
             const want = R.s[headK] + S * 0.5;
@@ -917,6 +920,8 @@ const Gfx25 = (() => {
         const S = o.CELL;
         setDpr(ctx);
         const R = RB;
+        animOn = !!o.yanim;
+        if (animOn) { animO.simdi = o.simdi != null ? o.simdi : performance.now(); animO.hizMs = o.hizMs || 0; animO.calisiyor = o.calisiyor !== false; animO.reduced = !!o.reduced; animO.S = S; }
         if (!pts.length || !buildRibbon(pts, S, 4)) return false;
         const n = R.n;
         // gövde deseninin uzayda sabit kalması için baş hareketiyle kat edilen yol
