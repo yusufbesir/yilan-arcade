@@ -115,6 +115,7 @@ const SnakeGame = (() => {
         ['elit', 'ELİT SANDIK', 'Hayatta Kalma: her 20. öldürmede tam seviyelik altın elmas düşer'],
         ['guc', 'GÜÇ HALKASI', 'Aktif güçlendirmenin kalan süresi yılanın başında ince halka olarak görünür'],
         ['rtekrar', 'R İLE YENİDEN DENE', 'Oyun sırasında R tuşu menüye dönmeden oyunu baştan başlatır'],
+        ['yutma', 'YUTMA ANİMASYONU', 'Yem yenince baş kısa süre şişer ve geri toplanır (yalnız çizim)'],
         ['alaca', 'ALACAKARANLIK SAATİ', 'Klasik: skor arttıkça ekran kararır, yılan başı fener gibi aydınlatır (hız değişmez)'],
         ['mevsim', 'MEVSİM ÇARKI', 'Günlük: tarihe göre bir ek kural (her 4. yem x2, her 6. yem +3 ya da 12 tik içinde seri yem +1)'],
         ['takas', 'BAŞ-KUYRUK TAKASI', 'Portal: X tuşu baş ile kuyruğu değiştirir (ters yön), 120 tik bekleme'],
@@ -995,6 +996,7 @@ const SnakeGame = (() => {
             const ek = Math.floor(state.istahAcc + 1e-9);
             state.istahAcc -= ek; pts += ek;
         }
+        state.gulpAt = performance.now();
         burst(food.x + 0.5, food.y + 0.5, food.type === 'super' ? '#ffdd00' : '#ffbf2e', food.type === 'super' ? 22 : 12);
         if (state.mode === 'daily' && ek('kivrim') && state.yonler.length >= 3 && new Set(state.yonler.map(d => d.x + ',' + d.y)).size === 3) { // kıvrım: son 3 hareket 3 farklı yön
             pts *= 2; showBanner('KIVRIM x2'); burst(food.x + 0.5, food.y + 0.5, '#7ad7ff', 14, 1.2);
@@ -2365,7 +2367,8 @@ const SnakeGame = (() => {
         bullets.forEach(b => drawBullet(b));
         
         // Snake
-        const prog = state.paused || state.over ? 1 : Math.max(0, Math.min(1, (nowT - lastTickAt) / Math.max(40, state.speed)));
+        // ilerleme gerçek tik aralığına (hız ayarı, Sakin, Bataklık dahil) bölünür: eskiden state.speed kullanılıyordu, ayar 1,5x iken yılan her tikte bekleyip titriyordu
+        const prog = state.paused || state.over ? 1 : Math.max(0, Math.min(1, (nowT - lastTickAt) / Math.max(40, effSpeed())));
         const total = snake.length;
         renderPos = snake.map((c, i) => lerpPos(prevSnake[i], c, prog));
         // Gövde: gfx25 varsa tek parça şerit (hayalet kuralında gövde gizli); yoksa parça parça
@@ -2375,7 +2378,13 @@ const SnakeGame = (() => {
             if (chaos.rule === 'ghost' && i > 0) continue;
             const pos = renderPos[i];
             if (i === 0) {
-                drawSnakeHead(pos);
+                const gk = ek('yutma') && !REDUCED && state.gulpAt ? (nowT - state.gulpAt) / 240 : 2; // yutma: baş kısa süre şişer (0..1 arası)
+                if (gk >= 0 && gk < 1) {
+                    const hx = (pos.x + 0.5) * CELL, hy = (pos.y + 0.5) * CELL, sc = 1 + 0.2 * Math.sin(Math.PI * gk);
+                    ctx.save(); ctx.translate(hx, hy); ctx.scale(sc, sc); ctx.translate(-hx, -hy);
+                    drawSnakeHead(pos);
+                    ctx.restore();
+                } else drawSnakeHead(pos);
                 if (!REDUCED && state.running && Math.random() < 0.35) spark(pos.x + 0.5, pos.y + 0.5);
             } else drawSnakeBody(pos, i, total);
         }

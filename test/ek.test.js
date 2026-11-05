@@ -289,6 +289,15 @@ const assert = require('assert');
   assert.ok(['cifte', 'bonus', 'seri'].includes(r.mevsim), 'mevsim kuralı yok: ' + r.mevsim);
   await baslat('startClassic');
   r.alaca = await page.evaluate(() => { const d = SnakeGame._debug; d.get().state.score = 80; d.draw(); SnakeGame.setSetting('ek', { alaca: false }); d.draw(); SnakeGame.setSetting('ek', {}); return true; });
+  // 25) Yutma animasyonu: yem yenince gulpAt işlenir, çizim hatasız; kapalıyken de hatasız
+  await baslat('startClassic');
+  r.yutma = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(), h = g.snake[0], f = d.extra().food;
+    f.x = h.x + g.nextDir.x; f.y = h.y + g.nextDir.y; f.type = 'normal'; T();
+    d.draw(); const v = !!d.get().state.gulpAt;
+    SnakeGame.setSetting('ek', { yutma: false }); d.draw(); SnakeGame.setSetting('ek', {}); return v;
+  });
+  assert.ok(r.yutma, 'yutma zamanı kaydedilmedi');
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
