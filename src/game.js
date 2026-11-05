@@ -115,6 +115,8 @@ const SnakeGame = (() => {
         ['elit', 'ELİT SANDIK', 'Hayatta Kalma: her 20. öldürmede tam seviyelik altın elmas düşer'],
         ['guc', 'GÜÇ HALKASI', 'Aktif güçlendirmenin kalan süresi yılanın başında ince halka olarak görünür'],
         ['rtekrar', 'R İLE YENİDEN DENE', 'Oyun sırasında R tuşu menüye dönmeden oyunu baştan başlatır'],
+        ['alaca', 'ALACAKARANLIK SAATİ', 'Klasik: skor arttıkça ekran kararır, yılan başı fener gibi aydınlatır (hız değişmez)'],
+        ['mevsim', 'MEVSİM ÇARKI', 'Günlük: tarihe göre bir ek kural (her 4. yem x2, her 6. yem +3 ya da 12 tik içinde seri yem +1)'],
         ['takas', 'BAŞ-KUYRUK TAKASI', 'Portal: X tuşu baş ile kuyruğu değiştirir (ters yön), 120 tik bekleme'],
         ['yansit', 'YANSITMA HALKASI', 'Mermi Manyağı: Z tuşu önündeki mermiyi geri yansıtır, 1 kuyruk halkası harcar, 40 tik bekleme'],
         ['vizz', 'YAKIN GEÇİŞ SESİ', 'Mermi Manyağı: sıyrılan mermi kısa tiz bir ses çıkarır'],
@@ -492,6 +494,7 @@ const SnakeGame = (() => {
         playSound('start');
     }
     
+    const MEVSIM_KURAL = [{ id: 'cifte', ad: 'HER 4. YEM x2' }, { id: 'bonus', ad: 'HER 6. YEM +3' }, { id: 'seri', ad: 'SERİ YEM +1' }];
     function startDaily() {
         setTimeout(() => unlockAch('gunluk'), 0);
         state.dailyKey = todayKey();
@@ -502,7 +505,8 @@ const SnakeGame = (() => {
         if (dun) document.getElementById('hudTarget').textContent = dun;
         document.getElementById('hudTarget').classList.remove('gecildi');
         state.pacerDone = false;
-        showBanner('GÜNLÜK ' + state.dailyKey.slice(5) + (dun ? ' · DÜN: ' + dun : ''));
+        state.mevsim = ek('mevsim') ? MEVSIM_KURAL[Array.from(state.dailyKey).reduce((a, c) => a + c.charCodeAt(0), 0) % MEVSIM_KURAL.length] : null; // tarihe bağlı, rastgelelik tüketmez
+        showBanner('GÜNLÜK ' + state.dailyKey.slice(5) + (dun ? ' · DÜN: ' + dun : '') + (state.mevsim ? ' · ' + state.mevsim.ad : ''));
         const midY = Math.floor(ROWS / 2);
         for (let i = 0; i < 9; i++) {
             for (let t = 0; t < 30; t++) {
@@ -633,7 +637,7 @@ const SnakeGame = (() => {
         tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0, gaps: new Set(), gapN: 0 };
         chaos = { rule: null, left: 0, next: 120, saved: 0, pending: null, kisa: '' };
         state.timeLeft = 60;
-        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.esikCool = 0; state.kabukLeft = 0; state.kabukHazir = false; state.takasCool = 0; state.yansitCool = 0; state.isi = null; state.yanki = null; state.yemRenk = []; state.kapiLeft = 0; state.kapiRenk = null; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
+        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.esikCool = 0; state.kabukLeft = 0; state.kabukHazir = false; state.takasCool = 0; state.yansitCool = 0; state.mevsim = null; state.tikSay = 0; state.mevsimSon = 0; state.isi = null; state.yanki = null; state.yemRenk = []; state.kapiLeft = 0; state.kapiRenk = null; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
         document.getElementById('hudTarget').classList.remove('ragnarok');
         state.bolumTik = 0;
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
@@ -778,6 +782,7 @@ const SnakeGame = (() => {
         }
         
         if (state.kapiLeft > 0) state.kapiLeft--;
+        if (state.mode === 'daily') state.tikSay = (state.tikSay || 0) + 1;
         if (state.kabukLeft > 0) state.kabukLeft--;
         if (state.takasCool > 0) state.takasCool--;
         if (state.yansitCool > 0) state.yansitCool--;
@@ -994,6 +999,13 @@ const SnakeGame = (() => {
         }
         if (state.mode === 'portal' && state.kapiLeft > 0 && ek('renkkapi')) { pts *= 2; showBanner('KAPI x2'); state.kapiLeft = 0; }
         if (state.kabukLeft > 0 && ek('kabuk')) pts *= 2;
+        if (state.mode === 'daily' && state.mevsim) { // Mevsim çarkı: rastgelelik tüketmez
+            const n = state.yemSay + 1, id = state.mevsim.id, now = state.tikSay || 0;
+            if (id === 'cifte' && n % 4 === 0) { pts *= 2; showBanner('MEVSİM x2'); }
+            else if (id === 'bonus' && n % 6 === 0) { pts += 3; showBanner('MEVSİM +3'); }
+            else if (id === 'seri' && state.mevsimSon > 0 && now - state.mevsimSon <= 12) { pts += 1; showBanner('MEVSİM SERİ +1'); }
+            state.mevsimSon = now;
+        }
         state.score += pts;
         rekorKontrol();
         state.yemSay++;
@@ -1097,6 +1109,16 @@ const SnakeGame = (() => {
     // Güç halkası: aktif güçlendirmelerin kalan süresi (kalkan altın, hız mavi, yenilmezlik mor)
     const GUC_SURE = { shield: 12000, speed: 6500, invincible: 5000 };
     const GUC_RENK = { shield: '#e8c46a', speed: '#5ad2ff', invincible: '#c58bff' };
+    // Alacakaranlık saati: skor arttıkça ekran kararır, baş çevresi aydınlık kalır (yalnız çizim)
+    function drawAlaca(rp) {
+        if (!ek('alaca') || state.mode !== 'classic' || !rp || !rp[0]) return;
+        const k = Math.min(1, state.score / 100) * 0.6;
+        if (k < 0.02) return;
+        const S = CONFIG.CELL, cx = (rp[0].x + 0.5) * S, cy = (rp[0].y + 0.5) * S;
+        const g = ctx.createRadialGradient(cx, cy, S * 5, cx, cy, S * 24);
+        g.addColorStop(0, 'rgba(6,8,22,0)'); g.addColorStop(1, 'rgba(6,8,22,' + k.toFixed(3) + ')');
+        ctx.save(); ctx.fillStyle = g; ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT); ctx.restore();
+    }
     function drawGucHalka() {
         if (!ek('guc') || !snake.length) return;
         const S = CONFIG.CELL, h = snake[0], cx = h.x * S + S / 2, cy = h.y * S + S / 2;
@@ -2375,6 +2397,7 @@ const SnakeGame = (() => {
             Market.efekt(ctx, { pts: mp, S: CONFIG.CELL, t: nowT / 1000, aktif: state.running && !state.paused && !state.over, cb: settings.cb, reduced: REDUCED, fx: settings.fx, yon: dir });
         }
 
+        drawAlaca(renderPos);
         // Auras
         if (powers.invincible) drawAura(snake[0], '#ff00ff', 26);
         if (powers.shield) drawAura(snake[0], '#00ccff', 22);

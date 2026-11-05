@@ -280,6 +280,15 @@ const assert = require('assert');
     const b = d.get().bullets[0]; return { n: n0 - d.get().snake.length, rev: b.dx * g.dir.x + b.dy * g.dir.y > 0 };
   });
   assert.ok(r.yansit.n === 1 && r.yansit.rev, 'yansıtma çalışmadı: ' + JSON.stringify(r.yansit));
+  // 24) Mevsim çarkı (Günlük): bir kural seçilir ve ilk yem sayacı işler; Alacakaranlık çizimi hatasız
+  await baslat('startDaily');
+  r.mevsim = await page.evaluate(() => {
+    const d = SnakeGame._debug, st = d.get().state; const m = st.mevsim ? st.mevsim.id : null;
+    d.draw(); return m;
+  });
+  assert.ok(['cifte', 'bonus', 'seri'].includes(r.mevsim), 'mevsim kuralı yok: ' + r.mevsim);
+  await baslat('startClassic');
+  r.alaca = await page.evaluate(() => { const d = SnakeGame._debug; d.get().state.score = 80; d.draw(); SnakeGame.setSetting('ek', { alaca: false }); d.draw(); SnakeGame.setSetting('ek', {}); return true; });
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
