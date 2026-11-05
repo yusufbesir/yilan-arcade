@@ -129,6 +129,7 @@ const assert = require('assert');
         f.x = h.x + d.x; f.y = h.y + d.y; f.type = 'normal'; D.tick();
       }
     };
+    SnakeGame.setSetting('ek', { mevsim: false }); // Mevsim çarkı kendi puanını değiştirir; bu test yalnız Tema'nın Günlük'te puan değiştirmediğini sınar
     kur('kaya', () => SnakeGame.startDaily());
     o.gunlukKural = Tema.aktif(); o.gunlukGorunum = Tema.etkin('daily');
     yemKos(2); o.gunlukPuan = D.get().state.score;
