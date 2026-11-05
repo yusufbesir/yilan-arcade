@@ -1,0 +1,12 @@
+[package]
+name = "emberwake-godot"
+version = "0.3.0-onizleme"
+edition = "2021"
+description = "Emberwake Godot 4 uzantısı (gdext): Rust çekirdeğini Godot'a bağlar"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+godot = "0.5"
+emberwake-core = { path = "../../core" }

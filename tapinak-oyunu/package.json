@@ -1,0 +1,42 @@
+{
+  "name": "emberwake",
+  "version": "0.2.2",
+  "description": "Emberwake: 2.5D piksel art aksiyon oyunu",
+  "main": "main.js",
+  "author": "Yusuf",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/mantik.test.js",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "45.2.2",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.yusuf.emberwake",
+    "productName": "Emberwake",
+    "files": [
+      "main.js",
+      "index.html",
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "Emberwake",
+      "artifactName": "Emberwake-Setup-${version}.exe"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+[
+ {
+  "ad": "Yaygın",
+  "guc": 1,
+  "renk": "#d9d2c0"
+ },
+ {
+  "ad": "Nadir",
+  "guc": 1.6,
+  "renk": "#7fd6ff"
+ },
+ {
+  "ad": "Efsanevi",
+  "guc": 2.4,
+  "renk": "#ffb02e"
+ }
+]

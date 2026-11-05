@@ -1,0 +1,84 @@
+[
+ {
+  "id": "nifl",
+  "ad": "GJALLAR HÖYÜKLERİ",
+  "alt": "Nors: Niflheim kapısı",
+  "bolum": [
+   "Buzlu Giriş",
+   "Kemik Salonları",
+   "Donmuş Kalp",
+   "Kral Mezarı"
+  ],
+  "boss": "hrolf",
+  "kucuk": [
+   "draugr",
+   "kurt",
+   "kargaci"
+  ],
+  "menzil": [
+   "seidr"
+  ],
+  "agir": [
+   "buzdev"
+  ],
+  "ozel": [
+   "draugr"
+  ]
+ },
+ {
+  "id": "demir",
+  "ad": "DEMİR DAĞ OCAKLARI",
+  "alt": "Türk: Ergenekon demir dağı",
+  "bolum": [
+   "Maden Ağzı",
+   "Körük Odaları",
+   "Eriyik Nehri",
+   "Tepegöz Ocağı"
+  ],
+  "boss": "tepegoz",
+  "kucuk": [
+   "kor",
+   "demirkurt",
+   "kurt"
+  ],
+  "menzil": [
+   "kargaci",
+   "seidr"
+  ],
+  "agir": [
+   "demirci"
+  ],
+  "ozel": [
+   "albasti"
+  ]
+ },
+ {
+  "id": "kok",
+  "ad": "TAMU KÖKLERİ",
+  "alt": "Yggdrasil kökü, Erlik Han yurdu",
+  "bolum": [
+   "Kök Girişi",
+   "Yılan Çukuru",
+   "Gölge Bahçesi",
+   "Erlik Tahtı"
+  ],
+  "boss": "erlik",
+  "kucuk": [
+   "yilan",
+   "draugr",
+   "kor"
+  ],
+  "menzil": [
+   "golge",
+   "seidr"
+  ],
+  "agir": [
+   "demirci",
+   "buzdev"
+  ],
+  "ozel": [
+   "kok",
+   "albasti"
+  ]
+ }
+]
