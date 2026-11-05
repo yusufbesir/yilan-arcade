@@ -9,7 +9,7 @@ const W = require('../src/core/tron-wasm.js');
 const { mulberry32, durumUret } = require('../core/test/tron-ref.js');
 
 // (1) Node
-const ex = new WebAssembly.Instance(new WebAssembly.Module(Buffer.from(require('../src/core/yilan_core.wasm.js'), 'base64')), {}).exports;
+const ex = new WebAssembly.Instance(new WebAssembly.Module(Buffer.from(require('../src/core/yilan_core.wasm.js'), 'base64')), W.ithal()).exports;
 const w = W.kur(ex);
 assert(w && w.hazir, 'wasm kurulamadı (sürüm uyuşmuyor olabilir)');
 const rnd = mulberry32(2026);

@@ -13,7 +13,7 @@ const opts = hazir ? {} : { skip: 'wasm yok: cd core && cargo build --release --
 
 test('wasm yükleniyor ve sürüm dönüyor', opts, () => {
     const w = yukle();
-    assert.strictEqual(w.ex.yc_version(), 0x100);
+    assert.strictEqual(w.ex.yc_version(), 0x200);
 });
 
 test('2000 rastgele durumda JS referansı = wasm yönü', opts, () => {
