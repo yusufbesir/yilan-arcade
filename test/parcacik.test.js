@@ -8,7 +8,8 @@ const assert = require('assert');
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   await page.goto('file://' + path.resolve(__dirname, '../src/index.html') + '?test=1');
-  await page.waitForTimeout(500);
+  // Atlas görseli eşzamansız yüklenir; yoğun makinede 500 ms yetmeyebilir, hazır olana kadar bekle
+  await page.waitForFunction(() => typeof Parcacik !== 'undefined' && Parcacik.hazir(), null, { timeout: 15000 });
   assert.ok(await page.evaluate(() => Parcacik.hazir()), 'atlas yüklenmedi');
   await page.click('[data-act=startClassic]');
   await page.waitForTimeout(200);
