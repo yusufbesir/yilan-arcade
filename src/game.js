@@ -128,6 +128,8 @@ const SnakeGame = (() => {
         ['kuyrukrenk', 'KUYRUK RENGİ', 'Son 10 yemin türü kuyruk halkalarında küçük renk noktası olarak görünür (yalnız çizim)'],
         ['renkkapi', 'RENK KAPISI', 'Portal: portaldan çıkınca 12 tik içinde yenen yem x2, baş portal renginde parlar'],
         ['surunme', 'SÜRÜNME DALGASI', 'Yılanın gövdesi hafifçe dalgalanır, yem yenince gövdede şişlik baştan kuyruğa ilerler (yalnız çizim; hareket azaltmada kapalı)'],
+        ['kumar', 'KAOS KUMARI', 'Kaos: her 10 yemde rastgele iki kuraldan birini sen seçersin (1 / 2); açıkken süreye bağlı rastgele kural gelmez', false],
+        ['ritim', 'RİTİM YEMİ', 'Zamana Karşı: müziğin ana vuruşuna denk yem yersen +0,5 sn (müzik kapalıysa çalışmaz)'],
         ['mayin', 'KUYRUK MAYINI', 'Kuyruk Silahı: O tuşu kuyruk ucundan halka bırakıp mayın yapar; düşman yaklaşınca patlar, 30 tikte kaybolur'],
         ['hayalet', 'HAYALET YILAN', 'Klasik: en iyi koşunun izi soluk bir ışık olarak yanında ilerler; önüne geçince "hayaleti geçtin" yazar'],
         ['parlama', 'PARLAMA ATILIMI', 'Tron: iz uzadıkça enerji dolar (30 tik); dolunca O tuşu 3 hücre iz bırakmadan sıçratır'],
@@ -642,7 +644,7 @@ const SnakeGame = (() => {
         food = null;
         portals = [];
         tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0, gaps: new Set(), gapN: 0 };
-        chaos = { rule: null, left: 0, next: 120, saved: 0, pending: null, kisa: '' };
+        chaos = { rule: null, left: 0, next: 120, saved: 0, pending: null, kisa: '', secim: null };
         state.timeLeft = 60;
         state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.esikCool = 0; state.kabukLeft = 0; state.kabukHazir = false; state.takasCool = 0; state.yansitCool = 0; state.mevsim = null; state.tikSay = 0; state.mevsimSon = 0; state.isi = null; state.yanki = null; state.yemRenk = []; state.kapiLeft = 0; state.kapiRenk = null; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
         document.getElementById('hudTarget').classList.remove('ragnarok');
@@ -762,6 +764,7 @@ const SnakeGame = (() => {
     function tick() {
         if (state.paused || state.over || state.complete) return;
         if (state.mode === 'survivor' && sv.choosing) return;
+        if (state.mode === 'chaos' && chaos.secim) return;
         
         prevSnake = snake.map(c => ({ x: c.x, y: c.y }));
         lastTickAt = performance.now();
@@ -1026,6 +1029,7 @@ const SnakeGame = (() => {
         state.score += pts;
         rekorKontrol();
         state.yemSay++;
+        if (state.mode === 'chaos' && ek('kumar') && state.yemSay % 10 === 0 && !chaos.rule && !chaos.secim) kumarSun();
         if (state.hEat && state.mode === 'classic' && state.hEat.length < 500) state.hEat.push(state.hRec.length);
         if (state.mode === 'classic' && ek('kabuk') && snake.length >= 30 && !state.kabukHazir) { state.kabukHazir = true; showBanner('KABUK HAZIR: K', false, 1500, 'soluk'); }
         if (ek('kuyrukrenk')) { state.yemRenk.unshift(food.type === 'super' ? '#ffdd00' : '#ff7a45'); if (state.yemRenk.length > 10) state.yemRenk.pop(); }
@@ -1033,6 +1037,7 @@ const SnakeGame = (() => {
         if (state.mode === 'classic' && ek('zbonus') && state.yemSay % 5 === 0 && !state.ekYem) ekYemUret('bonus', 56);
         if (state.mode === 'timeattack') {
             state.timeLeft += food.type === 'super' ? 5 : 2;
+            ritimBonus();
             if (ek('zseri')) { // seri: 2 sn içinde art arda 3 yem +1 sn
                 const now = performance.now();
                 state.seri = now - state.sonYem <= 2000 ? state.seri + 1 : 1; state.sonYem = now;
@@ -2263,6 +2268,10 @@ const SnakeGame = (() => {
         
         if (state.paused || state.over || state.complete) return;
         
+        if (state.mode === 'chaos' && chaos.secim && ['1', '2'].includes(key)) {
+            kumarSec(Number(key) - 1);
+            return;
+        }
         if (state.mode === 'survivor' && sv.choosing && ['1', '2', '3'].includes(key)) {
             pickUpgrade(Number(key) - 1);
             return;
@@ -2504,6 +2513,7 @@ const SnakeGame = (() => {
         if (Tema.carpan() > 1) drawRunSayac();
         drawVignette();
         if (state.mode === 'survivor' && sv.choosing) drawLevelUp();
+        if (state.mode === 'chaos' && chaos.secim) drawKumar();
         ctx.restore();
     }
     
@@ -3332,14 +3342,42 @@ const SnakeGame = (() => {
             }
             return;
         }
+        if (ek('kumar')) return; // seçim yem sayısına bağlı (kumarSun)
         chaos.next--;
         if (chaos.next === 15 && !chaos.pending) { // ön uyarı: kural şimdi seçilir (tek rastgele çağrı, yalnız erken), gelince aynısı uygulanır
             chaos.pending = CHAOS_KURALLAR[Math.floor(Math.random() * CHAOS_KURALLAR.length)];
             showBanner('YAKINDA: ' + chaos.pending[2], false, 1500, 'soluk');
         }
         if (chaos.next > 0) return;
-        const [rule, label, kisa] = chaos.pending || CHAOS_KURALLAR[Math.floor(Math.random() * CHAOS_KURALLAR.length)];
+        const k = chaos.pending || CHAOS_KURALLAR[Math.floor(Math.random() * CHAOS_KURALLAR.length)];
         chaos.pending = null;
+        chaosUygula(k);
+    }
+    function kumarSun() { // iki farklı kural sunulur, oyun seçim bitene dek durur
+        const a = Math.floor(Math.random() * CHAOS_KURALLAR.length);
+        let b = Math.floor(Math.random() * (CHAOS_KURALLAR.length - 1)); if (b >= a) b++;
+        chaos.secim = [CHAOS_KURALLAR[a], CHAOS_KURALLAR[b]];
+    }
+    function kumarSec(i) {
+        if (!chaos.secim || !chaos.secim[i]) return;
+        const k = chaos.secim[i]; chaos.secim = null; chaosUygula(k);
+    }
+    function drawKumar() {
+        if (!chaos.secim) return;
+        ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+        ctx.textAlign = 'center'; ctx.font = '14px "Press Start 2P", monospace'; ctx.fillStyle = '#ffd400';
+        ctx.fillText('KAOS KUMARI! SEÇ: 1 - 2', CONFIG.WIDTH / 2, 90);
+        const w = CONFIG.WIDTH / 2;
+        chaos.secim.forEach((k, i) => {
+            ctx.fillStyle = 'rgba(20, 34, 54, 0.9)'; ctx.fillRect(i * w + 40, 140, w - 80, 200);
+            ctx.strokeStyle = '#a9d6f0'; ctx.lineWidth = 2; ctx.strokeRect(i * w + 40, 140, w - 80, 200);
+            ctx.fillStyle = '#fff'; ctx.font = '22px "Press Start 2P", monospace'; ctx.fillText(String(i + 1), i * w + w / 2, 195);
+            ctx.font = '11px "Press Start 2P", monospace'; ctx.fillText(k[2], i * w + w / 2, 250, w - 100);
+        });
+        ctx.restore();
+    }
+    function chaosUygula(k) {
+        const [rule, label, kisa] = k;
         chaos.rule = rule;
         chaos.kisa = kisa;
         chaos.left = 70;
@@ -3434,6 +3472,12 @@ const SnakeGame = (() => {
             musicTimer = setInterval(scheduleMusic, 200);
         } catch (e) {}
     }
+    let musicVur = [];
+    function ritimBonus(t, list) { // yem anı bir ana vuruşa ±0,12 sn yakınsa +0,5 sn
+        const l = list || (audio && musicTimer && settings.music && soundOn ? musicVur : null), now = t !== undefined ? t : (audio ? audio.currentTime : 0);
+        if (!ek('ritim') || state.mode !== 'timeattack' || !l || !l.some(b => Math.abs(b - now) <= 0.12)) return false;
+        state.timeLeft += 0.5; showBanner('RİTİM +0,5 sn', false, 900, 'soluk'); return true;
+    }
     function scheduleMusic() {
         if (!audio) return;
         const beat = 60 / 96;
@@ -3445,6 +3489,7 @@ const SnakeGame = (() => {
             idx = Math.max(0, Math.min(SCALE.length - 1, idx));
             const vol = inBar === 0 ? 0.07 : 0.045;
             const pc = Tema.muzik(Tema.etkin(state.mode, state.level)).carp;
+            if (inBar % 2 === 0) { musicVur.push(musicNext); if (musicVur.length > 12) musicVur.shift(); } // Ritim Yemi: ana vuruş zamanları
             tone(SCALE[idx] * pc, 'triangle', beat * 0.9, vol, musicNext);
             if (inBar === 0 || inBar === 4) tone(SCALE[idx] * pc / 2, 'sine', beat * 1.8, 0.05, musicNext);
             musicNext += beat * (inBar % 2 === 0 ? 1 : 0.5);
@@ -3857,7 +3902,7 @@ const SnakeGame = (() => {
         ...(TEST_MODE ? { _tapinak: { run: () => tp, meta: () => tpMeta, tick: () => tick(), atil: () => tapinakAtil(), sec: i => tapinakSec(i) } } : {}),
         // Test API'si (_debug, _ach) yalnız ?test=1 ile açılan sayfada; paketli oyunda yok.
         ...(TEST_MODE ? { _miras: { buy: mirasBuy, render: renderMiras }, _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
-        _debug: { fx: () => ({ burst, particles }), tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), draw: () => draw(), extra: () => ({ tmHiz, tmBekle, effSpeed: effSpeed(), portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
+        _debug: { fx: () => ({ burst, particles }), tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), ritim: (t, l) => ritimBonus(t, l), draw: () => draw(), extra: () => ({ tmHiz, tmBekle, effSpeed: effSpeed(), portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
     };
     return PUBLIC;
 })();

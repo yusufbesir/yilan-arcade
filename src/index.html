@@ -862,11 +862,18 @@
         .tron-2p.on { background: rgba(255,153,0,0.22); color: #ffb347; border-color: #ff9900; }
 
         /* ===== Dinamik ölçek: tuval pencereye göre büyür/küçülür ===== */
-        .screen { width: min(96vw, calc((100vh - 250px) * 1.375), 1700px); max-width: none; min-width: 300px; }
+        .screen { width: min(96vw, calc((100vh - 285px) * 1.375), 1700px); max-width: none; min-width: 300px; }
         /* Tam ekran (F11): başlık gizlenir, tuval ekran yüksekliğini doldurur (1920x1080'de ~1300x865) */
         body.tam-ekran .title-area { display: none; }
         body.tam-ekran .screen { width: min(98vw, calc((100vh - 125px) * 1.375), 2100px); }
         body.tam-ekran .arcade-cabinet { padding: 10px; }
+        /* Geniş ve yüksek pencerede (Full HD) oyun açıkken aynı yerleşim kendiliğinden uygulanır; sayfa kaydırma çubuğu çıkmaz */
+        @media (min-width: 1500px) and (min-height: 950px) {
+            html, body { overflow: hidden; }
+            body.oyun-acik .title-area { display: none; }
+            body.oyun-acik .screen { width: min(98vw, calc((100vh - 140px) * 1.375), 2100px); }
+            body.oyun-acik .arcade-cabinet { padding: 10px; }
+        }
         #menuScreen { width: min(96vw, 1000px); }
         .arcade-cabinet { max-width: 98vw; padding: clamp(10px, 2vw, 25px); }
         @media (max-height: 640px) { .title-area { margin-bottom: 6px; } .subtitle { display: none; } }

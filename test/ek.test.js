@@ -348,6 +348,29 @@ const assert = require('assert');
     return { harcandi, adet: d.get().state.mayinlar.length, skor: d.get().state.score - sk0, kalan: d.get().enemies.length };
   });
   assert.ok(r.mayin.harcandi === 1 && r.mayin.adet === 0 && r.mayin.skor >= 2 && r.mayin.kalan === 0, 'mayın çalışmadı: ' + JSON.stringify(r.mayin));
+  // 30) Ritim yemi (Zamana Karşı): vuruşa denk yem +0,5 sn, uzak yem bonus vermez, kapalıyken vermez
+  await baslat('startTimeAttack');
+  r.ritim = await page.evaluate(() => {
+    const d = SnakeGame._debug, st = d.get().state, t0 = st.timeLeft;
+    const yakin = d.ritim(10.05, [10.0, 10.6]), t1 = st.timeLeft;
+    const uzak = d.ritim(10.3, [10.0, 10.6]), t2 = st.timeLeft;
+    SnakeGame.setSetting('ek', { ritim: false }); const kapali = d.ritim(10.0, [10.0]); SnakeGame.setSetting('ek', {});
+    return { yakin, uzak, kapali, fark: Math.round((t1 - t0) * 10) / 10, fark2: Math.round((t2 - t1) * 10) / 10 };
+  });
+  assert.ok(r.ritim.yakin && !r.ritim.uzak && !r.ritim.kapali && r.ritim.fark === 0.5 && r.ritim.fark2 === 0, 'ritim çalışmadı: ' + JSON.stringify(r.ritim));
+  // 31) Kaos kumarı (varsayılan kapalı): her 10. yemde iki kural sunulur, oyun durur, 1 ile seçilir
+  await baslat('startChaos');
+  r.kumar = await page.evaluate(() => {
+    const d = SnakeGame._debug; SnakeGame.setSetting('ek', { kumar: true });
+    const st = d.get().state, g = d.get(), h = g.snake[0], ch = d.extra().chaos; st.yemSay = 9; ch.rule = null;
+    const f = d.extra().food; f.x = h.x + g.nextDir.x; f.y = h.y + g.nextDir.y; f.type = 'normal'; T();
+    const sunuldu = !!d.extra().chaos.secim && d.extra().chaos.secim.length === 2 && d.extra().chaos.secim[0][0] !== d.extra().chaos.secim[1][0];
+    const x0 = d.get().snake[0].x, y0 = d.get().snake[0].y; T(); const durdu = d.get().snake[0].x === x0 && d.get().snake[0].y === y0;
+    d.get().state.paused = false; document.dispatchEvent(new KeyboardEvent('keydown', { key: '1' })); d.get().state.paused = true;
+    const secildi = !d.extra().chaos.secim && !!d.extra().chaos.rule;
+    SnakeGame.setSetting('ek', {}); return { sunuldu, durdu, secildi };
+  });
+  assert.ok(r.kumar.sunuldu && r.kumar.durdu && r.kumar.secildi, 'kumar çalışmadı: ' + JSON.stringify(r.kumar));
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
