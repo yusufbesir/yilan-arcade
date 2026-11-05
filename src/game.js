@@ -128,6 +128,8 @@ const SnakeGame = (() => {
         ['kuyrukrenk', 'KUYRUK RENGİ', 'Son 10 yemin türü kuyruk halkalarında küçük renk noktası olarak görünür (yalnız çizim)'],
         ['renkkapi', 'RENK KAPISI', 'Portal: portaldan çıkınca 12 tik içinde yenen yem x2, baş portal renginde parlar'],
         ['surunme', 'SÜRÜNME DALGASI', 'Yılanın gövdesi hafifçe dalgalanır, yem yenince gövdede şişlik baştan kuyruğa ilerler (yalnız çizim; hareket azaltmada kapalı)'],
+        ['parlama', 'PARLAMA ATILIMI', 'Tron: iz uzadıkça enerji dolar (30 tik); dolunca O tuşu 3 hücre iz bırakmadan sıçratır'],
+        ['tohum', 'TOHUM KODU', 'Klasik: oyun sonunda kısa kod gösterilir, T tuşu aynı kodla (aynı yem düzeniyle) yeniden başlatır'],
         ['rozet', 'ROZETLER', 'Başarımlar panelinde 10 sessiz rozet gösterir (oyun içinde görünmez)', false],
     ];
     const EK_KAPALI = new Set(EK_LISTE.filter(x => x[3] === false).map(x => x[0]));
@@ -582,7 +584,7 @@ const SnakeGame = (() => {
         tron.ai = [{ x: COLS - 6, y: midY }, { x: COLS - 5, y: midY }, { x: COLS - 4, y: midY }];
         tron.aiDir = { x: -1, y: 0 };
         tron.p2Next = { x: -1, y: 0 };
-        tron.gaps = new Set(); tron.gapN = 0;
+        tron.gaps = new Set(); tron.gapN = 0; tron.enerji = 0; tron.sicra = false;
     }
     const TRON_HEDEF = 5; // 2 oyuncuda ilk 5 turu alan kazanır
     
@@ -643,6 +645,12 @@ const SnakeGame = (() => {
         document.getElementById('hudTarget').classList.remove('ragnarok');
         state.bolumTik = 0;
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
+        state.tohum = null;
+        if (state.mode === 'classic' && ek('tohum')) { // Tohum kodu: yalnız yem konumları bu akıştan gelir
+            state.tohum = state.tohumSonraki || Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+            state.tohumSonraki = null;
+            rand = seededRand('T' + state.tohum);
+        }
         
         powers = { shield: false, speed: false, invincible: false };
         Object.values(powerTimers).forEach(t => clearTimeout(t));
@@ -1955,6 +1963,7 @@ const SnakeGame = (() => {
         document.getElementById('finalLabel').textContent = kayitYok ? 'KAZANAN:' : 'SKOR:';
         document.getElementById('gameoverTitle').textContent = kayitYok ? 'DÜELLO BİTTİ' : 'OYUN BİTTİ';
         document.getElementById('newRecordMsg').style.display = isRecord ? 'flex' : 'none';
+        const thm = document.getElementById('tohumMsg'); if (thm) thm.textContent = state.tohum ? 'TOHUM ' + state.tohum + ' · T' : '';
         mirasVer('kulMsg', !kayitYok, state.mode === 'tapinak' && !!(tp && tp.kazandi));
         if (state.mode === 'tapinak') { const gTitle = document.getElementById('gameoverTitle'); if (gTitle) gTitle.textContent = tp && tp.kazandi ? 'TAPINAKTAN ÇIKTIN' : 'KOŞU BİTTİ'; }
         const kb = document.getElementById('copyBtn'); // Günlük: sonucu panoya kopyala (yalnız tıklamayla)
@@ -2144,6 +2153,15 @@ const SnakeGame = (() => {
             return;
         }
         
+        if (key === 'o' && state.mode === 'tron' && ek('parlama') && state.running && !state.paused && !state.over && !tron.twoP && tron.enerji >= 30) {
+            tron.sicra = true;
+            return;
+        }
+        if (key === 't' && state.over && state.tohum && ek('tohum')) {
+            state.tohumSonraki = state.tohum;
+            restart();
+            return;
+        }
         if (key === 'r' && state.over) {
             restart();
             return;
@@ -3197,8 +3215,15 @@ const SnakeGame = (() => {
     function tickTron() {
         dir = { ...nextDir };
         tron.aiDir = tron.twoP ? { ...tron.p2Next } : aiChooseDir();
-        const ph = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+        let ph = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
         const ah = { x: tron.ai[0].x + tron.aiDir.x, y: tron.ai[0].y + tron.aiDir.y };
+        if (ek('parlama')) { // Parlama Atılımı: araya giren 2 hücre iz bırakmaz; iniş hücresi doluysa atılım iptal
+            if (tron.sicra) {
+                tron.sicra = false;
+                const l = { x: snake[0].x + dir.x * 3, y: snake[0].y + dir.y * 3 };
+                if (!tronBlocked(l.x, l.y) && !(l.x === ah.x && l.y === ah.y)) { ph = l; tron.enerji = 0; tron.atildi = performance.now(); showBanner('PARLAMA!', false, 600); playSound('start'); }
+            } else if (tron.enerji < 30 && ++tron.enerji === 30) showBanner('ATILIM HAZIR · O', false, 1200);
+        }
         const pDead = tronBlocked(ph.x, ph.y) || (ph.x === ah.x && ph.y === ah.y);
         const aDead = tronBlocked(ah.x, ah.y) || (ph.x === ah.x && ph.y === ah.y);
         if (pDead && aDead) {
