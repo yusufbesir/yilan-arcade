@@ -82,6 +82,10 @@
     tohum: { ad: 'Tohum paylaş', acik: 'Koşu sonunda tohum kodu gösterilir ve kopyalanır; menüden aynı tohumla başlanır' },
     hasarSayi: { ad: 'Hasar sayıları', acik: 'Vuruş ve hasar sayıları ekranda uçar (boyutu menüden değişir)' },
     son5: { ad: 'Son 5 saniye', acik: 'Ölünce son 5 saniyedeki darbeler ve yönleri gösterilir' },
+    havaPersp: { ad: 'Hava perspektifi', acik: 'Uzak duvarlar ve düşmanlar diyar rengine karışıp solar (derinlik hissi)' },
+    sicakVurgu: { ad: 'Diyar renk tonu', acik: 'Üstte soğuk, altta sıcak diyar rengi; sahne tek renk ailesinde kalır' },
+    parlama: { ad: 'Parlama', acik: 'Ateş, köz ve ışık kaynaklarının çevresine yumuşak parlama eklenir' },
+    sinemaBant: { ad: 'Sinema bandı', acik: 'İnce üst/alt bant, kenar karartma ve film tanesi' },
     karsilik: { ad: 'Karşılık', acik: 'Atılımın ilk anında hasar gelirse yakındaki düşmanlar sersemler' }
   };
   const ozAcik = (m, k) => !m || !m.ozellik || m.ozellik[k] !== false;
