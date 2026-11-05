@@ -11,7 +11,7 @@ const Parcacik = (() => {
     if (typeof Image !== 'undefined') {
         const im = new Image();
         im.onload = () => { atlas = im; tint.clear(); };
-        im.src = 'img/fx/parcacik.png';
+        im.src = (typeof window !== 'undefined' && window.PARCACIK_DATA) || 'img/fx/parcacik.png';
     }
     function hazir() { return !!atlas; }
     function renkli(i, renk) {

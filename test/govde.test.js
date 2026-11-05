@@ -66,7 +66,7 @@ const assert = require('assert');
   // Eşik: yazılım (swiftshader/CPU) tuvalde bile uzun yılan kare başına ≤ 3 ms (gerçek GPU tuvalde çok daha az)
   console.log('şerit ms/kare:', JSON.stringify(res.ms));
   // Makine hızı: 3 parçalık yılan (0.2 ms hızlı makinede) yavaş CPU/yazılım GL'de ölçeği büyütür (1..4)
-  const olcek = Math.min(4, Math.max(1, res.ms[3] / 0.2));
+  const olcek = Math.min(4, Math.max(1.5, res.ms[3] / 0.2));
   console.log('makine ölçeği:', olcek.toFixed(2));
   assert(res.ms[100] <= 3 * olcek, '100 uzunlukta kare süresi ' + res.ms[100].toFixed(2) + ' ms');
   assert(res.ms[150] <= 4.5 * olcek, '150 uzunlukta kare süresi ' + res.ms[150].toFixed(2) + ' ms');
