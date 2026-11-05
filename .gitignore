@@ -5,6 +5,7 @@ dist/
 *.png
 !src/img/*.png
 !src/img/sprites/*.png
+!src/img/fx/*.png
 !build/icon.png
 
 # yerel yedekler
