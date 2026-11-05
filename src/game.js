@@ -115,6 +115,10 @@ const SnakeGame = (() => {
         ['elit', 'ELİT SANDIK', 'Hayatta Kalma: her 20. öldürmede tam seviyelik altın elmas düşer'],
         ['guc', 'GÜÇ HALKASI', 'Aktif güçlendirmenin kalan süresi yılanın başında ince halka olarak görünür'],
         ['rtekrar', 'R İLE YENİDEN DENE', 'Oyun sırasında R tuşu menüye dönmeden oyunu baştan başlatır'],
+        ['olum', 'ÖLÜM EŞİĞİ', 'Klasik/Portal/Zamana Karşı: ölümcül hamlede bir tik bekler, dönmen için süre verir (60 tikte bir)'],
+        ['yanki', 'YANKI YEMİ', 'Klasik: yem yenince 3 tik sonra aynı yerde soluk yankı belirir, yersen +1 puan'],
+        ['kuyrukrenk', 'KUYRUK RENGİ', 'Son 10 yemin türü kuyruk halkalarında küçük renk noktası olarak görünür (yalnız çizim)'],
+        ['renkkapi', 'RENK KAPISI', 'Portal: portaldan çıkınca 12 tik içinde yenen yem x2, baş portal renginde parlar'],
         ['rozet', 'ROZETLER', 'Başarımlar panelinde 10 sessiz rozet gösterir (oyun içinde görünmez)', false],
     ];
     const EK_KAPALI = new Set(EK_LISTE.filter(x => x[3] === false).map(x => x[0]));
@@ -624,7 +628,7 @@ const SnakeGame = (() => {
         tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0, gaps: new Set(), gapN: 0 };
         chaos = { rule: null, left: 0, next: 120, saved: 0, pending: null, kisa: '' };
         state.timeLeft = 60;
-        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
+        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.esikCool = 0; state.yanki = null; state.yemRenk = []; state.kapiLeft = 0; state.kapiRenk = null; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
         document.getElementById('hudTarget').classList.remove('ragnarok');
         state.bolumTik = 0;
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
@@ -763,11 +767,19 @@ const SnakeGame = (() => {
             for (const p of portals) if (p.cool > 0) p.cool--; // soğuyan portal: kullanılan çift 8 tik uyur
             for (const p of portals) {
                 if (p.cool > 0 && ek('soguyan')) continue;
-                if (head.x === p.a.x && head.y === p.a.y) { head = { ...p.b }; playSound('powerup'); if (ek('soguyan')) p.cool = 8; break; }
-                if (head.x === p.b.x && head.y === p.b.y) { head = { ...p.a }; playSound('powerup'); if (ek('soguyan')) p.cool = 8; break; }
+                if (head.x === p.a.x && head.y === p.a.y) { head = { ...p.b }; playSound('powerup'); if (ek('soguyan')) p.cool = 8; if (ek('renkkapi')) { state.kapiLeft = 12; state.kapiRenk = p.color; } break; }
+                if (head.x === p.b.x && head.y === p.b.y) { head = { ...p.a }; playSound('powerup'); if (ek('soguyan')) p.cool = 8; if (ek('renkkapi')) { state.kapiLeft = 12; state.kapiRenk = p.color; } break; }
             }
         }
         
+        if (state.kapiLeft > 0) state.kapiLeft--;
+        if (state.esikCool > 0) state.esikCool--;
+        // Ölüm eşiği: ölümcül hamlede tik bir kez beklenir (60 tikte bir), oyuncu dönebilsin
+        if (ek('olum') && state.esikCool <= 0 && ['classic', 'portal', 'timeattack'].includes(state.mode)
+            && (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS || snake.some(s => s.x === head.x && s.y === head.y) || obstacles.some(o => o.x === head.x && o.y === head.y))) {
+            state.esikCool = 60; showBanner('SON ŞANS', false, 900, 'soluk');
+            return;
+        }
         // Wall collision
         if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
             damage();
@@ -937,9 +949,12 @@ const SnakeGame = (() => {
         if (state.mode === 'daily' && ek('kivrim') && state.yonler.length >= 3 && new Set(state.yonler.map(d => d.x + ',' + d.y)).size === 3) { // kıvrım: son 3 hareket 3 farklı yön
             pts *= 2; showBanner('KIVRIM x2'); burst(food.x + 0.5, food.y + 0.5, '#7ad7ff', 14, 1.2);
         }
+        if (state.mode === 'portal' && state.kapiLeft > 0 && ek('renkkapi')) { pts *= 2; showBanner('KAPI x2'); state.kapiLeft = 0; }
         state.score += pts;
         rekorKontrol();
         state.yemSay++;
+        if (ek('kuyrukrenk')) { state.yemRenk.unshift(food.type === 'super' ? '#ffdd00' : '#ff7a45'); if (state.yemRenk.length > 10) state.yemRenk.pop(); }
+        if (state.mode === 'classic' && ek('yanki') && !state.yanki) state.yanki = { x: food.x, y: food.y, wait: 4, left: 4 };
         if (state.mode === 'classic' && ek('zbonus') && state.yemSay % 5 === 0 && !state.ekYem) ekYemUret('bonus', 56);
         if (state.mode === 'timeattack') {
             state.timeLeft += food.type === 'super' ? 5 : 2;
@@ -990,6 +1005,12 @@ const SnakeGame = (() => {
             const nx = food.x + st.x, ny = food.y + st.y;
             if ((st.x || st.y) && !snake.some(c => c.x === nx && c.y === ny) && !obstacles.some(o => o.x === nx && o.y === ny)) { food.x = nx; food.y = ny; }
         }
+        const yk = state.yanki;
+        if (yk) {
+            if (yk.wait > 0) yk.wait--;
+            else if (head.x === yk.x && head.y === yk.y) { state.yanki = null; state.score += 1; rekorKontrol(); updateHUD(); showBanner('YANKI +1', false, 900, 'soluk'); playSound('eat'); burst(yk.x + 0.5, yk.y + 0.5, '#cfd8ff', 12, 1.1); }
+            else if (--yk.left <= 0) state.yanki = null;
+        }
         const e = state.ekYem;
         if (!e) return;
         if (head.x === e.x && head.y === e.y) {
@@ -1006,6 +1027,12 @@ const SnakeGame = (() => {
         if (--e.left <= 0) state.ekYem = null;
     }
     function drawEkYem() {
+        const yk = state.yanki;
+        if (yk && yk.wait <= 0) {
+            const S = CONFIG.CELL, t = performance.now() / 1000;
+            ctx.save(); ctx.globalAlpha = 0.35 + 0.15 * Math.sin(t * 8); ctx.strokeStyle = '#cfd8ff'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(yk.x * S + S / 2, yk.y * S + S / 2, 7 + (4 - yk.left), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+        }
         const e = state.ekYem;
         if (!e) return;
         const S = CONFIG.CELL, t = performance.now() / 1000, cx = e.x * S + S / 2, cy = e.y * S + S / 2, k = e.left / e.max;
@@ -2254,6 +2281,19 @@ const SnakeGame = (() => {
             } else drawSnakeBody(pos, i, total);
         }
         
+        if (ek('kuyrukrenk') && state.yemRenk && state.yemRenk.length && total > 1 && chaos.rule !== 'ghost') {
+            const S = CONFIG.CELL;
+            for (let i = 0; i < state.yemRenk.length && i + 1 < total; i++) {
+                const q = renderPos[i + 1];
+                ctx.save(); ctx.fillStyle = state.yemRenk[i]; ctx.globalAlpha = 0.9;
+                ctx.beginPath(); ctx.arc((q.x + 0.5) * S, (q.y + 0.5) * S, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            }
+        }
+        if (state.mode === 'portal' && state.kapiLeft > 0 && state.kapiRenk && ek('renkkapi')) {
+            const S = CONFIG.CELL, h = renderPos[0];
+            ctx.save(); ctx.strokeStyle = state.kapiRenk; ctx.lineWidth = 3; ctx.globalAlpha = 0.5 + 0.4 * (state.kapiLeft / 12);
+            ctx.beginPath(); ctx.arc((h.x + 0.5) * S, (h.y + 0.5) * S, S * 0.75, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+        }
         // Market efekti (kostüme özgü parçacıklar; reduced / fx kapalı / renk körü / Tapınak'ta yok)
         if (typeof Market !== 'undefined' && state.mode !== 'tapinak') {
             const mp = chaos.rule === 'ghost' ? renderPos.slice(0, 1) : renderPos;
