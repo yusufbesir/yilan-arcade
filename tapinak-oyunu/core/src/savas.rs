@@ -19,6 +19,7 @@ pub struct Mermi { pub x: f64, pub y: f64, pub vx: f64, pub vy: f64, pub hasar: 
 pub struct Tuzak { pub x: f64, pub y: f64, pub r: f64, pub t: f64, pub hasar: f64 }
 
 pub struct Savas {
+    pub kitlik: bool, pub dusen: Vec<(String, f64, f64)>,
     pub rng: crate::Rng, pub derinlik: i32,
     pub grid: Izgara, pub tuzaklar: Vec<Tuzak>, pub zaman: f64,
     pub p: Oyuncu, pub arm: Armagan, pub dusmanlar: Vec<Dusman>, pub mermiler: Vec<Mermi>,
@@ -139,6 +140,7 @@ impl Savas {
             self.dusman_hareket(i, y.cos() * v * dt, y.sin() * v * dt);
         }
     }
+    fn tuzak_kur(&mut self, x: f64, y: f64, r: f64, hasar: f64, t: f64) { self.tuzaklar.push(Tuzak { x: x.clamp(1.5, 20.5), y: y.clamp(1.5, 12.5), r, t, hasar }); }
     fn dusman_atis(&mut self, i: usize, aci: f64, hiz: f64, hasar: f64, omur: f64) {
         let (x, y) = (self.dusmanlar[i].x, self.dusmanlar[i].y);
         self.mermiler.push(Mermi { x, y, vx: aci.cos() * hiz, vy: aci.sin() * hiz, hasar, r: 0.2, omur, delme: 0, dost: false, dusman: true, vuruldu: vec![] });
@@ -231,6 +233,66 @@ impl Savas {
                 let a = ac + (self.dusmanlar[i].sayac * 6.0).sin() * 0.9;
                 self.git(i, hiz, a, dt);
             }
+            "patlayan" => {
+                self.git(i, hiz, ac, dt);
+                if d < self.dusmanlar[i].r + pr + 0.3 { self.dusmanlar[i].hp = 0.0; self.oldur(i); return; }
+                temas_var = false;
+            }
+            "kalkanli" => {
+                self.git(i, hiz, ac, dt);
+                let (faz_t, faz) = (self.dusmanlar[i].faz_t, self.dusmanlar[i].faz.clone());
+                if faz_t <= 0.0 && faz == "bekle" && d < 1.8 { let e = &mut self.dusmanlar[i]; e.faz = "hazir".into(); e.faz_t = 0.5; }
+                else if faz == "hazir" && faz_t <= 0.0 {
+                    { let e = &mut self.dusmanlar[i]; e.faz = "bekle".into(); e.faz_t = 2.0; }
+                    let e = &self.dusmanlar[i];
+                    if (e.x - px).hypot(e.y - py) < 2.0 { self.oyuncu_hasar(18.0); }
+                }
+            }
+            "isinlan" => {
+                let faz = self.dusmanlar[i].faz.clone();
+                if faz == "bekle" {
+                    self.git(i, hiz, ac, dt);
+                    if self.dusmanlar[i].faz_t <= 0.0 { let e = &mut self.dusmanlar[i]; e.faz = "hayalet".into(); e.faz_t = 0.45; }
+                } else if faz == "hayalet" {
+                    if self.dusmanlar[i].faz_t <= 0.0 {
+                        let a = ac + PI + (self.rng.next() - 0.5);
+                        let (nx, ny) = (px + a.cos() * 1.6, py + a.sin() * 1.6);
+                        if !self.dusman_carpisir(i, nx, ny) { self.dusmanlar[i].x = nx; self.dusmanlar[i].y = ny; }
+                        let e = &mut self.dusmanlar[i]; e.faz = "hazir".into(); e.faz_t = 0.45;
+                    }
+                    temas_var = false;
+                } else if faz == "hazir" && self.dusmanlar[i].faz_t <= 0.0 {
+                    let r = self.rng.next();
+                    { let e = &mut self.dusmanlar[i]; e.faz = "bekle".into(); e.faz_t = 2.4 + r; }
+                    if d < 2.0 { self.oyuncu_hasar(14.0); }
+                }
+            }
+            "kok" => {
+                self.dusmanlar[i].atk -= dt;
+                if self.dusmanlar[i].atk <= 0.0 {
+                    self.dusmanlar[i].atk = 2.6;
+                    self.tuzak_kur(px, py, 1.1, 14.0, 0.9);
+                    let (a, b) = (self.rng.next(), self.rng.next());
+                    self.tuzak_kur(px + (a - 0.5) * 3.0, py + (b - 0.5) * 3.0, 1.0, 12.0, 1.1);
+                }
+                temas_var = false;
+            }
+            "golge" => {
+                let faz = self.dusmanlar[i].faz.clone();
+                if faz == "bekle" || faz == "hayalet" {
+                    self.dusmanlar[i].faz = "hayalet".into();
+                    self.git(i, hiz * 1.3, ac, dt);
+                    if d < 3.4 || self.dusmanlar[i].faz_t <= 0.0 { let e = &mut self.dusmanlar[i]; e.faz = "gorunur".into(); e.faz_t = 2.2; e.atk = 0.4; }
+                    temas_var = false;
+                } else if faz == "gorunur" {
+                    self.dusmanlar[i].atk -= dt;
+                    if self.dusmanlar[i].atk <= 0.0 {
+                        self.dusmanlar[i].atk = 0.8;
+                        for a in [-0.35, 0.0, 0.35] { self.dusman_atis(i, ac + a, 5.4, 9.0, 5.0); }
+                    }
+                    if self.dusmanlar[i].faz_t <= 0.0 { let e = &mut self.dusmanlar[i]; e.faz = "hayalet".into(); e.faz_t = 3.0; }
+                }
+            }
             _ => { temas_var = true; }
         }
         let e = &self.dusmanlar[i];
@@ -258,6 +320,13 @@ impl Savas {
         e.olu = true; self.oldurme += 1;
         let kazan = (e.kul * if e.mini { 0.4 } else { 1.0 } * if e.etki.is_some() { 1.6 } else { 1.0 } * if self.risk { 2.0 } else { 1.0 } * (1.0 + 0.15 * self.kul_seviye)).round();
         self.kul += kazan;
+        let (ai_patlayan, ex, ey) = (self.dusmanlar[i].ai == "patlayan", self.dusmanlar[i].x, self.dusmanlar[i].y);
+        if ai_patlayan && (ex - self.p.x).hypot(ey - self.p.y) < 1.7 { self.oyuncu_hasar(14.0); }
+        let (boss, mini) = (self.dusmanlar[i].boss, self.dusmanlar[i].mini);
+        if !boss && !mini && self.rng.next() < if self.kitlik { 0.06 } else { 0.14 } {
+            let tur = if self.p.aclik < self.p.susuz { "et" } else { "su" };
+            self.dusen.push((tur.into(), ex.clamp(1.5, 20.5), ey.clamp(1.5, 12.5)));
+        }
     }
 }
 
@@ -277,7 +346,7 @@ mod tests {
             let p: Vec<&str> = satir.split(' ').collect();
             let (guc, kul_s, risk, bilek, keskin, kivilcim, alev, aclik) = (f(p[1]), f(p[2]), p[3] == "1", f(p[4]), f(p[5]), f(p[6]), p[7] == "1", f(p[8]));
             let mut p0 = Oyuncu::yeni(100.0, 2); p0.x = 11.0; p0.y = 7.0; p0.aclik = aclik;
-            let mut s = Savas { rng: crate::Rng::new(1), derinlik: 0, grid: [[0; W]; H], tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan { bilek, keskin, kivilcim, ..Default::default() }, dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk, kul_seviye: kul_s, guc, alev };
+            let mut s = Savas { kitlik: false, dusen: vec![], rng: crate::Rng::new(1), derinlik: 0, grid: [[0; W]; H], tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan { bilek, keskin, kivilcim, ..Default::default() }, dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk, kul_seviye: kul_s, guc, alev };
             for e in p[9].split(';') {
                 let a: Vec<&str> = e.split(',').collect();
                 s.dusmanlar.push(Dusman { tip: a[0].into(), x: f(a[1]), y: f(a[2]), r: f(a[3]), hp: f(a[4]), dogum: f(a[5]), faz: a[6].into(), ac: f(a[7]),
@@ -319,7 +388,7 @@ mod tests {
             let mut grid = [[0u8; W]; H];
             for (y, row) in p[6].split('/').enumerate() { for (x, ch) in row.chars().enumerate() { grid[y][x] = ch.to_digit(16).unwrap() as u8; } }
             let mut p0 = Oyuncu::yeni(1000.0, 2); p0.x = 11.0; p0.y = 8.0;
-            let mut s = Savas { rng: crate::Rng::new(1), derinlik: 0, grid, tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan { keskin: f(p[4]), ..Default::default() }, dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk: p[3] == "1", kul_seviye: f(p[2]), guc: f(p[1]), alev: p[5] == "1" };
+            let mut s = Savas { kitlik: false, dusen: vec![], rng: crate::Rng::new(1), derinlik: 0, grid, tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan { keskin: f(p[4]), ..Default::default() }, dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk: p[3] == "1", kul_seviye: f(p[2]), guc: f(p[1]), alev: p[5] == "1" };
             for e in p[7].split(';') {
                 let a: Vec<&str> = e.split(',').collect();
                 s.dusmanlar.push(Dusman { tip: a[0].into(), x: f(a[1]), y: f(a[2]), r: f(a[3]), hp: f(a[4]), dogum: 0.0, faz: "bekle".into(), ac: f(a[5]), etki: None, mini: false, kul: f(a[6]), boss: false, kx: 0.0, ky: 0.0, flas: 0.0, yanik: 0.0, olu: false, ..Default::default() });
@@ -346,7 +415,7 @@ mod tests {
         assert_eq!(say, 60);
     }
 
-    fn faz_kodu(s: &str) -> f64 { match s { "bekle" => 0.0, "hazir" => 1.0, "hamle" => 2.0, _ => 3.0 } }
+    fn faz_kodu(s: &str) -> f64 { match s { "bekle" => 0.0, "hazir" => 1.0, "hamle" => 2.0, "gorunur" => 4.0, _ => 3.0 } }
 
     #[test]
     fn js_ile_ayni_yapay_zeka() {
@@ -358,10 +427,11 @@ mod tests {
             let mut grid = [[0u8; W]; H];
             for (y, row) in p[3].split('/').enumerate() { for (x, ch) in row.chars().enumerate() { grid[y][x] = ch.to_digit(16).unwrap() as u8; } }
             let mut p0 = Oyuncu::yeni(100000.0, 2); p0.x = 11.0; p0.y = 8.0;
-            let mut s = Savas { rng: crate::Rng::new(f(p[2]) as u32), derinlik: f(p[1]) as i32, grid, tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan::default(), dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk: false, kul_seviye: 0.0, guc: 0.0, alev: false };
+            let mut s = Savas { kitlik: false, dusen: vec![], rng: crate::Rng::new(f(p[2]) as u32), derinlik: f(p[1]) as i32, grid, tuzaklar: vec![], zaman: 0.0, p: p0, arm: Armagan::default(), dusmanlar: vec![], mermiler: vec![], kul: 0.0, oldurme: 0, risk: false, kul_seviye: 0.0, guc: 0.0, alev: false };
             let tablo = |tip: &str| -> (&'static str, f64, f64, bool, f64) { match tip {
                 "draugr" => ("kovala", 2.5, 10.0, false, 4.0), "kurt" => ("atilgan", 2.4, 10.0, false, 5.0), "seidr" => ("nisanci", 1.9, 6.0, false, 6.0),
                 "kargaci" => ("cirpinan", 3.4, 8.0, false, 5.0), "buzdev" => ("devasa", 1.5, 18.0, false, 12.0), "demirkurt" => ("atilgan", 2.7, 14.0, true, 0.0),
+                "albasti" => ("isinlan", 2.1, 12.0, false, 9.0), "kor" => ("patlayan", 3.3, 6.0, false, 6.0), "demirci" => ("kalkanli", 1.6, 16.0, false, 12.0), "kok" => ("kok", 0.0, 0.0, false, 8.0), "golge" => ("golge", 2.3, 10.0, false, 10.0),
                 _ => ("surunen", 3.0, 7.0, false, 0.0) } };
             for e in p[4].split(';') {
                 let a: Vec<&str> = e.split(',').collect();
@@ -384,6 +454,6 @@ mod tests {
             }
             say += 1;
         }
-        assert_eq!(say, 50);
+        assert_eq!(say, 80);
     }
 }

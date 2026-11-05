@@ -1,8 +1,8 @@
 // Rust düşman yapay zekâsı paritesi (kovala, atılgan, nişancı, çırpınan, devasa, sürünen): node tools-dump-ai.js > core/testdata/ai.txt
 const TK = require('./src/mantik.js');
 const f = v => typeof v === 'number' ? v.toPrecision(17) : (v === true ? 1 : v === false ? 0 : v);
-const tipler = ['draugr', 'kurt', 'seidr', 'kargaci', 'buzdev', 'demirkurt', 'yilan'];
-for (let sc = 0; sc < 50; sc++) {
+const tipler = ['draugr', 'kurt', 'seidr', 'kargaci', 'buzdev', 'demirkurt', 'yilan', 'albasti', 'kor', 'demirci', 'kok', 'golge'];
+for (let sc = 0; sc < 80; sc++) {
   const rg = TK.mulberry(5000 + sc);
   const meta = TK.mirasBos();
   const s = TK.yeniKosu(1500 + sc, meta, null);
@@ -22,7 +22,7 @@ for (let sc = 0; sc < 50; sc++) {
   const durum = [];
   for (let i = 1; i <= 360; i++) {
     TK.adim(s, {}, 1 / 60);
-    if (i % 40 === 0) durum.push([s.p.hp, s.p.inv, s.mermiler.length, s.tuzaklar.length, ...s.mermiler.flatMap(m => [m.x, m.y]), ...orijinal.flatMap(e => [e.x, e.y, e.hp, e.olu ? 1 : 0, e.fazT, e.atk, e.sayac, e.temasCd, e.hizliT, e.faz === 'bekle' ? 0 : e.faz === 'hazir' ? 1 : e.faz === 'hamle' ? 2 : 3])].map(f).join(','));
+    if (i % 40 === 0) durum.push([s.p.hp, s.p.inv, s.mermiler.length, s.tuzaklar.length, ...s.mermiler.flatMap(m => [m.x, m.y]), ...orijinal.flatMap(e => [e.x, e.y, e.hp, e.olu ? 1 : 0, e.fazT, e.atk, e.sayac, e.temasCd, e.hizliT, e.faz === 'bekle' ? 0 : e.faz === 'hazir' ? 1 : e.faz === 'hamle' ? 2 : e.faz === 'gorunur' ? 4 : 3])].map(f).join(','));
   }
   console.log(baslik.join(' ') + ' ' + durum.join(';'));
 }
