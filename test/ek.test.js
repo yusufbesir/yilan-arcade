@@ -383,6 +383,31 @@ const assert = require('assert');
     return { l1, var5, gecikti: ilk.x === dir0.x && ilk.y === dir0.y, sonra: ikinci.y === 1 };
   });
   assert.ok(!r.buz.l1 && r.buz.var5 && r.buz.gecikti && r.buz.sonra, 'buz karosu çalışmadı: ' + JSON.stringify(r.buz));
+  // 33) Hedef çeşitleri (Bölüm): 3. bölümde ek koşul var, 2'de yok; skor yetse de koşul yoksa bitmez; kapalıyken yok
+  r.hedef = await page.evaluate(() => {
+    const d = SnakeGame._debug; SnakeGame.startCampaign(2); const l2 = !!d.get().state.hedef;
+    SnakeGame.startCampaign(3); const st = d.get().state, h = st.hedef; const var3 = !!h && h.tur === 'duz';
+    st.score = st.target; for (let i = 0; i < 3; i++) d.tick();
+    const bitmedi = !d.get().state.complete && !d.get().state.over;
+    h.enUzun = 12; const g = d.get(); const tam = d.get().state.hedef.enUzun >= 12;
+    SnakeGame.startCampaign(7); const gez = d.get().state.hedef && d.get().state.hedef.tur === 'gezgin';
+    SnakeGame.setSetting('ek', { hedefcesit: false }); SnakeGame.startCampaign(3); const kapali = !d.get().state.hedef; SnakeGame.setSetting('ek', {});
+    return { l2, var3, bitmedi, tam, gez, kapali };
+  });
+  assert.ok(!r.hedef.l2 && r.hedef.var3 && r.hedef.bitmedi && r.hedef.gez && r.hedef.kapali, 'hedef çeşitleri çalışmadı: ' + JSON.stringify(r.hedef));
+  // 34) Sıralı yem (Bölüm): 4. bölümde 3 numaralı yem; sırayla +1, yanlış sırada set yenilenir, set tamamlanınca +2 ek; kapalıyken yok
+  r.sira = await page.evaluate(() => {
+    const d = SnakeGame._debug; SnakeGame.startCampaign(3); const l3 = !!d.get().state.sira;
+    SnakeGame.startCampaign(4); const st = d.get().state; const var4 = !!st.sira && st.sira.items.length === 3;
+    d.draw();
+    const yem = (n) => { const c = d.get().state.sira.items.find(x => x.n === n), g = d.get(), h = g.snake[0]; c.x = h.x + g.nextDir.x; c.y = h.y + g.nextDir.y; d.tick(); };
+    const s0 = d.get().state.score; yem(1); const bir = d.get().state.score - s0;
+    yem(3); const bozuldu = d.get().state.sira.next === 1 && d.get().state.sira.items.length === 3;
+    const s1 = d.get().state.score; yem(1); yem(2); yem(3); const tam = d.get().state.score - s1;
+    SnakeGame.setSetting('ek', { sirali: false }); SnakeGame.startCampaign(4); const kapali = !d.get().state.sira; SnakeGame.setSetting('ek', {});
+    return { l3, var4, bir, bozuldu, tam, kapali };
+  });
+  assert.ok(!r.sira.l3 && r.sira.var4 && r.sira.bir === 1 && r.sira.bozuldu && r.sira.tam === 5 && r.sira.kapali, 'sıralı yem çalışmadı: ' + JSON.stringify(r.sira));
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
