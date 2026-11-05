@@ -426,6 +426,25 @@ const Ciz = (() => {
     if (afisT > 0 && afis) { const al = Math.min(1, afisT * 1.2); c.globalAlpha = al; c.textAlign = 'center'; c.fillStyle = '#ffd86b'; c.font = 'bold 30px Georgia,serif'; c.shadowColor = '#000'; c.shadowBlur = 8; c.fillText(afis[0], CW / 2, 210); c.fillStyle = '#e8dcc0'; c.font = 'italic 17px Georgia,serif'; c.fillText(afis[1], CW / 2, 238); c.shadowBlur = 0; c.textAlign = 'left'; c.globalAlpha = 1; }
   }
 
+  function rgbaHex(h, a) { const [r0, g0, b0] = hex(h); return 'rgba(' + r0 + ',' + g0 + ',' + b0 + ',' + a + ')'; }
+  // Parlama: sahnenin küçültülmüş kopyası yumuşakça büyütülüp 'lighter' ile eklenir (ucuz bloom).
+  let pk = null, pc = null;
+  function parlamaCiz(c) {
+    if (!pk) { pk = document.createElement('canvas'); pk.width = Math.round(CW / 8); pk.height = Math.round(CH / 8); pc = pk.getContext('2d'); }
+    pc.imageSmoothingEnabled = true; pc.globalCompositeOperation = 'source-over'; pc.drawImage(lo, 0, 0, pk.width, pk.height);
+    c.save(); c.imageSmoothingEnabled = true; c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.28; c.drawImage(pk, 0, 0, CW, CH); c.restore();
+  }
+  // Sinema bandı: ince üst/alt bant, kenar karartma, hafif tane.
+  function sinemaCiz(c) {
+    c.save();
+    const v = c.createRadialGradient(CW / 2, CH / 2, CH * 0.45, CW / 2, CH / 2, CH * 0.95); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.4)');
+    c.fillStyle = v; c.fillRect(0, 0, CW, CH);
+    c.fillStyle = '#000'; c.fillRect(0, 0, CW, 12); c.fillRect(0, CH - 12, CW, 12);
+    c.globalAlpha = 0.05; c.fillStyle = '#fff';
+    for (let i = 0; i < 90; i++) c.fillRect(Math.floor(Math.random() * CW), Math.floor(Math.random() * CH), 1, 1);
+    c.restore();
+  }
+
   function ciz(c, s) {
     olaylariIsle(s);
     const tx = yap(s.oda.biyom || 0, s.oda.bolum || 0);
@@ -451,6 +470,10 @@ const Ciz = (() => {
     for (const n of s.oda.nesneler) liste.push({ k: n.y, f: () => nesneCiz(lc, n, s, tx) });
     liste.sort((a, b) => a.k - b.k);
     for (const l of liste) l.f();
+    if (TK.ozAcik(s.meta, 'havaPersp')) { // uzak katman diyar rengine karışır
+      const hg = lc.createLinearGradient(0, OY, 0, OY + 7 * TH); hg.addColorStop(0, rgbaHex(P.sis, 0.5)); hg.addColorStop(1, rgbaHex(P.sis, 0));
+      lc.fillStyle = hg; lc.fillRect(0, OY, LW, 7 * TH);
+    }
     for (const m of s.mermiler) mermiCiz(lc, m);
     for (const k of kesikler) {
       const a = 1 - k.t / 0.2;
@@ -460,10 +483,17 @@ const Ciz = (() => {
     for (const q of parcacik) { lc.globalAlpha = Math.max(0, q.t / q.m); lc.fillStyle = q.renk; lc.fillRect(sx(q.x), Math.round(sy(q.y) - q.z * 13), 2, 2); }
     lc.globalAlpha = 1;
     isikCiz(lc, s, tx);
+    if (TK.ozAcik(s.meta, 'sicakVurgu')) { // üstte soğuk, altta sıcak ton
+      lc.save(); lc.globalCompositeOperation = 'overlay';
+      const tg = lc.createLinearGradient(0, 0, 0, LH); tg.addColorStop(0, rgbaHex(P.sis, 0.35)); tg.addColorStop(0.5, 'rgba(0,0,0,0)'); tg.addColorStop(1, rgbaHex(P.isik, 0.28));
+      lc.fillStyle = tg; lc.fillRect(0, 0, LW, LH); lc.restore();
+    }
     lc.restore();
     c.save();
     c.imageSmoothingEnabled = false;
     c.drawImage(lo, 0, 0, CW, CH);
+    if (TK.ozAcik(s.meta, 'parlama')) parlamaCiz(c);
+    if (TK.ozAcik(s.meta, 'sinemaBant')) sinemaCiz(c);
     for (const y of yazilar) { c.globalAlpha = Math.min(1, y.t * 2); c.fillStyle = y.r; c.font = 'bold ' + Math.round(14 * (y.sayi ? (s.meta.hasarBoyut || 1) : 1)) + 'px Georgia,serif'; c.textAlign = 'center'; c.fillText(y.m, sx(y.x) * 2, sy(y.y) * 2 - 30); }
     c.globalAlpha = 1; c.textAlign = 'left';
     c.restore();
