@@ -26,8 +26,8 @@ const Doku = (() => {
     const KIND = {
         'floor.tas': { tex: 'PavingStones138', scale: 230, mean: 0.19, con: 0.8, tint: [0.82, 0.95, 1.2], tk: 0.6, bump: 1.4, lit: 1.5, spec: 0.05 },
         'floor.kaya': { tex: 'Rock064', scale: 240, mean: 0.17, con: 0.72, tint: [0.9, 0.97, 1.1], tk: 0.55, bump: 1.2, lit: 1.4, spec: 0.04 },
-        'floor.buz': { tex: 'Tiles141', scale: 220, mean: 0.28, con: 1.15, tint: [0.7, 0.97, 1.32], tk: 0.85, bump: 3, lit: 2.2, spec: 0.3 },
-        'floor.lav': { tex: 'Rock058', scale: 230, mean: 0.12, con: 0.8, tint: [1.15, 0.88, 0.8], tk: 0.65, bump: 1.3, lit: 1.5, spec: 0.05 },
+        'floor.buz': { tex: 'BuzKristal01', scale: 220, mean: 0.5, con: 1.05, tint: [0.85, 1, 1.15], tk: 0.3, bump: 2, lit: 1.6, spec: 0.35 },
+        'floor.lav': { tex: 'LavBazalt01', scale: 230, mean: 0.24, con: 1, tint: [1, 1, 1], tk: 0, bump: 1.6, lit: 1.4, spec: 0.08 },
         'wall.tas': { tex: 'Rock064', scale: 150, mean: 0.38, con: 0.95, tint: [0.9, 0.96, 1.12], tk: 0.45, bump: 1.5, lit: 1.8, spec: 0.05 },
         'wall.kaya': { tex: 'Rock058', scale: 150, mean: 0.33, con: 0.95, tint: [1.05, 0.98, 0.9], tk: 0.4, bump: 1.5, lit: 1.8, spec: 0.05 },
         'wall.buz': { tex: 'Rock058', scale: 150, mean: 0.42, con: 0.95, tint: [0.75, 0.95, 1.25], tk: 0.8, bump: 1.5, lit: 1.8, spec: 0.2 },
@@ -400,6 +400,6 @@ const Doku = (() => {
     }
 
     load();
-    return { themeFor, TEMALAR, TUM, AD, onizle, load, ready, pump, pattern, floor, crack, pool, edgePoints, mossLayer, rng, get state() { return state; }, get stamp() { return stamp; } };
+    return { themeFor, TEMALAR, TUM, AD, onizle, load, ready, pump, pattern, floor, crack, pool, edgePoints, mossLayer, rng, get state() { return state; }, get stamp() { return stamp; }, img(ad) { return state === 'ready' ? imgs[ad] || null : null; } };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = Doku;

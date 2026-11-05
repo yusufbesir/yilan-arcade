@@ -135,6 +135,7 @@ const SnakeGame = (() => {
         ['parlama', 'PARLAMA ATILIMI', 'Tron: iz uzadıkça enerji dolar (30 tik); dolunca O tuşu 3 hücre iz bırakmadan sıçratır'],
         ['tohum', 'TOHUM KODU', 'Klasik: oyun sonunda kısa kod gösterilir, T tuşu aynı kodla (aynı yem düzeniyle) yeniden başlatır'],
         ['pspr', 'SPRİTE PARÇACIKLAR', 'Patlama ve kıvılcımlar Kenney CC0 dokularıyla (yıldız, alev, ışık) çizilir; kapalıyken düz daire'],
+        ['yilanderi', 'YILAN DERİSİ', 'Blender ile üretilen pul dokusu gövdeye bindirilir (Nors yeşili, kor kırmızısı, buz mavisi; bölüm temasına göre)', false],
         ['rozet', 'ROZETLER', 'Başarımlar panelinde 10 sessiz rozet gösterir (oyun içinde görünmez)', false],
     ];
     const EK_KAPALI = new Set(EK_LISTE.filter(x => x[3] === false).map(x => x[0]));
@@ -2667,8 +2668,14 @@ const SnakeGame = (() => {
         if (state.mode === 'tapinak' || typeof Market === 'undefined') return null;
         try { return Market.skinFor({ cb: settings.cb }); } catch (e) { return null; }
     }
+    // Blender yılan derisi (Ek özellik, varsayılan kapalı): bölüm temasına göre Nors / Kor / Buz
+    function deriNow() {
+        if (!ek('yilanderi') || settings.cb || typeof Doku === 'undefined') return null;
+        const t = Doku.themeFor(state.mode, state.level);
+        return t === 'lav' ? 'Kor' : t === 'buz' ? 'Buz' : 'Nors';
+    }
     function gfxOpts() {
-        return { yanim: ek('surunme'), hizMs: state.speed, calisiyor: state.running && !state.paused && !state.over, CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, skin: skinNow(), all: renderPos, theme: Tema.etkin(state.mode, state.level), yemTema: settings.cb ? null : Tema.yemTon(Tema.etkin(state.mode, state.level)) };
+        return { yanim: ek('surunme'), hizMs: state.speed, calisiyor: state.running && !state.paused && !state.over, CELL: CONFIG.CELL, W: CONFIG.WIDTH, H: CONFIG.HEIGHT, COLS, ROWS, cb: settings.cb, pal: PALET, reduced: REDUCED, skin: skinNow(), deri: deriNow(), all: renderPos, theme: Tema.etkin(state.mode, state.level), yemTema: settings.cb ? null : Tema.yemTon(Tema.etkin(state.mode, state.level)) };
     }
     function drawBackground(now) {
         const W = CONFIG.WIDTH, H = CONFIG.HEIGHT;
