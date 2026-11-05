@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, screen } = require('electron');
 const path = require('path');
 
 // Eski ürün adlarının verisi ilk açılışta tek sefer kopyalanır (bkz. migrate.js).
@@ -7,8 +7,8 @@ try { migrateUserData(app.getPath('userData'), path.dirname(app.getPath('userDat
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1100,
-    height: 900,
+    width: Math.min(1920, screen.getPrimaryDisplay().workAreaSize.width),
+    height: Math.min(1080, screen.getPrimaryDisplay().workAreaSize.height),
     minWidth: 480,
     minHeight: 520,
     title: 'Twilight of the Serpents',
@@ -29,6 +29,11 @@ function createWindow() {
   const kendiSayfasi = (url) => { try { const u = new URL(url); return u.protocol === 'file:' && path.resolve(decodeURIComponent(u.pathname.replace(/^\/([A-Za-z]:)/, '$1'))) === path.resolve(indexPath); } catch (e) { return false; } };
   win.webContents.on('will-navigate', (e, url) => { if (!kendiSayfasi(url)) e.preventDefault(); });
   win.webContents.on('will-attach-webview', (e) => e.preventDefault());
+  // F11: tam ekran aç/kapat; sayfaya yalnız 'tam-ekran' sınıfı yansıtılır (sabit komut dizisi)
+  const tamEkranSinifi = () => win.webContents.executeJavaScript("document.body.classList.toggle('tam-ekran', " + (win.isFullScreen() ? 'true' : 'false') + ')').catch(() => {});
+  win.on('enter-full-screen', tamEkranSinifi);
+  win.on('leave-full-screen', tamEkranSinifi);
+  win.webContents.on('before-input-event', (e, input) => { if (input.type === 'keyDown' && input.key === 'F11') { win.setFullScreen(!win.isFullScreen()); e.preventDefault(); } });
   win.loadFile(indexPath);
 }
 
