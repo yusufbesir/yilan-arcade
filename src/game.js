@@ -115,6 +115,9 @@ const SnakeGame = (() => {
         ['elit', 'ELİT SANDIK', 'Hayatta Kalma: her 20. öldürmede tam seviyelik altın elmas düşer'],
         ['guc', 'GÜÇ HALKASI', 'Aktif güçlendirmenin kalan süresi yılanın başında ince halka olarak görünür'],
         ['rtekrar', 'R İLE YENİDEN DENE', 'Oyun sırasında R tuşu menüye dönmeden oyunu baştan başlatır'],
+        ['takas', 'BAŞ-KUYRUK TAKASI', 'Portal: X tuşu baş ile kuyruğu değiştirir (ters yön), 120 tik bekleme'],
+        ['yansit', 'YANSITMA HALKASI', 'Mermi Manyağı: Z tuşu önündeki mermiyi geri yansıtır, 1 kuyruk halkası harcar, 40 tik bekleme'],
+        ['vizz', 'YAKIN GEÇİŞ SESİ', 'Mermi Manyağı: sıyrılan mermi kısa tiz bir ses çıkarır'],
         ['kabuk', 'KABUK DEĞİŞTİRME', 'Klasik: 30 halkada K tuşu ile deri atılır, kuyruk 5 halkaya iner, 40 tik puan x2'],
         ['isi', 'ISI HARİTASI', 'Oyun sonu ekranında yılanın en çok geçtiği hücrelerin küçük ısı haritası'],
         ['olum', 'ÖLÜM EŞİĞİ', 'Klasik/Portal/Zamana Karşı: ölümcül hamlede bir tik bekler, dönmen için süre verir (60 tikte bir)'],
@@ -630,7 +633,7 @@ const SnakeGame = (() => {
         tron = { ai: [], aiDir: { x: -1, y: 0 }, round: 1, twoP: false, p2Next: { x: -1, y: 0 }, p2Wins: 0, gaps: new Set(), gapN: 0 };
         chaos = { rule: null, left: 0, next: 120, saved: 0, pending: null, kisa: '' };
         state.timeLeft = 60;
-        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.esikCool = 0; state.kabukLeft = 0; state.kabukHazir = false; state.isi = null; state.yanki = null; state.yemRenk = []; state.kapiLeft = 0; state.kapiRenk = null; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
+        state.ragnarok = false; state.kusursuz = 0; state.waveHit = false; state.rekorDone = false; state.ekYem = null; state.avSay = 0; state.svKill = 0; state.yemSay = 0; state.esikCool = 0; state.kabukLeft = 0; state.kabukHazir = false; state.takasCool = 0; state.yansitCool = 0; state.isi = null; state.yanki = null; state.yemRenk = []; state.kapiLeft = 0; state.kapiRenk = null; state.cekimLeft = 0; state.sonYem = 0; state.seri = 0; state.yonler = []; state.grazeChain = 0; state.grazeLast = -999; // 0.9.6: Ragnarök dakikası, kusursuz dalga sayacı/bayrağı
         document.getElementById('hudTarget').classList.remove('ragnarok');
         state.bolumTik = 0;
         rand = state.mode === 'daily' ? seededRand(todayKey()) : Math.random;
@@ -776,6 +779,8 @@ const SnakeGame = (() => {
         
         if (state.kapiLeft > 0) state.kapiLeft--;
         if (state.kabukLeft > 0) state.kabukLeft--;
+        if (state.takasCool > 0) state.takasCool--;
+        if (state.yansitCool > 0) state.yansitCool--;
         if (state.esikCool > 0) state.esikCool--;
         // Ölüm eşiği: ölümcül hamlede tik bir kez beklenir (60 tikte bir), oyuncu dönebilsin
         if (ek('olum') && state.esikCool <= 0 && ['classic', 'portal', 'timeattack'].includes(state.mode)
@@ -874,6 +879,32 @@ const SnakeGame = (() => {
         snake.length = 5; prevSnake.length = Math.min(prevSnake.length, 5);
         state.kabukLeft = 40; state.kabukHazir = false;
         showBanner('KABUK DEĞİŞTİ x2', true, 1400, 'altin'); playSound('powerup'); addShake(3);
+    }
+
+    // Baş-kuyruk takası: çıkmaza girince yön tersine döner (120 tik bekleme)
+    function takasYap() {
+        snake.reverse();
+        prevSnake = snake.map(c => ({ x: c.x, y: c.y }));
+        const dx = Math.sign(snake[0].x - snake[1].x), dy = Math.sign(snake[0].y - snake[1].y);
+        if (!dx && !dy) { snake.reverse(); return; }
+        dir = { x: dx, y: dy }; nextDir = { x: dx, y: dy }; turnQ.length = 0;
+        state.takasCool = 120;
+        showBanner('TAKAS!', false, 900, 'soluk'); playSound('powerup'); burst(snake[0].x + 0.5, snake[0].y + 0.5, '#7ad7ff', 14, 1.2);
+    }
+    // Yansıtma halkası: önündeki en yakın mermiyi geri yansıtır, 1 kuyruk halkası harcar
+    function yansitYap() {
+        const h = snake[0];
+        let best = null, bd = 6;
+        bullets.forEach(b => {
+            const fx = (b.x - h.x) * dir.x + (b.y - h.y) * dir.y; // baş yönünde ilerisi
+            const d = Math.hypot(b.x - h.x, b.y - h.y);
+            if (fx > -0.5 && d < bd) { bd = d; best = b; }
+        });
+        if (!best || snake.length <= 3) return;
+        best.dx = -best.dx * 1.3; best.dy = -best.dy * 1.3; best.grazed = true; best.homing = false;
+        snake.pop(); prevSnake.length = Math.min(prevSnake.length, snake.length);
+        state.yansitCool = 40;
+        showBanner('YANSITTI!', false, 800, 'soluk'); playSound('shield'); burst(best.x + 0.5, best.y + 0.5, '#7ad7ff', 14, 1.2);
     }
 
     function damage() {
@@ -1170,6 +1201,7 @@ const SnakeGame = (() => {
             // yakın geçiş (graze) puanı
             if (!b.grazed && Math.hypot(head.x - b.x, head.y - b.y) < 1.8) {
                 b.grazed = true;
+                if (ek('vizz')) playSound('graze');
                 if (!powers.invincible) {
                     let g = 1;
                     if (ek('siyrilma')) { // zincir: 90 tik içinde art arda sıyrılma x2, x3 puan
@@ -2102,6 +2134,14 @@ const SnakeGame = (() => {
         
         if (key === 'k' && state.mode === 'classic' && ek('kabuk') && state.kabukHazir && state.running && !state.paused && !state.over && snake.length >= 30) {
             kabukAt();
+            return;
+        }
+        if (key === 'x' && state.mode === 'portal' && ek('takas') && state.running && !state.paused && !state.over && snake.length >= 3 && !(state.takasCool > 0)) {
+            takasYap();
+            return;
+        }
+        if (key === 'z' && state.mode === 'bullet' && ek('yansit') && state.running && !state.paused && !state.over && !(state.yansitCool > 0)) {
+            yansitYap();
             return;
         }
         if (key === 'n') {
@@ -3236,6 +3276,7 @@ const SnakeGame = (() => {
                 case 'supereat': [660, 880, 1100, 1320].forEach((f, i) => tone(f, 'triangle', 0.1, 0.12, t + i * 0.05)); break;
                 case 'hit': tone(160, 'sawtooth', 0.2, 0.16, t, 60); tone(90, 'square', 0.25, 0.1, t); break;
                 case 'powerup': [440, 554, 659, 880].forEach((f, i) => tone(f, 'sine', 0.12, 0.12, t + i * 0.06)); break;
+                case 'graze': tone(1500, 'sine', 0.05, 0.05, t, 2200); break;
                 case 'shield': tone(320, 'triangle', 0.15, 0.12, t, 480); break;
                 case 'start': tone(440, 'square', 0.08, 0.1, t); tone(660, 'square', 0.1, 0.1, t + 0.1); break;
                 case 'gameover': tone(220, 'sawtooth', 0.5, 0.16, t, 55); tone(110, 'triangle', 0.7, 0.12, t + 0.1, 40); break;

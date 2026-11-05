@@ -260,6 +260,26 @@ const assert = require('assert');
     return d.get().state.isi ? Array.from(d.get().state.isi).filter(Boolean).length : -1;
   });
   assert.ok(r.isi >= 2, 'ısı izlenmedi: ' + r.isi);
+  // 22) Baş-kuyruk takası (Portal, X): yön tersine döner; kapalıyken hiçbir şey olmaz
+  await baslat('startPortal');
+  r.takas = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(); T(); T(); T();
+    const b0 = { ...d.get().snake[0] }, t0 = { ...d.get().snake[d.get().snake.length - 1] };
+    d.get().state.paused = false; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'x' })); d.get().state.paused = true;
+    const g2 = d.get();
+    return { baş: g2.snake[0].x === t0.x && g2.snake[0].y === t0.y, cool: g2.state.takasCool, dirX: g2.dir.x };
+  });
+  assert.ok(r.takas.baş && r.takas.cool > 0, 'takas çalışmadı: ' + JSON.stringify(r.takas));
+  // 23) Yansıtma (Mermi, Z): öndeki mermi geri döner, 1 halka harcanır
+  await baslat('startBullet');
+  r.yansit = await page.evaluate(() => {
+    const d = SnakeGame._debug, g = d.get(), h = g.snake[0]; g.bullets.length = 0; d.grow(2);
+    const n0 = d.get().snake.length;
+    g.bullets.push({ x: h.x + g.dir.x * 3, y: h.y + g.dir.y * 3, dx: -g.dir.x * 0.1, dy: -g.dir.y * 0.1, homing: false, grazed: false });
+    d.get().state.paused = false; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'z' })); d.get().state.paused = true;
+    const b = d.get().bullets[0]; return { n: n0 - d.get().snake.length, rev: b.dx * g.dir.x + b.dy * g.dir.y > 0 };
+  });
+  assert.ok(r.yansit.n === 1 && r.yansit.rev, 'yansıtma çalışmadı: ' + JSON.stringify(r.yansit));
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
