@@ -132,6 +132,7 @@ const SnakeGame = (() => {
         ['hayalet', 'HAYALET YILAN', 'Klasik: en iyi koşunun izi soluk bir ışık olarak yanında ilerler; önüne geçince "hayaleti geçtin" yazar'],
         ['parlama', 'PARLAMA ATILIMI', 'Tron: iz uzadıkça enerji dolar (30 tik); dolunca O tuşu 3 hücre iz bırakmadan sıçratır'],
         ['tohum', 'TOHUM KODU', 'Klasik: oyun sonunda kısa kod gösterilir, T tuşu aynı kodla (aynı yem düzeniyle) yeniden başlatır'],
+        ['pspr', 'SPRİTE PARÇACIKLAR', 'Patlama ve kıvılcımlar Kenney CC0 dokularıyla (yıldız, alev, ışık) çizilir; kapalıyken düz daire'],
         ['rozet', 'ROZETLER', 'Başarımlar panelinde 10 sessiz rozet gösterir (oyun içinde görünmez)', false],
     ];
     const EK_KAPALI = new Set(EK_LISTE.filter(x => x[3] === false).map(x => x[0]));
@@ -2954,13 +2955,17 @@ const SnakeGame = (() => {
         for (let i = 0; i < n && particles.length < 400; i++) {
             const a = Math.random() * Math.PI * 2;
             const v = (1.5 + Math.random() * 4) * (speed || 1);
-            particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.5 + Math.random() * 0.5, max: 1, color, r: 1.5 + Math.random() * 2.5 });
+            const pp = { x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.5 + Math.random() * 0.5, max: 1, color, r: 1.5 + Math.random() * 2.5 };
+            if (typeof Parcacik !== 'undefined' && ek('pspr')) Parcacik.ekle(pp, 'patla');
+            particles.push(pp);
         }
     }
     
     function spark(x, y) {
         if (particles.length > 380 || Math.random() > settings.fx) return;
-        particles.push({ x, y, vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.8, life: 0.45, max: 0.45, color: '#00ffaa', r: 1.2 });
+        const sp = { x, y, vx: (Math.random() - 0.5) * 0.8, vy: (Math.random() - 0.5) * 0.8, life: 0.45, max: 0.45, color: '#00ffaa', r: 1.2 };
+        if (typeof Parcacik !== 'undefined' && ek('pspr')) Parcacik.ekle(sp, 'kivilcim');
+        particles.push(sp);
     }
     
     function addShake(m) { if (!REDUCED && settings.shake) shake.mag = Math.max(shake.mag, m); }
@@ -2987,6 +2992,7 @@ const SnakeGame = (() => {
         ctx.globalCompositeOperation = 'lighter';
         particles.forEach(p => {
             ctx.globalAlpha = Math.max(0, Math.min(1, p.life / (p.max || 1)));
+            if (p.s !== undefined && Parcacik.ciz(ctx, p, p.x * S, p.y * S, ctx.globalAlpha, 0.016)) return;
             ctx.fillStyle = p.color;
             ctx.beginPath();
             ctx.arc(p.x * S, p.y * S, p.r, 0, Math.PI * 2);
@@ -3851,7 +3857,7 @@ const SnakeGame = (() => {
         ...(TEST_MODE ? { _tapinak: { run: () => tp, meta: () => tpMeta, tick: () => tick(), atil: () => tapinakAtil(), sec: i => tapinakSec(i) } } : {}),
         // Test API'si (_debug, _ach) yalnız ?test=1 ile açılan sayfada; paketli oyunda yok.
         ...(TEST_MODE ? { _miras: { buy: mirasBuy, render: renderMiras }, _ach: { list: ACH, unlocked: () => ({ ...unlocked }), unlock: unlockAch, check: checkAch },
-        _debug: { tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), draw: () => draw(), extra: () => ({ tmHiz, tmBekle, effSpeed: effSpeed(), portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
+        _debug: { fx: () => ({ burst, particles }), tick, power: (t) => activatePower(t), powers: () => ({ ...powers }), get: () => ({ sv, gems, state, snake, dir, nextDir, bullets, lasers, boss, patterns, enemies, playerShots }), jump: (w) => { state.wave = w - 1; waveTick = WAVE_TICKS - 1; }, grow: (n) => { for (let i = 0; i < n; i++) snake.push({ ...snake[snake.length - 1] }); }, godMode: () => { powers.invincible = true; }, tronWin: () => tronWin(), draw: () => draw(), extra: () => ({ tmHiz, tmBekle, effSpeed: effSpeed(), portals, tron, chaos, obstacles, food, records, palet: PALET, banner, bugun: todayKey(), dunku: dunkuSkor() }) } } : {})
     };
     return PUBLIC;
 })();
