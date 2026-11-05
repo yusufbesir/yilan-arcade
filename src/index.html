@@ -1079,12 +1079,13 @@
     .game-overlay::-webkit-scrollbar { width: 6px; }
     .game-overlay::-webkit-scrollbar-track { background: transparent; }
     .game-overlay::-webkit-scrollbar-thumb { background: rgba(169, 214, 240, 0.35); border-radius: 3px; }
-    @media (max-height: 760px) and (min-width: 481px) {
-        .game-overlay .overlay-box { padding: 16px 24px; }
-        .game-overlay .ov-ikon { width: 40px; height: 40px; margin-bottom: 8px; }
-        .game-overlay .ov-ikon .ik { width: 20px; height: 20px; }
-        .game-overlay .overlay-score { margin: 8px 0; }
-        .game-overlay .overlay-buttons { margin-top: 12px; }
+    @media (max-height: 800px) and (min-width: 481px) {
+        .game-overlay .overlay-box { padding: 12px 20px; }
+        .game-overlay .ov-ikon { display: none; }
+        .game-overlay .overlay-title { margin-bottom: 4px; }
+        .game-overlay .overlay-score { margin: 6px 0; }
+        .game-overlay .overlay-message { margin: 4px 0; }
+        .game-overlay .overlay-buttons { margin-top: 10px; gap: 8px; }
     }
     .overlay-box {
         width: min(440px, 100%); padding: 24px 32px; line-height: normal;
