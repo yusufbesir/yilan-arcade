@@ -187,6 +187,17 @@ const assert = require('assert');
   assert.strictEqual(r.rozet0, 0, 'rozetler varsayılan kapalı olmalı');
   r.rozet1 = await page.evaluate(() => { SnakeGame.setSetting('ek', { rozet: true }); SnakeGame.openAchievements(); const n = document.querySelectorAll('#achList .rozet-bas').length + document.querySelectorAll('#achList .ach').length; SnakeGame.closeAchievements(); SnakeGame.setSetting('ek', {}); return n; });
   assert.ok(r.rozet1 >= 25, 'rozetler görünmedi: ' + r.rozet1);
+  // 15) Kayıt yazılamazsa tek seferlik uyarı (kota dolu simülasyonu)
+  await baslat('startClassic');
+  r.kayitUyari = await page.evaluate(() => {
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = function () { throw new Error('quota'); };
+    const d = SnakeGame._debug, g = d.get(), h = g.snake[0];
+    d.extra().food.x = h.x + g.nextDir.x; d.extra().food.y = h.y + g.nextDir.y; d.extra().food.type = 'normal';
+    T();
+    return new Promise(res => setTimeout(() => { Storage.prototype.setItem = orig; res(document.getElementById('toast').textContent); }, 300));
+  });
+  assert.ok(/Kayıt yazılamadı/.test(r.kayitUyari), 'kayıt uyarısı yok: ' + r.kayitUyari);
   assert.deepStrictEqual(errors, [], 'hata: ' + errors);
   console.log('EK TEST: GECTI', JSON.stringify(r));
   await browser.close();
